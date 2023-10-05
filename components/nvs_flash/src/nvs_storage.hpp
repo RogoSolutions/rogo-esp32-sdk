@@ -94,6 +94,12 @@ public:
 
     esp_err_t eraseNamespace(uint8_t nsIndex);
 
+    /* Rogo API *************************************************************************************/
+    /* Ninh.D.H 05.10.2023 */
+    esp_err_t eraseFullNamespace(uint8_t nsIndex, const char *nsName);
+    esp_err_t checkNamespace(const char* nsName, uint8_t& nsIndex);
+    /************************************************************************************************/
+
     const Partition *getPart() const
     {
         return mPartition;

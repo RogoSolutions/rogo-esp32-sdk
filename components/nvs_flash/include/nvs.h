@@ -699,6 +699,13 @@ esp_err_t nvs_entry_info(const nvs_iterator_t iterator, nvs_entry_info_t *out_in
  */
 void nvs_release_iterator(nvs_iterator_t iterator);
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+esp_err_t nvs_get_item_size(nvs_handle_t c_handle, const char* key, uint8_t type, size_t *length);
+esp_err_t nvs_erase_namespace(nvs_handle_t c_handle, const char *ns);
+esp_err_t nvs_check_namespace(const char *part_name, const char* name);
+/************************************************************************************************/
+
 
 #ifdef __cplusplus
 } // extern "C"

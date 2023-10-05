@@ -818,5 +818,56 @@ bool Storage::nextEntry(nvs_opaque_iterator_t* it)
     return false;
 }
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+esp_err_t Storage::eraseFullNamespace(uint8_t nsIndex, const char *nsName)
+{
+    if (mState != StorageState::ACTIVE) {
+        return ESP_ERR_NVS_NOT_INITIALIZED;
+    }
+
+    for (auto it = std::begin(mPageManager); it != std::end(mPageManager); ++it) {
+        while (true) {
+            auto err = it->eraseItem(nsIndex, ItemType::ANY, nullptr);
+            if (err == ESP_ERR_NVS_NOT_FOUND) {
+                break;
+            }
+            else if (err != ESP_OK) {
+                return err;
+            }
+        }
+    }
+    if (eraseItem(Page::NS_INDEX, nsName) != ESP_OK){
+        return ESP_FAIL;
+    }
+    if (mNamespaceUsage.set(nsIndex, false) != ESP_OK) {
+        return ESP_FAIL;
+    }
+    auto ns_it = std::find_if(mNamespaces.begin(), mNamespaces.end(), [=] (const NamespaceEntry& e) -> bool {
+        return strncmp(nsName, e.mName, sizeof(e.mName) - 1) == 0;
+    });
+    mNamespaces.erase(ns_it);
+    return ESP_OK;
+
+}
+
+esp_err_t Storage::checkNamespace(const char* nsName, uint8_t& nsIndex)
+{
+    if (mState != StorageState::ACTIVE) {
+        return ESP_ERR_NVS_NOT_INITIALIZED;
+    }
+    auto it = std::find_if(mNamespaces.begin(), mNamespaces.end(), [=] (const NamespaceEntry& e) -> bool {
+        return strncmp(nsName, e.mName, sizeof(e.mName) - 1) == 0;
+    });
+    if (it == std::end(mNamespaces)) {
+        return ESP_ERR_NVS_NOT_FOUND;
+    }
+    // else {
+    //     nsIndex = it->mIndex;
+    // }
+    return ESP_OK;
+}
+/************************************************************************************************/
+
 
 }
