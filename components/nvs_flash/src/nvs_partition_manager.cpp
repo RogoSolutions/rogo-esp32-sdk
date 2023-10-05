@@ -238,4 +238,29 @@ Storage* NVSPartitionManager::lookup_storage_from_name(const char* name)
     return it;
 }
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+esp_err_t NVSPartitionManager::check_namespace(const char *part_name, const char *ns_name)
+{
+    uint8_t nsIndex;
+    Storage* sHandle;
+
+    if (nvs_storage_list.empty()) {
+        return ESP_ERR_NVS_NOT_INITIALIZED;
+    }
+
+    sHandle = lookup_storage_from_name(part_name);
+    if (sHandle == nullptr) {
+        return ESP_ERR_NVS_PART_NOT_FOUND;
+    }
+
+    esp_err_t err = sHandle->checkNamespace(ns_name, nsIndex);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    return ESP_OK;
+}
+/************************************************************************************************/
+
 } // nvs

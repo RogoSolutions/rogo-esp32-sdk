@@ -790,3 +790,62 @@ extern "C" void nvs_release_iterator(nvs_iterator_t it)
 {
     free(it);
 }
+
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+extern "C" esp_err_t nvs_get_item_size(nvs_handle_t c_handle, const char* key, uint8_t type, size_t *length)
+{
+    ESP_LOGD(TAG, "%s %s", __func__, key);
+    NVSHandleSimple *handle;
+    auto err = nvs_find_ns_handle(c_handle, &handle);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    size_t dataSize;
+    if (type == NVS_TYPE_BLOB){
+        err = handle->get_item_size(nvs::ItemType::BLOB, key, dataSize);
+    }
+    else if (type == NVS_TYPE_STR){
+        err = handle->get_item_size(nvs::ItemType::SZ, key, dataSize);
+    }
+    if (err != ESP_OK) {
+        return err;
+    }
+    *length = dataSize;
+    return ESP_OK;
+    // return dataSize;
+}
+
+extern "C" esp_err_t nvs_erase_namespace(nvs_handle_t c_handle, const char *ns)
+{
+    Lock lock;
+    ESP_LOGD(TAG, "%s\r\n", __func__);
+    NVSHandleSimple *handle;
+    auto err = nvs_find_ns_handle(c_handle, &handle);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    err = handle->erase_all_full(ns);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    return err;
+}
+
+extern "C" esp_err_t nvs_check_namespace(const char *part_name, const char* name)
+{
+    Lock lock;
+    ESP_LOGD(TAG, "%s %s %d", __func__, name);
+
+    // NVSHandleSimple *handle;
+    esp_err_t result = NVSPartitionManager::get_instance()->check_namespace(part_name, name);
+    // if (result == ESP_OK) {
+    //         delete handle;
+    // }
+
+    return result;
+}
+/************************************************************************************************/
