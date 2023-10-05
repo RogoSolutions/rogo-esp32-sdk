@@ -55,6 +55,11 @@ public:
 
     esp_err_t erase_all() override;
 
+    /* Rogo API *************************************************************************************/
+    /* Ninh.D.H 05.10.2023 */
+    esp_err_t erase_all_full(const char *ns);
+    /************************************************************************************************/
+
     esp_err_t commit() override;
 
     esp_err_t get_used_entry_count(size_t &usedEntries) override;

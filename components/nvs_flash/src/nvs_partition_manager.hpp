@@ -38,6 +38,11 @@ public:
 
     size_t open_handles_size();
 
+    /* Rogo API *************************************************************************************/
+    /* Ninh.D.H 05.10.2023 */
+    esp_err_t check_namespace(const char *part_name, const char *ns_name);
+    /************************************************************************************************/
+
 protected:
     NVSPartitionManager() { }
 

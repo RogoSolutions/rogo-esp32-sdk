@@ -89,6 +89,17 @@ esp_err_t NVSHandleSimple::erase_all()
     return mStoragePtr->eraseNamespace(mNsIndex);
 }
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+esp_err_t NVSHandleSimple::erase_all_full(const char *ns)
+{
+    if (!valid) return ESP_ERR_NVS_INVALID_HANDLE;
+    if (mReadOnly) return ESP_ERR_NVS_READ_ONLY;
+
+    return mStoragePtr->eraseFullNamespace(mNsIndex, ns);
+}
+/************************************************************************************************/
+
 esp_err_t NVSHandleSimple::commit()
 {
     if (!valid) return ESP_ERR_NVS_INVALID_HANDLE;
