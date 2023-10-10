@@ -827,6 +827,83 @@ int bt_mesh_model_send(struct bt_mesh_model *model,
     return model_send(model, &tx, false, msg, cb, cb_data);
 }
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+static int model_send_with_devkey(struct bt_mesh_model *model,
+                                  struct bt_mesh_net_tx *tx, bool implicit_bind,
+                                  struct net_buf_simple *msg,
+                                  uint8_t *devKey,
+                                  const struct bt_mesh_send_cb *cb, void *cb_data)
+{
+    uint8_t role = 0U;
+
+    role = bt_mesh_get_device_role(model, tx->ctx->srv_send);
+    if (role == ROLE_NVAL) {
+        BT_ERR("Failed to get model role");
+        return -EINVAL;
+    }
+
+    BT_INFO("send, app_idx 0x%04x src 0x%04x dst 0x%04x",
+        tx->ctx->app_idx, tx->src, tx->ctx->addr);
+    BT_INFO("send, len %u: %s", msg->len, bt_hex(msg->data, msg->len));
+
+    if (!ready_to_send(role, tx->ctx->addr)) {
+        BT_ERR("Not ready to send");
+        return -EINVAL;
+    }
+
+    if (net_buf_simple_tailroom(msg) < BLE_MESH_MIC_SHORT) {
+        BT_ERR("Not enough tailroom for TransMIC");
+        return -EINVAL;
+    }
+
+    if (msg->len > MIN(BLE_MESH_TX_SDU_MAX, BLE_MESH_SDU_MAX_LEN) - BLE_MESH_MIC_SHORT) {
+        BT_ERR("Too big message (len %d)", msg->len);
+        return -EMSGSIZE;
+    }
+
+    if (!implicit_bind && !model_has_key(model, tx->ctx->app_idx)) {
+        BT_ERR("Model not bound to AppKey 0x%04x", tx->ctx->app_idx);
+        return -EINVAL;
+    }
+    ESP_LOG_BUFFER_HEX("model devkey", devKey, 16);
+    return bt_mesh_trans_send_with_devkey(tx, msg, devKey, cb, cb_data);
+}
+
+int bt_mesh_model_send_with_devkey(struct bt_mesh_model *model,
+                                   struct bt_mesh_msg_ctx *ctx,
+                                   struct net_buf_simple *msg,
+                                   uint8_t *devKey,
+                                   const struct bt_mesh_send_cb *cb, void *cb_data)
+{
+    struct bt_mesh_subnet *sub = NULL;
+    uint8_t role = 0U;
+
+    role = bt_mesh_get_device_role(model, ctx->srv_send);
+    if (role == ROLE_NVAL) {
+        BT_ERR("Failed to get model role");
+        return -EINVAL;
+    }
+
+    sub = bt_mesh_tx_netkey_get(role, ctx->net_idx);
+    if (!sub) {
+        BT_ERR("Invalid NetKeyIndex 0x%04x", ctx->net_idx);
+        return -EINVAL;
+    }
+
+    ctx->model = model;
+
+    struct bt_mesh_net_tx tx = {
+        .sub = sub,
+        .ctx = ctx,
+        .src = bt_mesh_model_elem(model)->addr,
+        .xmit = bt_mesh_net_transmit_get(),
+        .friend_cred = 0,
+    };
+    return model_send_with_devkey(model, &tx, false, msg, devKey, cb, cb_data);
+}
+/* Rogo API *************************************************************************************/
+
 int bt_mesh_model_publish(struct bt_mesh_model *model)
 {
     struct bt_mesh_model_pub *pub = model->pub;

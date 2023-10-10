@@ -95,6 +95,64 @@ int bt_mesh_provision(const uint8_t net_key[16], uint16_t net_idx,
     return 0;
 }
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+int bt_mesh_rogo_provision(const uint8_t net_key[16], uint16_t net_idx,
+                           uint8_t flags, uint32_t iv_index, uint32_t seq_num,
+                           uint16_t addr, const uint8_t dev_key[16])
+{
+    bool pb_gatt_enabled = false;
+    int err = 0;
+
+    BT_INFO("Primary Element: 0x%04x", addr);
+    BT_INFO("net_idx 0x%04x flags 0x%02x iv_index 0x%04x", net_idx, flags, iv_index);
+    BT_INFO("dev_key %s", bt_hex(dev_key, 16));
+
+    if (bt_mesh_atomic_test_and_set_bit(bt_mesh.flags, BLE_MESH_VALID)) {
+        return -EALREADY;
+    }
+
+    if (IS_ENABLED(CONFIG_BLE_MESH_PB_GATT)) {
+        if (bt_mesh_proxy_server_prov_disable(false) == 0) {
+            pb_gatt_enabled = true;
+        } else {
+            pb_gatt_enabled = false;
+        }
+    } else {
+        pb_gatt_enabled = false;
+    }
+
+    err = bt_mesh_net_create(net_idx, flags, net_key, iv_index);
+    if (err) {
+        bt_mesh_atomic_clear_bit(bt_mesh.flags, BLE_MESH_VALID);
+
+        if (IS_ENABLED(CONFIG_BLE_MESH_PB_GATT) && pb_gatt_enabled) {
+            bt_mesh_proxy_server_prov_enable();
+        }
+
+        return err;
+    }
+
+    bt_mesh.seq = seq_num;
+    // bt_mesh.seq = 0U;
+
+    bt_mesh_comp_provision(addr);
+
+    memcpy(bt_mesh.dev_key, dev_key, 16);
+
+    if (IS_ENABLED(CONFIG_BLE_MESH_SETTINGS)) {
+        BT_DBG("Storing network information persistently");
+        bt_mesh_store_net();
+        bt_mesh_store_subnet(&bt_mesh.sub[0]);
+        bt_mesh_store_iv(false);
+    }
+
+    bt_mesh_net_start();
+
+    return 0;
+}
+/* Rogo API *************************************************************************************/
+
 void bt_mesh_node_reset(void)
 {
     if (!bt_mesh_is_provisioned()) {
@@ -386,7 +444,15 @@ int bt_mesh_init(const struct bt_mesh_prov *prov,
     }
 
     if (IS_ENABLED(CONFIG_BLE_MESH_PROXY)) {
+        /* Rogo API *************************************************************************************/
+        /* Ninh.D.H 05.10.2023 */
+        // #ifndef CONFIG_WILE_ENABLE
+        #if defined(CONFIG_WILE_ENABLE) && defined(CONFIG_BT_NIMBLE_ENABLED)
+        bt_mesh_wile_gatt_init();
+        #else
         bt_mesh_gatt_init();
+        #endif
+        /************************************************************************************************/
     }
 
     if ((IS_ENABLED(CONFIG_BLE_MESH_NODE) &&

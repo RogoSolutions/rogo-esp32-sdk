@@ -346,6 +346,115 @@ int bt_mesh_client_send_msg(bt_mesh_client_common_param_t *param,
     return err;
 }
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+int bt_mesh_client_rogo_send_msg(bt_mesh_client_rogo_param_t *param,
+                            struct net_buf_simple *msg, bool need_ack,
+                            k_work_handler_t timer_handler)
+{
+    bt_mesh_client_internal_data_t *internal = NULL;
+    bt_mesh_client_user_data_t *client = NULL;
+    bt_mesh_client_node_t *node = NULL;
+    int err = 0;
+    ESP_LOG_BUFFER_HEX("DEVKEY", param->devKey, 16);
+
+    if (!param || !param->model || !msg) {
+        BT_ERR("%s, Invalid parameter", __func__);
+        return -EINVAL;
+    }
+
+    client = (bt_mesh_client_user_data_t *)param->model->user_data;
+    if (!client) {
+        BT_ERR("Invalid client user data");
+        return -EINVAL;
+    }
+
+    internal = (bt_mesh_client_internal_data_t *)client->internal_data;
+    if (!internal) {
+        BT_ERR("Invalid client internal data");
+        return -EINVAL;
+    }
+
+    if (param->ctx.addr == BLE_MESH_ADDR_UNASSIGNED) {
+        BT_ERR("Invalid DST 0x%04x", param->ctx.addr);
+        return -EINVAL;
+    }
+
+    if (bt_mesh_set_client_model_role(param->model, param->msg_role)) {
+        BT_ERR("Failed to set client role");
+        return -EIO;
+    }
+
+    if (need_ack == false || !BLE_MESH_ADDR_IS_UNICAST(param->ctx.addr)) {
+        /* 1. If this is an unacknowledged message, send it directly.
+         * 2. If this is an acknowledged message, but the destination
+         *    is not a unicast address, e.g. a group/virtual address,
+         *    then all the corresponding responses will be treated as
+         *    publish messages, and no timeout will be used.
+         */
+        err = bt_mesh_model_send(param->model, &param->ctx, msg, param->cb, param->cb_data);
+        ESP_LOGW("MESH", "Client send unack");
+        if (err) {
+            BT_ERR("Failed to send client message 0x%08x", param->opcode);
+        }
+        return err;
+    }
+
+    if (!timer_handler) {
+        BT_ERR("Invalid timeout handler");
+        return -EINVAL;
+    }
+
+    if (bt_mesh_client_check_node_in_list(&internal->queue, param->ctx.addr)) {
+        BT_ERR("Busy sending message to DST 0x%04x", param->ctx.addr);
+        return -EBUSY;
+    }
+
+    /* Don't forget to free the node in the timeout (timer_handler) function. */
+    node = (bt_mesh_client_node_t *)bt_mesh_calloc(sizeof(bt_mesh_client_node_t));
+    if (!node) {
+        BT_ERR("%s, Out of memory", __func__);
+        return -ENOMEM;
+    }
+
+    memcpy(&node->ctx, &param->ctx, sizeof(struct bt_mesh_msg_ctx));
+    node->ctx.model = param->model;
+    node->opcode = param->opcode;
+    node->op_pending = bt_mesh_client_get_status_op(client->op_pair, client->op_pair_size, param->opcode);
+    if (node->op_pending == 0U) {
+        BT_ERR("Not found the status opcode in op_pair list");
+        bt_mesh_free(node);
+        return -EINVAL;
+    }
+    node->timeout = bt_mesh_client_calc_timeout(&param->ctx, msg, param->opcode,
+                        param->msg_timeout ? param->msg_timeout : CONFIG_BLE_MESH_CLIENT_MSG_TIMEOUT);
+
+    if (k_delayed_work_init(&node->timer, timer_handler)) {
+        BT_ERR("Failed to create a timer");
+        bt_mesh_free(node);
+        return -EIO;
+    }
+
+    bt_mesh_list_lock();
+    sys_slist_append(&internal->queue, &node->client_node);
+    bt_mesh_list_unlock();
+
+    /* "bt_mesh_model_send" will post the mesh packet to the mesh adv queue.
+     * Due to the higher priority of adv_thread (than btc task), we need to
+     * send the packet after the list item "node" is initialized properly.
+     */
+    err = bt_mesh_model_send_with_devkey(param->model, &param->ctx, msg, param->devKey, &send_cb, node);
+    ESP_LOGW("MESH", "Client send");
+    if (err) {
+        BT_ERR("Failed to send client message 0x%08x", node->opcode);
+        k_delayed_work_free(&node->timer);
+        bt_mesh_client_free_node(node);
+    }
+
+    return err;
+}
+/* Rogo API *************************************************************************************/
+
 static bt_mesh_mutex_t client_model_lock;
 
 static inline void bt_mesh_client_model_mutex_new(void)

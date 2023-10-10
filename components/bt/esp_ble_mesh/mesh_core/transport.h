@@ -109,6 +109,13 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, uint8_t ctl_op, void *data,
 int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
                        const struct bt_mesh_send_cb *cb, void *cb_data);
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+int bt_mesh_trans_send_with_devkey(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
+                                   uint8_t *devKey,
+                                   const struct bt_mesh_send_cb *cb, void *cb_data);
+/*************************************************************************************************/
+
 int bt_mesh_trans_recv(struct net_buf_simple *buf, struct bt_mesh_net_rx *rx);
 
 void bt_mesh_trans_init(void);

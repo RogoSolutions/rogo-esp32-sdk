@@ -83,6 +83,66 @@ void btc_ble_mesh_config_client_arg_deep_copy(btc_msg_t *msg, void *p_dest, void
     }
 }
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+void btc_ble_mesh_config_client_rogo_arg_deep_copy(btc_msg_t *msg, void *p_dest, void *p_src)
+{
+    btc_ble_mesh_config_client_args_t *dst = (btc_ble_mesh_config_client_args_t *)p_dest;
+    btc_ble_mesh_config_client_args_t *src = (btc_ble_mesh_config_client_args_t *)p_src;
+
+    if (!msg || !dst || !src) {
+        BT_ERR("%s, Invalid parameter", __func__);
+        return;
+    }
+
+    switch (msg->act) {
+    case BTC_BLE_MESH_ACT_CONFIG_CLIENT_GET_STATE: {
+        dst->cfg_client_get_state.params = (esp_ble_mesh_client_common_param_t *)bt_mesh_malloc(sizeof(esp_ble_mesh_client_common_param_t));
+        if (dst->cfg_client_get_state.params) {
+            memcpy(dst->cfg_client_get_state.params, src->cfg_client_get_state.params,
+                   sizeof(esp_ble_mesh_client_common_param_t));
+        } else {
+            BT_ERR("%s, Out of memory, act %d", __func__, msg->act);
+            break;
+        }
+        if (src->cfg_client_get_state.get_state) {
+            dst->cfg_client_get_state.get_state = (esp_ble_mesh_cfg_client_get_state_t *)bt_mesh_malloc(sizeof(esp_ble_mesh_cfg_client_get_state_t));
+            if (dst->cfg_client_get_state.get_state) {
+                memcpy(dst->cfg_client_get_state.get_state, src->cfg_client_get_state.get_state,
+                    sizeof(esp_ble_mesh_cfg_client_get_state_t));
+            } else {
+                BT_ERR("%s, Out of memory, act %d", __func__, msg->act);
+            }
+        }
+        break;
+    }
+    case BTC_BLE_MESH_ACT_CONFIG_CLIENT_SET_STATE: {
+        dst->cfg_client_rogo_set_state.params = (esp_ble_mesh_client_rogo_param_t *)bt_mesh_malloc(sizeof(esp_ble_mesh_client_rogo_param_t));
+        if (dst->cfg_client_rogo_set_state.params) {
+            memcpy(dst->cfg_client_rogo_set_state.params, src->cfg_client_rogo_set_state.params,
+                   sizeof(esp_ble_mesh_client_rogo_param_t));
+        } else {
+            BT_ERR("%s, Out of memory, act %d", __func__, msg->act);
+            break;
+        }
+        if (src->cfg_client_rogo_set_state.set_state) {
+            dst->cfg_client_rogo_set_state.set_state = (esp_ble_mesh_cfg_client_set_state_t *)bt_mesh_malloc(sizeof(esp_ble_mesh_cfg_client_set_state_t));
+            if (dst->cfg_client_rogo_set_state.set_state) {
+                memcpy(dst->cfg_client_rogo_set_state.set_state, src->cfg_client_rogo_set_state.set_state,
+                    sizeof(esp_ble_mesh_cfg_client_set_state_t));
+            } else {
+                BT_ERR("%s, Out of memory, act %d", __func__, msg->act);
+            }
+        }
+        break;
+    }
+    default:
+        BT_DBG("%s, Unknown act %d", __func__, msg->act);
+        break;
+    }
+}
+/* Rogo API *************************************************************************************/
+
 void btc_ble_mesh_config_client_arg_deep_free(btc_msg_t *msg)
 {
     btc_ble_mesh_config_client_args_t *arg = NULL;
@@ -465,6 +525,160 @@ static int btc_ble_mesh_config_client_get_state(esp_ble_mesh_client_common_param
     return 0;
 }
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+static int btc_ble_mesh_rogo_config_client_set_state(esp_ble_mesh_client_rogo_param_t *params,
+                                                     esp_ble_mesh_cfg_client_set_state_t *set)
+{
+    bt_mesh_client_rogo_param_t param = {0};
+
+    if (params == NULL) {
+        BT_ERR("%s, Invalid parameter", __func__);
+        return -EINVAL;
+    }
+
+    if (params->opcode != ESP_BLE_MESH_MODEL_OP_NODE_RESET && set == NULL) {
+        BT_ERR("Invalid Configuration Set");
+        return -EINVAL;
+    }
+
+    BT_INFO("MSG ROLE: %d", params->msg_role);
+
+    param.opcode = params->opcode;
+    param.model = (struct bt_mesh_model *)params->model;
+    param.ctx.net_idx = params->ctx.net_idx;
+    param.ctx.app_idx = BLE_MESH_KEY_DEV;
+    param.ctx.addr = params->ctx.addr;
+    param.ctx.send_rel = params->ctx.send_rel;
+    param.ctx.send_ttl = params->ctx.send_ttl;
+    param.msg_timeout = params->msg_timeout;
+    param.msg_role = params->msg_role;
+    memcpy(param.devKey, params->devKey, 16);
+
+    switch (param.opcode) {
+    case ESP_BLE_MESH_MODEL_OP_BEACON_SET:
+        return bt_mesh_cfg_beacon_set(&param, set->beacon_set.beacon);
+    case ESP_BLE_MESH_MODEL_OP_DEFAULT_TTL_SET:
+        return bt_mesh_cfg_ttl_set(&param, set->default_ttl_set.ttl);
+    case ESP_BLE_MESH_MODEL_OP_FRIEND_SET:
+        return bt_mesh_cfg_friend_set(&param, set->friend_set.friend_state);
+    case ESP_BLE_MESH_MODEL_OP_GATT_PROXY_SET:
+        return bt_mesh_cfg_gatt_proxy_set(&param, set->gatt_proxy_set.gatt_proxy);
+    case ESP_BLE_MESH_MODEL_OP_RELAY_SET:
+        return bt_mesh_cfg_relay_set(&param, set->relay_set.relay,
+                                     set->relay_set.relay_retransmit);
+    case ESP_BLE_MESH_MODEL_OP_NET_KEY_ADD:
+        return bt_mesh_cfg_net_key_add(&param, set->net_key_add.net_idx,
+                                       &set->net_key_add.net_key[0]);
+    case ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD:
+        return bt_mesh_cfg_app_key_add(&param, set->app_key_add.net_idx,
+                                       set->app_key_add.app_idx,
+                                       &set->app_key_add.app_key[0]);
+    case ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND:
+        return bt_mesh_cfg_mod_app_bind(&param, set->model_app_bind.element_addr,
+                                        set->model_app_bind.model_app_idx,
+                                        set->model_app_bind.model_id,
+                                        set->model_app_bind.company_id);
+    case ESP_BLE_MESH_MODEL_OP_MODEL_PUB_SET: {
+        struct bt_mesh_cfg_mod_pub model_pub = {
+            .addr = set->model_pub_set.publish_addr,
+            .app_idx = set->model_pub_set.publish_app_idx,
+            .cred_flag = set->model_pub_set.cred_flag,
+            .ttl = set->model_pub_set.publish_ttl,
+            .period = set->model_pub_set.publish_period,
+            .transmit = set->model_pub_set.publish_retransmit,
+        };
+        return bt_mesh_cfg_mod_pub_set(&param, set->model_pub_set.element_addr,
+                                       set->model_pub_set.model_id,
+                                       set->model_pub_set.company_id, &model_pub);
+    }
+    case ESP_BLE_MESH_MODEL_OP_MODEL_SUB_ADD:
+        return bt_mesh_cfg_mod_sub_add(&param, set->model_sub_add.element_addr,
+                                       set->model_sub_add.sub_addr,
+                                       set->model_sub_add.model_id,
+                                       set->model_sub_add.company_id);
+    case ESP_BLE_MESH_MODEL_OP_MODEL_SUB_DELETE:
+        return bt_mesh_cfg_mod_sub_del(&param, set->model_sub_delete.element_addr,
+                                       set->model_sub_delete.sub_addr,
+                                       set->model_sub_delete.model_id,
+                                       set->model_sub_delete.company_id);
+    case ESP_BLE_MESH_MODEL_OP_MODEL_SUB_OVERWRITE:
+        return bt_mesh_cfg_mod_sub_overwrite(&param, set->model_sub_overwrite.element_addr,
+                                             set->model_sub_overwrite.sub_addr,
+                                             set->model_sub_overwrite.model_id,
+                                             set->model_sub_overwrite.company_id);
+    case ESP_BLE_MESH_MODEL_OP_MODEL_SUB_VIRTUAL_ADDR_ADD:
+        return bt_mesh_cfg_mod_sub_va_add(&param, set->model_sub_va_add.element_addr,
+                                          &set->model_sub_va_add.label_uuid[0],
+                                          set->model_sub_va_add.model_id,
+                                          set->model_sub_va_add.company_id);
+    case ESP_BLE_MESH_MODEL_OP_MODEL_SUB_VIRTUAL_ADDR_OVERWRITE:
+        return bt_mesh_cfg_mod_sub_va_overwrite(&param, set->model_sub_va_overwrite.element_addr,
+                                                &set->model_sub_va_overwrite.label_uuid[0],
+                                                set->model_sub_va_overwrite.model_id,
+                                                set->model_sub_va_overwrite.company_id);
+    case ESP_BLE_MESH_MODEL_OP_MODEL_SUB_VIRTUAL_ADDR_DELETE:
+        return bt_mesh_cfg_mod_sub_va_del(&param, set->model_sub_va_delete.element_addr,
+                                          &set->model_sub_va_delete.label_uuid[0],
+                                          set->model_sub_va_delete.model_id,
+                                          set->model_sub_va_delete.company_id);
+    case ESP_BLE_MESH_MODEL_OP_HEARTBEAT_SUB_SET:
+        return bt_mesh_cfg_hb_sub_set(&param, (struct bt_mesh_cfg_hb_sub *)&set->heartbeat_sub_set);
+    case ESP_BLE_MESH_MODEL_OP_HEARTBEAT_PUB_SET:
+        return bt_mesh_cfg_hb_pub_set(&param, (struct bt_mesh_cfg_hb_pub *)&set->heartbeat_pub_set);
+    case ESP_BLE_MESH_MODEL_OP_NODE_RESET:
+        return bt_mesh_cfg_rogo_node_reset(&param);
+    case ESP_BLE_MESH_MODEL_OP_MODEL_PUB_VIRTUAL_ADDR_SET: {
+        struct bt_mesh_cfg_mod_pub model_pub = {
+            .app_idx = set->model_pub_va_set.publish_app_idx,
+            .cred_flag = set->model_pub_va_set.cred_flag,
+            .ttl = set->model_pub_va_set.publish_ttl,
+            .period = set->model_pub_va_set.publish_period,
+            .transmit = set->model_pub_va_set.publish_retransmit,
+        };
+        return bt_mesh_cfg_mod_pub_va_set(&param, set->model_pub_va_set.element_addr,
+                                          set->model_pub_va_set.model_id,
+                                          set->model_pub_va_set.company_id,
+                                          set->model_pub_va_set.label_uuid, &model_pub);
+    }
+    case ESP_BLE_MESH_MODEL_OP_MODEL_SUB_DELETE_ALL:
+        return bt_mesh_cfg_mod_sub_del_all(&param, set->model_sub_delete_all.element_addr,
+                                           set->model_sub_delete_all.model_id,
+                                           set->model_sub_delete_all.company_id);
+    case ESP_BLE_MESH_MODEL_OP_NET_KEY_UPDATE:
+        return bt_mesh_cfg_net_key_update(&param, set->net_key_update.net_idx,
+                                          set->net_key_update.net_key);
+    case ESP_BLE_MESH_MODEL_OP_NET_KEY_DELETE:
+        return bt_mesh_cfg_net_key_delete(&param, set->net_key_delete.net_idx);
+    case ESP_BLE_MESH_MODEL_OP_APP_KEY_UPDATE:
+        return bt_mesh_cfg_app_key_update(&param, set->app_key_update.net_idx,
+                                          set->app_key_update.app_idx,
+                                          set->app_key_update.app_key);
+    case ESP_BLE_MESH_MODEL_OP_APP_KEY_DELETE:
+        return bt_mesh_cfg_app_key_delete(&param, set->app_key_delete.net_idx,
+                                          set->app_key_delete.app_idx);
+    case ESP_BLE_MESH_MODEL_OP_NODE_IDENTITY_SET:
+        return bt_mesh_cfg_node_identity_set(&param, set->node_identity_set.net_idx,
+                                             set->node_identity_set.identity);
+    case ESP_BLE_MESH_MODEL_OP_MODEL_APP_UNBIND:
+        return bt_mesh_cfg_mod_app_unbind(&param, set->model_app_unbind.element_addr,
+                                          set->model_app_unbind.model_app_idx,
+                                          set->model_app_unbind.model_id,
+                                          set->model_app_unbind.company_id);
+    case ESP_BLE_MESH_MODEL_OP_KEY_REFRESH_PHASE_SET:
+        return bt_mesh_cfg_kr_phase_set(&param, set->kr_phase_set.net_idx,
+                                        set->kr_phase_set.transition);
+    case ESP_BLE_MESH_MODEL_OP_NETWORK_TRANSMIT_SET:
+        return bt_mesh_cfg_net_transmit_set(&param, set->net_transmit_set.net_transmit);
+    default:
+        BT_ERR("Invalid Configuration Set opcode 0x%04x", param.opcode);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+/* Rogo API *************************************************************************************/
+
 static int btc_ble_mesh_config_client_set_state(esp_ble_mesh_client_common_param_t *params,
                                                 esp_ble_mesh_cfg_client_set_state_t *set)
 {
@@ -637,8 +851,18 @@ void btc_ble_mesh_config_client_call_handler(btc_msg_t *msg)
     }
     case BTC_BLE_MESH_ACT_CONFIG_CLIENT_SET_STATE: {
         cb.params = arg->cfg_client_set_state.params;
+        /* Rogo API *************************************************************************************/
+        /* Ninh.D.H 05.10.2023 */
+        cb.error_code = btc_ble_mesh_rogo_config_client_set_state(arg->cfg_client_rogo_set_state.params,
+                                                                  arg->cfg_client_rogo_set_state.set_state);
+        
+        
+        /* Rogo API *************************************************************************************/
+        /*
         cb.error_code = btc_ble_mesh_config_client_set_state(arg->cfg_client_set_state.params,
                                                              arg->cfg_client_set_state.set_state);
+        */
+        /* Rogo API *************************************************************************************/
         if (cb.error_code) {
             btc_ble_mesh_config_client_callback(&cb, ESP_BLE_MESH_CFG_CLIENT_SET_STATE_EVT);
         }

@@ -496,10 +496,13 @@ static bool is_unprov_dev_being_provision(const uint8_t uuid[16])
 #if defined(CONFIG_BLE_MESH_PB_ADV) && defined(CONFIG_BLE_MESH_PB_GATT)
         if (link[i].linking || link[i].connecting ||
                 bt_mesh_atomic_test_bit(link[i].flags, LINK_ACTIVE)) {
-#elif defined(CONFIG_BLE_MESH_PB_ADV) && !defined(CONFIG_BLE_MESH_PB_GATT)
-        if (link[i].linking || bt_mesh_atomic_test_bit(link[i].flags, LINK_ACTIVE)) {
-#else
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+#elif !defined(CONFIG_BLE_MESH_PB_ADV) && defined(CONFIG_BLE_MESH_PB_GATT)
         if (link[i].connecting || bt_mesh_atomic_test_bit(link[i].flags, LINK_ACTIVE)) {
+#else
+        if (1) {
+/************************************************************************************************/
 #endif
             if (!memcmp(link[i].uuid, uuid, 16)) {
                 BT_DBG("Device is being provisioning");
