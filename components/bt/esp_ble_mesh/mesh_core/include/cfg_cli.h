@@ -136,6 +136,11 @@ int bt_mesh_cfg_hb_pub_get(bt_mesh_client_common_param_t *param);
 
 int bt_mesh_cfg_node_reset(bt_mesh_client_common_param_t *param);
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+int bt_mesh_cfg_rogo_node_reset(bt_mesh_client_rogo_param_t *param);
+/*************************************************************************************************/
+
 /* Configuration Client Status Message Context */
 
 struct bt_mesh_cfg_comp_data_status {

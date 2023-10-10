@@ -757,6 +757,14 @@ struct bt_mesh_conn *bt_mesh_conn_ref(struct bt_mesh_conn *conn);
 void bt_mesh_conn_unref(struct bt_mesh_conn *conn);
 
 void bt_mesh_gatt_init(void);
+
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 09.10.2023 */
+#ifdef CONFIG_BT_NIMBLE_ENABLED
+void bt_mesh_wile_gatt_init(void);
+#endif
+/************************************************************************************************/
+
 void bt_mesh_gatt_deinit(void);
 
 void bt_mesh_adapt_init(void);

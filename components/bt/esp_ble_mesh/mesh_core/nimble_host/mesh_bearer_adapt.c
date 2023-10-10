@@ -1713,6 +1713,62 @@ void bt_mesh_gatt_init(void)
 #endif
 }
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 09.10.2023 */
+#ifdef CONFIG_WILE_ENABLE
+void bt_mesh_wile_gatt_init(void)
+{
+    ESP_LOGW("NIMBLE", "bt_mesh_wile_gatt_init");
+    // ble_att_set_preferred_mtu(BLE_ATT_MTU_DFLT);
+
+    ble_hs_cfg.gatts_register_cb = gatt_register_cb;
+
+#if defined(CONFIG_BLE_MESH_NODE) && CONFIG_BLE_MESH_NODE
+
+    ble_uuid_t *wileUUID = (ble_uuid16_t[]) {
+        #ifdef CONFIG_WILE_BLE_SERVICE_UUID
+        BLE_UUID16_INIT(CONFIG_WILE_BLE_SERVICE_UUID)
+        #else
+        BLE_UUID16_INIT(0x7267)
+        #endif
+    };
+
+    if (ble_gatts_find_svc(wileUUID, NULL) == ESP_OK) {
+        ble_gatts_add_dynamic_svcs(svc_defs);
+    }
+    else {
+        // static bool init = false;
+        int rc;
+        ble_svc_gap_init();
+        ble_svc_gatt_init();
+
+        rc = ble_gatts_count_cfg(svc_defs);
+        assert(rc == 0);
+
+        rc = ble_gatts_add_svcs(svc_defs);
+        assert(rc == 0);
+
+        ble_gatts_start();
+
+        ble_gatts_svc_set_visibility(prov_svc_start_handle, 1);
+        ble_gatts_svc_set_visibility(proxy_svc_start_handle, 0);
+
+        // init = true;
+    }
+#endif
+
+#if (CONFIG_BLE_MESH_PROVISIONER && CONFIG_BLE_MESH_PB_GATT) || \
+    CONFIG_BLE_MESH_GATT_PROXY_CLIENT
+    for (int i = 0; i < ARRAY_SIZE(bt_mesh_gattc_info); i++) {
+        bt_mesh_gattc_info[i].conn.handle = 0xFFFF;
+        bt_mesh_gattc_info[i].mtu = BLE_ATT_MTU_DFLT;
+        bt_mesh_gattc_info[i].wr_desc_done = false;
+    }
+#endif
+}
+#endif
+/* Rogo API *************************************************************************************/
+
 #if CONFIG_BLE_MESH_DEINIT
 void bt_mesh_gatt_deinit(void)
 {

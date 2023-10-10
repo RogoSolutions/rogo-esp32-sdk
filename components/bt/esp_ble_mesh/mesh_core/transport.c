@@ -651,6 +651,69 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
     return err;
 }
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+int bt_mesh_trans_send_with_devkey(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
+                                   uint8_t *devKey,
+                                   const struct bt_mesh_send_cb *cb, void *cb_data)
+{
+    const uint8_t *key = NULL;
+    uint8_t *ad = NULL, role = 0U;
+    uint8_t aid = 0U;
+    int err = 0;
+
+    if (net_buf_simple_tailroom(msg) < BLE_MESH_MIC_SHORT) {
+        BT_ERR("Insufficient tailroom for Transport MIC");
+        return -EINVAL;
+    }
+
+    if (msg->len > BLE_MESH_SDU_UNSEG_MAX) {
+        tx->ctx->send_rel = 1U;
+    }
+
+    BT_DBG("net_idx 0x%04x app_idx 0x%04x dst 0x%04x", tx->sub->net_idx,
+           tx->ctx->app_idx, tx->ctx->addr);
+    BT_DBG("len %u: %s", msg->len, bt_hex(msg->data, msg->len));
+
+    role = bt_mesh_get_device_role(tx->ctx->model, tx->ctx->srv_send);
+    if (role == ROLE_NVAL) {
+        BT_ERR("Failed to get model role");
+        return -EINVAL;
+    }
+
+    tx->aid = aid;
+
+    if (!tx->ctx->send_rel || net_buf_simple_tailroom(msg) < BLE_MESH_MIC_LONG) {
+        tx->aszmic = 0U;
+    } else {
+        tx->aszmic = 1U;
+    }
+
+    if (BLE_MESH_ADDR_IS_VIRTUAL(tx->ctx->addr)) {
+        ad = bt_mesh_label_uuid_get(tx->ctx->addr);
+    } else {
+        ad = NULL;
+    }
+
+    err = bt_mesh_app_encrypt(devKey, tx->ctx->app_idx == BLE_MESH_KEY_DEV,
+                              tx->aszmic, msg, ad, tx->src,
+                              tx->ctx->addr, bt_mesh.seq,
+                              BLE_MESH_NET_IVI_TX);
+    if (err) {
+        BT_ERR("Encrypt failed (err %d)", err);
+        return err;
+    }
+
+    if (tx->ctx->send_rel) {
+        err = send_seg(tx, msg, cb, cb_data);
+    } else {
+        err = send_unseg(tx, msg, cb, cb_data);
+    }
+
+    return err;
+}
+/* Rogo API *************************************************************************************/
+
 static void update_rpl(struct bt_mesh_rpl *rpl, struct bt_mesh_net_rx *rx)
 {
     rpl->src = rx->ctx.addr;

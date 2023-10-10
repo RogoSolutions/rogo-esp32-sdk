@@ -2054,6 +2054,19 @@ typedef struct {
     uint8_t msg_role;               /*!< Role of the device - Node/Provisioner */
 } esp_ble_mesh_client_common_param_t;
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 05.10.2023 */
+typedef struct {
+    esp_ble_mesh_opcode_t opcode;   /*!< Message opcode */
+    esp_ble_mesh_model_t *model;    /*!< Pointer to the client model structure */
+    esp_ble_mesh_msg_ctx_t ctx;     /*!< The context used to send message */
+    uint8_t devKey[16];                /*!< Device key of receiver */
+    int32_t msg_timeout;            /*!< Timeout value (ms) to get response to the sent message */
+    /*!< Note: if using default timeout value in menuconfig, make sure to set this value to 0 */
+    uint8_t msg_role;               /*!< Role of the device - Node/Provisioner */
+} esp_ble_mesh_client_rogo_param_t;
+/************************************************************************************************/
+
 /**
  * @brief BLE Mesh server models related definitions
  */
