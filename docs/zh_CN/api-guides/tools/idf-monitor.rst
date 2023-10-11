@@ -4,64 +4,67 @@ IDF 监视器
 
 :link_to_translation:`en:[English]`
 
-IDF 监视器是一个串行终端程序，使用了 esp-idf-monitor_ 包，用于收发目标设备串口的串行数据，IDF 监视器同时还兼具 IDF 的其他特性。
+IDF 监视器是一个串行终端程序，用于收发目标设备串口的串行数据，IDF 监视器同时还兼具 IDF 的其他特性。
 
-在 IDF 中调用 ``idf.py monitor`` 可以启用此监视器。
+在 IDF 中调用以下目标函数可以启用此监视器：
+
+- **若使用 CMake 编译系统，则请调用**：``idf.py monitor``
+- **若使用传统 GNU Make 编译系统，请调用**：``make monitor``
 
 操作快捷键
 ==================
 
 为了方便与 IDF 监视器进行交互，请使用表中给出的快捷键。
 
-.. list-table::
-   :header-rows: 1
-   :widths: 15 25 55
-
+.. list-table::                                        
+   :header-rows: 1                                     
+   :widths: 15 25 55                                      
+                                        
    * - 快捷键
      - 操作
-     - 描述
+     - 描述                                        
    * - Ctrl+]
      - 退出监视器程序
-     -
+     -                                      
    * - Ctrl+T
      - 菜单退出键
-     - 按下如下给出的任意键之一，并按指示操作。
+     - 按下如下给出的任意键之一，并按指示操作。                                       
    * - * Ctrl+T
      - 将菜单字符发送至远程
-     -
+     -                                      
    * - * Ctrl+]
      - 将 exit 字符发送至远程
-     -
+     -                                      
    * - * Ctrl+P
-     - 重置目标设备，进入引导加载程序，通过 RTS 线暂停应用程序
-     - 重置目标设备，通过 RTS 线（如已连接）进入引导加载程序，此时开发板不运行任何程序。等待其他设备启动时可以使用此操作。
+     - 重置目标设备，进入 Bootloader，通过 RTS 线暂停应用程序
+     - 重置目标设备，通过 RTS 线（如已连接）进入 Bootloader，此时开发板不运行任何程序。等待其他设备启动时可以使用此操作。                                     
    * - * Ctrl+R
      - 通过 RTS 线重置目标设备
-     - 重置设备，并通过 RTS 线（如已连接）重新启动应用程序。
+     - 重置设备，并通过 RTS 线（如已连接）重新启动应用程序。                                      
    * - * Ctrl+F
      - 编译并烧录此项目
-     - 暂停 idf_monitor，运行 ``flash`` 目标，然后恢复 idf_monitor。任何改动的源文件都会被重新编译，然后重新烧录。如果 idf_monitor 是以参数 ``-E`` 启动的，则会运行目标 ``encrypted-flash``。
+     - 暂停 idf_monitor，运行 ``flash`` 目标，然后恢复 idf_monitor。任何改动的源文件都会被重新编译，然后重新烧录。如果 idf_monitor 是以参数 ``-E`` 启动的，则会运行目标 ``encrypted-flash``。                                    
    * - * Ctrl+A (或者 A)
      - 仅编译及烧录应用程序
-     - 暂停 idf_monitor，运行 ``app-flash`` 目标，然后恢复 idf_monitor。 这与 ``flash`` 类似，但只有主应用程序被编译并被重新烧录。如果 idf_monitor 是以参数 ``-E`` 启动的，则会运行目标 ``encrypted-flash``。
+     - 暂停 idf_monitor，运行 ``app-flash`` 目标，然后恢复 idf_monitor。 这与 ``flash`` 类似，但只有主应用程序被编译并被重新烧录。如果 idf_monitor 是以参数 ``-E`` 启动的，则会运行目标 ``encrypted-flash``。                                    
    * - * Ctrl+Y
      - 停止/恢复在屏幕上打印日志输出
-     - 激活时，会丢弃所有传入的串行数据。允许在不退出监视器的情况下快速暂停和检查日志输出。
+     - 激活时，会丢弃所有传入的串行数据。允许在不退出监视器的情况下快速暂停和检查日志输出。                   
    * - * Ctrl+L
      - 停止/恢复向文件写入日志输出
-     - 在工程目录下创建一个文件，用于写入日志输出。可使用快捷键停止/恢复该功能（退出 IDF 监视器也会终止该功能）。
+     - 在工程目录下创建一个文件，用于写入日志输出。可使用快捷键停止/恢复该功能（退出 IDF 监视器也会终止该功能） 
    * - * Ctrl+I (或者 I)
      - 停止/恢复打印时间标记
-     - IDF 监视器可以在每一行的开头打印一个时间标记。时间标记的格式可以通过 ``--timestamp-format`` 命令行参数来改变。
+     - IDF 监视器可以在每一行的开头打印一个时间标记。时间标记的格式可以通过 ``--timestamp-format`` 命令行参数来改变。        
    * - * Ctrl+H (或者 H)
      - 显示所有快捷键
-     -
+     -                                      
    * - * Ctrl+X (或者 X)
      - 退出监视器程序
-     -
+     - 
    * - Ctrl+C
      - 中断正在运行的应用程序
-     - 暂停 IDF 监视器并运行 GDB_ 项目调试器，从而在运行时调试应用程序。这需要启用 :ref:CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME 选项。
+     - 暂停 IDF 监视器并运行 GDB_ 项目调试器，从而在运行时调试应用程序。这需要启 :ref:CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME 选项。   
 
 除了 ``Ctrl-]`` 和 ``Ctrl-T``，其他快捷键信号会通过串口发送到目标设备。
 
@@ -72,7 +75,7 @@ IDF 监视器是一个串行终端程序，使用了 esp-idf-monitor_ 包，用�
 自动解码地址
 ~~~~~~~~~~~~~~~~
 
-每当芯片输出指向可执行代码的十六进制地址时，IDF 监视器将查找该地址在源代码中的位置（文件名和行号），并在下一行用黄色打印出该位置。
+ESP-IDF 输出形式为 ``0x4_______`` 的十六进制代码地址后，IDF 监视器将使用 addr2line_ 查找该地址在源代码中的位置和对应的函数名。
 
 .. highlight:: none
 
@@ -180,76 +183,26 @@ IDF 监视器在后台运行以下命令，解码各地址::
 
   {IDF_TARGET_TOOLCHAIN_PREFIX}-addr2line -pfiaC -e build/PROJECT.elf ADDRESS
 
-.. only:: CONFIG_IDF_TARGET_ARCH_XTENSA
-
-  如果在应用程序源代码中找不到匹配的地址，IDF 监视器还会检查 ROM 代码。此时不会打印源文件名和行号，只显示 ``函数名 in ROM``::
-
-    abort() was called at PC 0x40007c69 on core 0
-    0x40007c69: ets_write_char in ROM
-
-    Backtrace: 0x40081656:0x3ffb4ac0 0x40085729:0x3ffb4ae0 0x4008a7ce:0x3ffb4b00 0x40007c69:0x3ffb4b70 0x40008148:0x3ffb4b90 0x400d51d7:0x3ffb4c20 0x400e31bc:0x3ffb4c50 0x40087bc5:0x3ffb4c80
-    0x40081656: panic_abort at /Users/espressif/esp-idf/components/esp_system/panic.c:452
-    0x40085729: esp_system_abort at /Users/espressif/esp-idf/components/esp_system/port/esp_system_chip.c:90
-    0x4008a7ce: abort at /Users/espressif/esp-idf/components/newlib/abort.c:38
-    0x40007c69: ets_write_char in ROM
-    0x40008148: ets_printf in ROM
-    0x400d51d7: app_main at /Users/espressif/esp-idf/examples/get-started/hello_world/main/hello_world_main.c:49
-    0x400e31bc: main_task at /Users/espressif/esp-idf/components/freertos/app_startup.c:208 (discriminator 13)
-    0x40087bc5: vPortTaskWrapper at /Users/espressif/esp-idf/components/freertos/FreeRTOS-Kernel/portable/xtensa/port.c:162
-    .....
-
-.. only:: CONFIG_IDF_TARGET_ARCH_RISCV
-
-  如果在应用程序源代码中找不到匹配的地址，IDF 监视器还会检查 ROM 代码。此时不会打印源文件名和行号，只显示 ``函数名 in ROM``::
-
-    abort() was called at PC 0x400481c1 on core 0
-    0x400481c1: ets_rsa_pss_verify in ROM
-
-    Stack dump detected
-    Core  0 register dump:
-    MEPC    : 0x4038051c  RA      : 0x40383840  SP      : 0x3fc8f6b0  GP      : 0x3fc8b000
-    0x4038051c: panic_abort at /Users/espressif/esp-idf/components/esp_system/panic.c:452
-    0x40383840: __ubsan_include at /Users/espressif/esp-idf/components/esp_system/ubsan.c:313
-
-    TP      : 0x3fc8721c  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130
-    S0/FP   : 0x00000004  S1      : 0x3fc8f714  A0      : 0x3fc8f6dc  A1      : 0x3fc8f712
-    A2      : 0x00000000  A3      : 0x3fc8f709  A4      : 0x00000001  A5      : 0x3fc8c000
-    A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x3fc8f750
-    S4      : 0x3fc8f7e4  S5      : 0x00000000  S6      : 0x400481b0  S7      : 0x3c025841
-    0x400481b0: ets_rsa_pss_verify in ROM
-    .....
-
-ROM ELF 文件会根据 ``IDF_PATH`` 和 ``ESP_ROM_ELF_DIR`` 环境变量的路径自动加载。如需覆盖此行为，可以通过调用 ``esp_idf_monitor`` 并指定特定的 ROM ELF 文件路径：``python -m esp_idf_monitor --rom-elf-file [ROM ELF 文件的路径]``。
-
 .. note::
 
-    将环境变量 ``ESP_MONITOR_DECODE`` 设置为 ``0`` 或者调用 esp_idf_monitor 的特定命令行选项 ``python -m esp_idf_monitor --disable-address-decoding`` 来禁止地址解码。
-
-连接时复位目标芯片
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-默认情况下，IDF 监视器会在目标芯片连接时通过 DTR 和 RTS 串行线自动复位芯片。要防止 IDF 监视器在连接时自动复位，请在调用 IDF 监视器时加上选项 ``--no-reset``，如 ``idf.py monitor --no-reset``。
-
-.. note::
-
-    ``--no-reset`` 选项在 IDF 监视器连接到特定端口时可以实现同样的效果，如 ``idf.py monitor --no-reset -p [PORT]``。
-
+    将环境变量 ``ESP_MONITOR_DECODE`` 设置为 ``0`` 或者调用 idf_monitor.py 的特定命令行选项：``idf_monitor.py --disable-address-decoding`` 来禁止地址解码。
 
 配置 GDBStub 以启用 GDB
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-GDBStub 支持在运行时进行调试。GDBStub 在目标上运行，并通过串口连接到主机从而接收调试命令。GDBStub 支持读取内存和变量、检查调用堆栈帧等命令。虽然没有 JTAG 调试通用，但由于 GDBStub 完全通过串行端口完成通信，故不需要使用特殊硬件（如 JTAG/USB 桥接器）。
+默认情况下，如果 ESP-IDF 应用程序发生 crash 事件，panic 处理器将在串口上打印相关寄存器和堆栈转储（类似上述情况），然后重置开发板。
 
-通过将 :ref:`CONFIG_ESP_SYSTEM_PANIC` 设置为 ``GDBStub on runtime``，可以将目标配置为在后台运行 GDBStub。GDBStub 将保持在后台运行，直到通过串行端口发送 ``Ctrl+C`` 导致应用程序中断（即停止程序执行），从而让 GDBStub 处理调试命令。
+此外，可以配置应用程序在后台运行 GDBStub 并处理运行中的应用程序突然中断事件 (Ctrl+C)。
 
-此外，还可以通过设置 :ref:`CONFIG_ESP_SYSTEM_PANIC` 为 ``GDBStub on panic`` 来配置 panic 处理程序，使其在发生 crash 事件时运行 GDBStub。当 crash 发生时，GDBStub 将通过串口输出特殊的字符串模式，表示 GDBStub 正在运行。
+或者选择配置 panic 处理器以运行 GDBStub，GDBStub 工具可以与 GDB_ 项目调试器进行通信，允许读取内存、检查调用堆栈帧和变量等。GDBStub 虽然没有 JTAG 通用，但不需要使用特殊硬件。
 
-无论是通过发送 ``Ctrl+C`` 还是收到特殊字符串模式，IDF 监视器都会自动启动 GDB，从而让用户发送调试命令。GDB 退出后，通过 RTS 串口线复位目标。如果未连接 RTS 串口线，请按复位键，手动复位开发板。
+如需在发生 panic 事件时启用 GDBStub，请运行 ``idf.py menuconfig`` 打开项目配置菜单，并将 :ref:`CONFIG_ESP_SYSTEM_PANIC` 选项设置为 ``GDBStub on panic``，或者将 :ref:`CONFIG_ESP_SYSTEM_PANIC` 设置为 ``GDBStub on runtime``。
 
-.. note::
-    IDF 监视器在后台运行如下命令启用 GDB::
+在这种情况下，如果 panic 处理器被触发或应用程序突然中断 (Ctrl+C)，只要 IDF 监视器监控到 GDBStub 已经加载，panic 处理器就会自动暂停串行监控并使用必要的参数运行 GDB。GDB 退出后，通过 RTS 串口线复位开发板。如果未连接 RTS 串口线，请按复位键，手动复位开发板。
 
-        {IDF_TARGET_TOOLCHAIN_PREFIX}-gdb -ex "set serial baud BAUD" -ex "target remote PORT" -ex interrupt build/PROJECT.elf :idf_target:`Hello NAME chip`
+IDF 监控器在后台运行如下命令::
+
+  {IDF_TARGET_TOOLCHAIN_PREFIX}-gdb -ex "set serial baud BAUD" -ex "target remote PORT" -ex interrupt build/PROJECT.elf :idf_target:`Hello NAME chip`
 
 
 输出筛选
@@ -318,11 +271,10 @@ Windows 环境下已知问题
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - 由于 Windows 控制台限制，有些箭头键及其他一些特殊键无法在 GDB 中使用。
-- 偶然情况下，``idf.py`` 退出时，可能会在 IDF 监视器恢复之前暂停 30 秒。
+- 偶然情况下，``idf.py`` 或 ``make`` 退出时，可能会在 IDF 监视器恢复之前暂停 30 秒。
 - GDB 运行时，可能会暂停一段时间，然后才开始与 GDBStub 进行通信。
 
 .. _addr2line: https://sourceware.org/binutils/docs/binutils/addr2line.html
-.. _esp-idf-monitor: https://github.com/espressif/esp-idf-monitor
 .. _gdb: https://sourceware.org/gdb/download/onlinedocs/
 .. _pySerial: https://github.com/pyserial/pyserial
 .. _miniterm: https://pyserial.readthedocs.org/en/latest/tools.html#module-serial.tools.miniterm

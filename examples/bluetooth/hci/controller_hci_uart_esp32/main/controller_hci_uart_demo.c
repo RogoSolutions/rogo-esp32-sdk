@@ -1,7 +1,7 @@
 /*
  * SPDX-FileCopyrightText: 2021 Espressif Systems (Shanghai) CO LTD
  *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <stdio.h>
@@ -10,7 +10,7 @@
 #include "esp_bt.h"
 #include "soc/uhci_periph.h"
 #include "driver/uart.h"
-#include "esp_private/periph_ctrl.h" // for enabling UHCI module, remove it after UHCI driver is released
+#include "driver/periph_ctrl.h"
 #include "esp_log.h"
 
 static const char *tag = "CONTROLLER_UART_HCI";

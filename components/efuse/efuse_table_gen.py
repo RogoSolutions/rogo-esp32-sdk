@@ -4,7 +4,7 @@
 #
 # Converts efuse table to header file efuse_table.h.
 #
-# SPDX-FileCopyrightText: 2017-2022 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2017-2021 Espressif Systems (Shanghai) CO LTD
 #
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import division, print_function
@@ -248,7 +248,6 @@ class FuseTable(list):
                  'extern "C" {',
                  '#endif',
                  '',
-                 '#include "esp_efuse.h"',
                  '',
                  '// md5_digest_table ' + self.md5_digest_table,
                  '// This file was generated from the file ' + file_name + '.csv. DO NOT CHANGE THIS FILE MANUALLY.',
@@ -261,11 +260,7 @@ class FuseTable(list):
         last_field_name = ''
         for p in self:
             if (p.field_name != last_field_name):
-                name = 'ESP_EFUSE_' + p.field_name.replace('.', '_')
-                rows += ['extern const esp_efuse_desc_t* ' + name + '[];']
-                for alt_name in p.get_alt_names():
-                    alt_name = 'ESP_EFUSE_' + alt_name.replace('.', '_')
-                    rows += ['#define ' + alt_name + ' ' + name]
+                rows += ['extern const esp_efuse_desc_t* ' + 'ESP_EFUSE_' + p.field_name.replace('.', '_') + '[];']
                 last_field_name = p.field_name
 
         rows += ['',
@@ -438,12 +433,6 @@ class FuseDefinition(object):
                          str(self.bit_start),
                          str(self.get_bit_count()) + '}, \t // ' + self.comment])
 
-    def get_alt_names(self):
-        result = re.search(r'^\[(.*?)\]', self.comment)
-        if result:
-            return result.group(1).split()
-        return []
-
 
 def process_input_file(file, type_table):
     status('Parsing efuse CSV input file ' + file.name + ' ...')
@@ -497,8 +486,7 @@ def main():
     global idf_target
 
     parser = argparse.ArgumentParser(description='ESP32 eFuse Manager')
-    parser.add_argument('--idf_target', '-t', help='Target chip type', choices=['esp32', 'esp32s2', 'esp32s3', 'esp32c3',
-                        'esp32c2', 'esp32c6', 'esp32h2'], default='esp32')
+    parser.add_argument('--idf_target', '-t', help='Target chip type', choices=['esp32', 'esp32s2', 'esp32s3', 'esp32c3', 'esp32h2'], default='esp32')
     parser.add_argument('--quiet', '-q', help="Don't print non-critical status messages to stderr", action='store_true')
     parser.add_argument('--debug', help='Create header file with debug info', default=False, action='store_false')
     parser.add_argument('--info', help='Print info about range of used bits', default=False, action='store_true')

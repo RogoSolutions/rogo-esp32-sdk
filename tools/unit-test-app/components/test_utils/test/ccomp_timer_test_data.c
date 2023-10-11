@@ -7,13 +7,28 @@
 #include "ccomp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_private/esp_clk.h"
-#include "test_utils.h"
+
+
+#if CONFIG_IDF_TARGET_ESP32
+#include "esp32/clk.h"
+#elif CONFIG_IDF_TARGET_ESP32S2
+#include "esp32s2/clk.h"
+#elif CONFIG_IDF_TARTGET_ESP32S3
+#include "esp32s3/clk.h"
+#elif CONFIG_IDF_TARGET_ESP32C3
+#include "esp32c3/clk.h"
+#endif
 
 #include "unity.h"
 
 #include "sdkconfig.h"
 
+
+/* No performance monitor in RISCV for now
+ */
+#if !DISABLED_FOR_TARGETS(ESP32C3)
+
+static const char* TAG = "test_ccomp_timer";
 
 #if CONFIG_IDF_TARGET_ESP32
 #define CACHE_WAYS              2
@@ -28,7 +43,7 @@
 #define CACHE_LINE_SIZE         32
 #define CACHE_SIZE              (1 << 13)
 #define TEST_SIZE               (CACHE_SIZE)
-#elif CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32C2 || CONFIG_IDF_TARGET_ESP32C6
+#elif CONFIG_IDF_TARGET_ESP32C3
 #define CACHE_WAYS              8
 #define CACHE_LINE_SIZE         32
 #define CACHE_SIZE              (1 << 14)
@@ -45,14 +60,7 @@ typedef struct {
     int64_t ccomp;
 } ccomp_test_time_t;
 
-/* No performance monitor in RISCV for now
- */
-#if !__riscv
-//IDF-5052
-
-static const char* TAG = "test_ccomp_timer";
-
-#if CONFIG_SPIRAM
+#if CONFIG_ESP32_SPIRAM_SUPPORT
 static uint8_t *flash_mem;
 #else
 static const uint8_t flash_mem[2 * CACHE_SIZE] = {0};
@@ -135,7 +143,7 @@ static ccomp_test_time_t perform_test_at_hit_rate(int hit_rate, const uint8_t *m
 
 static ccomp_test_time_t ccomp_test_ref_time(void)
 {
-#if CONFIG_SPIRAM
+#if CONFIG_ESP32_SPIRAM_SUPPORT
     uint8_t *mem = heap_caps_malloc(2 * CACHE_SIZE, MALLOC_CAP_INTERNAL | MALLOC_CAP_DEFAULT);
 #else
     uint8_t *mem = heap_caps_malloc(sizeof(flash_mem), MALLOC_CAP_INTERNAL | MALLOC_CAP_DEFAULT);
@@ -150,7 +158,7 @@ TEST_CASE("data cache hit rate sweep", "[test_utils][ccomp_timer]")
     ccomp_test_time_t t_ref;
     ccomp_test_time_t t_hr;
 
-#if CONFIG_SPIRAM
+#if CONFIG_ESP32_SPIRAM_SUPPORT
     flash_mem = heap_caps_malloc(2 * CACHE_SIZE, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
 #endif
 
@@ -164,7 +172,7 @@ TEST_CASE("data cache hit rate sweep", "[test_utils][ccomp_timer]")
     for (int i = 0; i <= 100; i += 5)
     {
         t_hr = perform_test_at_hit_rate(i, flash_mem);
-        float error = (llabs(t_ref.ccomp - t_hr.ccomp) / (float)t_ref.ccomp) * 100.0f;
+        float error = (abs(t_ref.ccomp - t_hr.ccomp) / (float)t_ref.ccomp) * 100.0f;
 
         ESP_LOGI(TAG, "Hit Rate(%%): %d    Wall Time(us): %lld    Compensated Time(us): %lld    Error(%%): %f", i, (long long)t_hr.wall, (long long)t_hr.ccomp, error);
 
@@ -173,8 +181,9 @@ TEST_CASE("data cache hit rate sweep", "[test_utils][ccomp_timer]")
         TEST_ASSERT(error <= 5.0f);
     }
 
-#if CONFIG_SPIRAM
+#if CONFIG_ESP32_SPIRAM_SUPPORT
     free(flash_mem);
 #endif
 }
-#endif // __riscv
+
+#endif // !DISABLED_FOR_TARGETS(ESP32C3)

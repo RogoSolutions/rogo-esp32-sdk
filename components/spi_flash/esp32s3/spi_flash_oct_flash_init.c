@@ -31,6 +31,7 @@
 const static char *TAG = "Octal Flash";
 // default value is rom_default_spiflash_legacy_flash_func
 extern const spiflash_legacy_funcs_t *rom_spiflash_legacy_funcs;
+extern int SPI_write_enable(void *spi);
 static uint32_t s_chip_id;
 
 
@@ -117,7 +118,7 @@ static void s_set_flash_dtr_str_opi_mode(int spi_num, uint8_t val)
     int dummy = 0;
     int data_bit_len = 8;
 
-    esp_rom_spiflash_write_enable(&g_rom_flashchip);
+    SPI_write_enable(&g_rom_flashchip);
     //SPI command, WRCR2
     esp_rom_opiflash_exec_cmd(spi_num, ESP_ROM_SPIFLASH_FASTRD_MODE,
                               SPI_FLASH_SPI_CMD_WRCR2, cmd_len,
@@ -168,7 +169,7 @@ static void s_set_flash_ouput_driver_strength(int spi_num, uint8_t strength)
     //Write
     //SPI command, WRSR/WRCR
     data_bit_len = 16;
-    esp_rom_spiflash_write_enable(&g_rom_flashchip);
+    SPI_write_enable(&g_rom_flashchip);
     esp_rom_opiflash_exec_cmd(spi_num, ESP_ROM_SPIFLASH_FASTRD_MODE,
                               SPI_FLASH_SPI_CMD_WRSRCR, cmd_len,
                               addr, addr_bit_len,
@@ -189,11 +190,7 @@ static void s_set_pin_drive_capability(uint8_t drv)
 
 static void s_flash_init_mxic(esp_rom_spiflash_read_mode_t mode)
 {
-#if CONFIG_ESPTOOLPY_FLASH_SAMPLE_MODE_STR
-    static const esp_rom_opiflash_def_t opiflash_cmd_def_mxic = OPI_CMD_FORMAT_MXIC_STR();
-#elif CONFIG_ESPTOOLPY_FLASH_SAMPLE_MODE_DTR
-    static const esp_rom_opiflash_def_t opiflash_cmd_def_mxic = OPI_CMD_FORMAT_MXIC_DTR();
-#endif
+    static const esp_rom_opiflash_def_t opiflash_cmd_def_mxic = OPI_CMD_FORMAT_MXIC();
     esp_rom_opiflash_legacy_driver_init(&opiflash_cmd_def_mxic);
     esp_rom_spiflash_wait_idle(&g_rom_flashchip);
 

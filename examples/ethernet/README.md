@@ -17,14 +17,6 @@ See the [README.md](../README.md) file in the upper level [examples](../) direct
 | GPIO26 | RX1         | EMAC_RXD1    |
 | GPIO27 | CRS_DV      | EMAC_RX_DRV  |
 
-* One of the following GPIO pins can be used as RMII REF_CLK input/output:
-
-| GPIO   | Function             | Notes        |
-| ------ | -------------------- | ------------ |
-| GPIO0  | EMAC_TX_CLK/CLK_OUT1 | input/output |
-| GPIO16 | EMAC_CLK_OUT         | output       |
-| GPIO17 | EMAC_CLK_180         | output       |
-
 * SMI (Serial Management Interface) wiring is not fixed. You may need to changed it according to your board schematic. By default they're connected as follows:
 
 | GPIO   | SMI Signal  | Notes         |
@@ -47,16 +39,11 @@ See the [README.md](../README.md) file in the upper level [examples](../) direct
 | GPIO4  | Interrupt   |
 | NC     | Reset       |
 
----
-
-**Warning:**
-Please consult Espressif Technical reference manual along with datasheet for specific ESP Module you use when assigning any other pins, especially when choosing from system configuration menu for the ethernet examples, some pins cannot be used (they may already be utilized for different purpose like SPI Flash/RAM, some pins might be inputs only, etc.).
-
----
+Please consult Espressif Technical reference manual along with datasheet for specific ESP Module you use when assigning any other pins, especially when choosing from system configuration menu for the ethernet examples, some pins cannot be used (they may already be utilized for different purpose like SPI Flash/RAM, etc.).
 
 ## Common Configurations
 
-1. In the `Example Ethernet Configuration` menu:
+1. In the `Example Configuration` menu:
     * Choose the kind of Ethernet.
     * If `Internal EMAC` is selected:
         * Choose PHY device under `Ethernet PHY Device`, by default, the **ESP32-Ethernet-Kit** has an `IP101` on board.

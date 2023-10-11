@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -110,17 +110,15 @@ struct esp_lcd_panel_t {
     esp_err_t (*invert_color)(esp_lcd_panel_t *panel, bool invert_color_data);
 
     /**
-     * @brief Turn on or off the display
+     * @brief Turn off the display
      *
      * @param[in] panel LCD panel handle, which is created by other factory API like `esp_lcd_new_panel_st7789()`
-     * @param[in] on_off True to turns on display, False to turns off display
+     * @param[in] off Whether to turn off the screen
      * @return
      *          - ESP_OK on success
      *          - ESP_ERR_NOT_SUPPORTED if this function is not supported by the panel
      */
-    esp_err_t (*disp_on_off)(esp_lcd_panel_t *panel, bool on_off);
-
-    void *user_data;    /*!< User data, used to store externally customized data */
+    esp_err_t (*disp_off)(esp_lcd_panel_t *panel, bool off);
 };
 
 #ifdef __cplusplus

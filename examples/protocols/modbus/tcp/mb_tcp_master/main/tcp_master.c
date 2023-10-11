@@ -11,7 +11,6 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
-#include "esp_mac.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
@@ -33,11 +32,11 @@
 
 // Timeout to update cid over Modbus
 #define UPDATE_CIDS_TIMEOUT_MS          (500)
-#define UPDATE_CIDS_TIMEOUT_TICS        (UPDATE_CIDS_TIMEOUT_MS / portTICK_PERIOD_MS)
+#define UPDATE_CIDS_TIMEOUT_TICS        (UPDATE_CIDS_TIMEOUT_MS / portTICK_RATE_MS)
 
 // Timeout between polls
 #define POLL_TIMEOUT_MS                 (1)
-#define POLL_TIMEOUT_TICS               (POLL_TIMEOUT_MS / portTICK_PERIOD_MS)
+#define POLL_TIMEOUT_TICS               (POLL_TIMEOUT_MS / portTICK_RATE_MS)
 #define MB_MDNS_PORT                    (502)
 
 // The macro to get offset for parameter in the appropriate structure
@@ -82,7 +81,6 @@ enum {
     CID_HOLD_DATA_1,
     CID_INP_DATA_2,
     CID_HOLD_DATA_2,
-    CID_HOLD_TEST_REG,
     CID_RELAY_P1,
     CID_RELAY_P2,
     CID_COUNT
@@ -111,12 +109,10 @@ const mb_parameter_descriptor_t device_parameters[] = {
             INPUT_OFFSET(input_data2), PARAM_TYPE_FLOAT, 4, OPTS( -40, 100, 1 ), PAR_PERMS_READ_WRITE_TRIGGER },
     { CID_HOLD_DATA_2, STR("Humidity_3"), STR("%rH"), MB_DEVICE_ADDR3, MB_PARAM_HOLDING, 4, 2,
             HOLD_OFFSET(holding_data2), PARAM_TYPE_FLOAT, 4, OPTS( 0, 100, 1 ), PAR_PERMS_READ_WRITE_TRIGGER },
-    { CID_HOLD_TEST_REG, STR("Test_regs"), STR("__"), MB_DEVICE_ADDR1, MB_PARAM_HOLDING, 8, 100,
-            HOLD_OFFSET(test_regs), PARAM_TYPE_ASCII, 200, OPTS( 0, 100, 1 ), PAR_PERMS_READ_WRITE_TRIGGER },
     { CID_RELAY_P1, STR("RelayP1"), STR("on/off"), MB_DEVICE_ADDR1, MB_PARAM_COIL, 0, 8,
-            COIL_OFFSET(coils_port0), PARAM_TYPE_U16, 1, OPTS( BIT1, 0, 0 ), PAR_PERMS_READ_WRITE_TRIGGER },
+            COIL_OFFSET(coils_port0), PARAM_TYPE_U16, 2, OPTS( BIT1, 0, 0 ), PAR_PERMS_READ_WRITE_TRIGGER },
     { CID_RELAY_P2, STR("RelayP2"), STR("on/off"), MB_DEVICE_ADDR1, MB_PARAM_COIL, 8, 8,
-            COIL_OFFSET(coils_port1), PARAM_TYPE_U16, 1, OPTS( BIT0, 0, 0 ), PAR_PERMS_READ_WRITE_TRIGGER }
+            COIL_OFFSET(coils_port1), PARAM_TYPE_U16, 2, OPTS( BIT0, 0, 0 ), PAR_PERMS_READ_WRITE_TRIGGER }
 };
 
 // Calculate number of parameters in the table
@@ -495,83 +491,43 @@ static void master_operation_func(void *arg)
                 void* temp_data_ptr = master_get_param_data(param_descriptor);
                 assert(temp_data_ptr);
                 uint8_t type = 0;
-                if ((param_descriptor->param_type == PARAM_TYPE_ASCII) &&
-                        (param_descriptor->cid == CID_HOLD_TEST_REG)) {
-                   // Check for long array of registers of type PARAM_TYPE_ASCII
-                    err = mbc_master_get_parameter(cid, (char*)param_descriptor->param_key,
-                                                                            (uint8_t*)temp_data_ptr, &type);
-                    if (err == ESP_OK) {
-                        ESP_LOGI(TAG, "Characteristic #%d %s (%s) value = (0x%08x) read successful.",
-                                                 param_descriptor->cid,
-                                                 (char*)param_descriptor->param_key,
-                                                 (char*)param_descriptor->param_units,
-                                                 *(uint32_t*)temp_data_ptr);
-                        // Initialize data of test array and write to slave
-                        if (*(uint32_t*)temp_data_ptr != 0xAAAAAAAA) {
-                            memset((void*)temp_data_ptr, 0xAA, param_descriptor->param_size);
-                            *(uint32_t*)temp_data_ptr = 0xAAAAAAAA;
-                            err = mbc_master_set_parameter(cid, (char*)param_descriptor->param_key,
-                                                              (uint8_t*)temp_data_ptr, &type);
-                            if (err == ESP_OK) {
-                                ESP_LOGI(TAG, "Characteristic #%d %s (%s) value = (0x%08x), write successful.",
-                                                            param_descriptor->cid,
-                                                            (char*)param_descriptor->param_key,
-                                                            (char*)param_descriptor->param_units,
-                                                            *(uint32_t*)temp_data_ptr);
-                            } else {
-                                ESP_LOGE(TAG, "Characteristic #%d (%s) write fail, err = 0x%x (%s).",
-                                                        param_descriptor->cid,
-                                                        (char*)param_descriptor->param_key,
-                                                        (int)err,
-                                                        (char*)esp_err_to_name(err));
-                            }
-                        }
-                    } else {
-                        ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
-                                                param_descriptor->cid,
-                                                (char*)param_descriptor->param_key,
-                                                (int)err,
-                                                (char*)esp_err_to_name(err));
-                    }
-                } else {
-                    err = mbc_master_get_parameter(cid, (char*)param_descriptor->param_key,
-                                                        (uint8_t*)temp_data_ptr, &type);
-                    if (err == ESP_OK) {
-                        if ((param_descriptor->mb_param_type == MB_PARAM_HOLDING) ||
-                            (param_descriptor->mb_param_type == MB_PARAM_INPUT)) {
-                            value = *(float*)temp_data_ptr;
-                            ESP_LOGI(TAG, "Characteristic #%d %s (%s) value = %f (0x%x) read successful.",
-                                            param_descriptor->cid,
-                                            (char*)param_descriptor->param_key,
-                                            (char*)param_descriptor->param_units,
-                                            value,
-                                            *(uint32_t*)temp_data_ptr);
-                            if (((value > param_descriptor->param_opts.max) ||
-                                (value < param_descriptor->param_opts.min))) {
-                                    alarm_state = true;
-                                    break;
-                            }
-                        } else {
-                            uint8_t state = *(uint8_t*)temp_data_ptr;
-                            const char* rw_str = (state & param_descriptor->param_opts.opt1) ? "ON" : "OFF";
-                            ESP_LOGI(TAG, "Characteristic #%d %s (%s) value = %s (0x%x) read successful.",
-                                            param_descriptor->cid,
-                                            (char*)param_descriptor->param_key,
-                                            (char*)param_descriptor->param_units,
-                                            (const char*)rw_str,
-                                            *(uint8_t*)temp_data_ptr);
-                            if (state & param_descriptor->param_opts.opt1) {
+                err = mbc_master_get_parameter(cid, (char*)param_descriptor->param_key,
+                                                    (uint8_t*)&value, &type);
+                if (err == ESP_OK) {
+                    *(float*)temp_data_ptr = value;
+                    if ((param_descriptor->mb_param_type == MB_PARAM_HOLDING) ||
+                        (param_descriptor->mb_param_type == MB_PARAM_INPUT)) {
+                        ESP_LOGI(TAG, "Characteristic #%d %s (%s) value = %f (0x%x) read successful.",
+                                        param_descriptor->cid,
+                                        (char*)param_descriptor->param_key,
+                                        (char*)param_descriptor->param_units,
+                                        value,
+                                        *(uint32_t*)temp_data_ptr);
+                        if (((value > param_descriptor->param_opts.max) ||
+                            (value < param_descriptor->param_opts.min))) {
                                 alarm_state = true;
                                 break;
-                            }
                         }
                     } else {
-                        ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = 0x%x (%s).",
-                                            param_descriptor->cid,
-                                            (char*)param_descriptor->param_key,
-                                            (int)err,
-                                            (char*)esp_err_to_name(err));
+                        uint16_t state = *(uint16_t*)temp_data_ptr;
+                        const char* rw_str = (state & param_descriptor->param_opts.opt1) ? "ON" : "OFF";
+                        ESP_LOGI(TAG, "Characteristic #%d %s (%s) value = %s (0x%x) read successful.",
+                                        param_descriptor->cid,
+                                        (char*)param_descriptor->param_key,
+                                        (char*)param_descriptor->param_units,
+                                        (const char*)rw_str,
+                                        *(uint16_t*)temp_data_ptr);
+                        if (state & param_descriptor->param_opts.opt1) {
+                            alarm_state = true;
+                            break;
+                        }
                     }
+                } else {
+                    ESP_LOGE(TAG, "Characteristic #%d (%s) read fail, err = %d (%s).",
+                                        param_descriptor->cid,
+                                        (char*)param_descriptor->param_key,
+                                        (int)err,
+                                        (char*)esp_err_to_name(err));
                 }
                 vTaskDelay(POLL_TIMEOUT_TICS); // timeout between polls
             }

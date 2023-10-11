@@ -1,20 +1,19 @@
-========================
-ESP32-S3-DevKitC-1 v1.1
-========================
+===================
+ESP32-S3-DevKitC-1
+===================
 
 :link_to_translation:`zh_CN:[中文]`
 
-The older version: :doc:`user-guide-devkitc-1-v1.0`
-
 This user guide will help you get started with ESP32-S3-DevKitC-1 and will also provide more in-depth information.
 
-The ESP32-S3-DevKitC-1 is an entry-level development board equipped with ESP32-S3-WROOM-1, ESP32-S3-WROOM-1U, or ESP32-S3-WROOM-2, a general-purpose Wi-Fi + Bluetooth® LE MCU module that integrates complete Wi-Fi and Bluetooth LE functions.
+The ESP32-S3-DevKitC-1 is an entry-level development board equipped with either ESP32-S3-WROOM-1 or ESP32-S3-WROOM-1U, a general-purpose Wi-Fi + Bluetooth® LE MCU module that integrates complete Wi-Fi and Bluetooth LE functions.
 
 Most of the I/O pins on the module are broken out to the pin headers on both sides of this board for easy interfacing. Developers can either connect peripherals with jumper wires or mount ESP32-S3-DevKitC-1 on a breadboard.
 
-.. figure:: ../../../_static/esp32-s3-devkitc-1-v1.1-isometric.png
+.. figure:: ../../../_static/esp32-s3-devkitc-1-v1-isometric.png
     :align: center
     :alt: ESP32-S3-DevKitC-1 with ESP32-S3-WROOM-1 Module
+    :figclass: align-center
 
     ESP32-S3-DevKitC-1 with ESP32-S3-WROOM-1 Module
 
@@ -36,11 +35,12 @@ This section provides a brief introduction of ESP32-S3-DevKitC-1, instructions o
 Description of Components
 -------------------------
 
-.. _user-guide-s3-devkitc-1-v1.1-board-front:
+.. _user-guide-s3-devkitc-1-v1-board-front:
 
-.. figure:: ../../../_static/ESP32-S3-DevKitC-1_v2-annotated-photo.png
+.. figure:: ../../../_static/ESP32-S3-DevKitC-1_v1-annotated-photo.png
     :align: center
     :alt: ESP32-S3-DevKitC-1 - front
+    :figclass: align-center
 
     ESP32-S3-DevKitC-1 - front
 
@@ -52,30 +52,26 @@ The key components of the board are described in a counter-clockwise direction.
 
    * - Key Component
      - Description
-   * - ESP32-S3-WROOM-1/1U/2
-     - ESP32-S3-WROOM-1, ESP32-S3-WROOM-1U, and ESP32-S3-WROOM-2 are powerful, generic Wi-Fi + Bluetooth LE MCU modules that have a rich set of peripherals. They provide acceleration for neural network computing and signal processing workloads. ESP32-S3-WROOM-1 and ESP32-S3-WROOM-2 comes with a PCB antenna. ESP32-S3-WROOM-1U comes with an external antenna connector.
+   * - ESP32-S3-WROOM-1/1U
+     - ESP32-S3-WROOM-1 and ESP32-S3-WROOM-1U are two powerful, generic Wi-Fi + Bluetooth LE MCU modules that have a rich set of peripherals. They provide acceleration for neural network computing and signal processing workloads. ESP32-S3-WROOM-1 comes with a PCB antenna. ESP32-S3-WROOM-1U comes with an external antenna connector.
    * - 5 V to 3.3 V LDO
      - Power regulator that converts a 5 V supply into a 3.3 V output.
    * - Pin Headers
-     - All available GPIO pins (except for the SPI bus for flash) are broken out to the pin headers on the board for easy interfacing and programming. For details, please see :ref:`user-guide-s3-devkitc-1-v1.1-header-blocks`.
+     - All available GPIO pins (except for the SPI bus for flash) are broken out to the pin headers on the board for easy interfacing and programming. For details, please see :ref:`user-guide-s3-devkitc-1-v1-header-blocks`.
    * - USB-to-UART Port
      - A Micro-USB port used for power supply to the board, for flashing applications to the chip, as well as for communication with the chip via the on-board USB-to-UART bridge.
    * - Boot Button
      - Download button. Holding down **Boot** and then pressing **Reset** initiates Firmware Download mode for downloading firmware through the serial port.
    * - Reset Button
      - Press this button to restart the system.
-   * - USB Port
+   * - ESP32-S3 USB Port
      - ESP32-S3 full-speed USB OTG interface, compliant with the USB 1.1 specification. The interface is used for power supply to the board, for flashing applications to the chip, for communication with the chip using USB 1.1 protocols, as well as for JTAG debugging.
    * - USB-to-UART Bridge
      - Single USB-to-UART bridge chip provides transfer rates up to 3 Mbps.
    * - RGB LED
-     - Addressable RGB LED, driven by GPIO38.
+     - Addressable RGB LED, driven by GPIO48.
    * - 3.3 V Power On LED
      - Turns on when the USB power is connected to the board.
-
-.. note::
-
-    For boards with Octal SPI flash/PSRAM memory embedded ESP32-S3-WROOM-1/1U modules, and boards with ESP32-S3-WROOM-2 modules, the pins GPIO35, GPIO36 and GPIO37 are used for the internal communication between ESP32-S3 and SPI flash/PSRAM memory, thus not available for external use.
 
 
 Start Application Development
@@ -99,7 +95,7 @@ Required Hardware
 Hardware Setup
 ^^^^^^^^^^^^^^
 
-Connect the board with the computer using **USB-to-UART Port** or **ESP32-S3 USB Port**. In subsequent steps, **USB-to-UART Port** will be used by default.
+Connect the board with the computer using **USB-to-UART Port**. Connection using **ESP32-S3 USB Port** is not fully implemented in software. In subsequent steps, **USB-to-UART Port** will be used by default.
 
 
 Software Setup
@@ -111,71 +107,12 @@ Please proceed to :doc:`../../get-started/index`, where Section :ref:`get-starte
 Contents and Packaging
 -----------------------
 
-Ordering Information
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-The development board has a variety of variants to choose from, as shown in the table below.
-
-.. list-table::
-   :widths: 28 29 19 17 15
-   :header-rows: 1
-
-   * - Ordering Code
-     - Module Integrated
-     - Flash
-     - PSRAM
-     - SPI Voltage
-   * - ESP32-S3-DevKitC-1-N8
-     - ESP32-S3-WROOM-1-N8
-     - 8 MB QD
-     - —
-     - 3.3 V
-   * - ESP32-S3-DevKitC-1-N8R2
-     - ESP32-S3-WROOM-1-N8R2
-     - 8 MB QD
-     - 2 MB QD
-     - 3.3 V
-   * - ESP32-S3-DevKitC-1-N8R8
-     - ESP32-S3-WROOM-1-N8R8
-     - 8 MB QD
-     - 8 MB OT
-     - 3.3 V
-   * - ESP32-S3-DevKitC-1-N16R8V
-     - ESP32-S3-WROOM-2-N16R8V
-     - 16 MB OT
-     - 8 MB OT
-     - 1.8 V
-   * - ESP32-S3-DevKitC-1-N32R8V
-     - ESP32-S3-WROOM-2-N32R8V
-     - 32 MB OT
-     - 8 MB OT
-     - 1.8 V
-   * - ESP32-S3-DevKitC-1U-N8
-     - ESP32-S3-WROOM-1U-N8
-     - 8 MB QD
-     - —
-     - 3.3 V
-   * - ESP32-S3-DevKitC-1U-N8R2
-     - ESP32-S3-WROOM-1U-N8R2
-     - 8 MB QD
-     - 2 MB QD
-     - 3.3 V
-   * - ESP32-S3-DevKitC-1U-N8R8
-     - ESP32-S3-WROOM-1U-N8R8
-     - 8 MB QD
-     - 8 MB OT
-     - 3.3 V
-
-.. note::
-
-  In the table above, QD stands for Quad SPI and OT stands for Octal SPI.
-
-Retail Orders
+Retail orders
 ^^^^^^^^^^^^^
 
 If you order a few samples, each board comes in an individual package in either antistatic bag or any packaging depending on your retailer.
 
-For retail orders, please go to https://www.espressif.com/en/contact-us/get-samples.
+For retail orders, please go to https://www.espressif.com/en/company/contact/buy-a-sample.
 
 
 Wholesale Orders
@@ -197,10 +134,11 @@ Block Diagram
 
 The block diagram below shows the components of ESP32-S3-DevKitC-1 and their interconnections.
 
-.. figure:: ../../../_static/ESP32-S3-DevKitC-1_v2-SystemBlock.png
+.. figure:: ../../../_static/ESP32-S3-DevKitC-1_v1_SystemBlock.png
     :align: center
     :scale: 70%
     :alt: ESP32-S3-DevKitC-1 (click to enlarge)
+    :figclass: align-center
 
     ESP32-S3-DevKitC-1 (click to enlarge)
 
@@ -214,12 +152,12 @@ There are three mutually exclusive ways to provide power to the board:
 - 5V and G (GND) pins
 - 3V3 and G (GND) pins
 
-.. _user-guide-s3-devkitc-1-v1.1-header-blocks:
+.. _user-guide-s3-devkitc-1-v1-header-blocks:
 
 Header Block
 -------------
 
-The two tables below provide the **Name** and **Function** of the pins on both sides of the board (J1 and J3). The pin names are shown in :ref:`user-guide-s3-devkitc-1-v1.1-board-front`. The numbering is the same as in the `Board Schematic <https://dl.espressif.com/dl/schematics/SCH_ESP32-S3-DevKitC-1_V1.1_20220413.pdf>`_ (PDF).
+The two tables below provide the **Name** and **Function** of the pins on both sides of the board (J1 and J3). The pin names are shown in :ref:`user-guide-s3-devkitc-1-v1-board-front`. The numbering is the same as in the `Board Schematic <https://dl.espressif.com/dl/SCH_ESP32-S3-DEVKITC-1_V1_20210312C.pdf>`_ (PDF).
 
 
 J1
@@ -262,19 +200,19 @@ No.  Name  Type   Function
 1    G     G      Ground
 2    TX    I/O/T  U0TXD, GPIO43, CLK_OUT1
 3    RX    I/O/T  U0RXD, GPIO44, CLK_OUT2
-4    1     I/O/T  RTC_GPIO1, GPIO1, TOUCH1, ADC1_CH0
-5    2     I/O/T  RTC_GPIO2, GPIO2, TOUCH2, ADC1_CH1
-6    42    I/O/T  MTMS, GPIO42
+4    1     I/O/T  RTC_GPIO1, GPIO1, TOUCH1, ADC1_CH0 
+5    2     I/O/T  RTC_GPIO2, GPIO2, TOUCH2, ADC1_CH1 
+6    42    I/O/T  MTMS, GPIO42 
 7    41    I/O/T  MTDI, GPIO41, CLK_OUT1
 8    40    I/O/T  MTDO, GPIO40, CLK_OUT2
 9    39    I/O/T  MTCK, GPIO39, CLK_OUT3, SUBSPICS1
-10   38    I/O/T  GPIO38, FSPIWP, SUBSPIWP, RGB LED
+10   38    I/O/T  GPIO38, FSPIWP, SUBSPIWP
 11   37    I/O/T  SPIDQS, GPIO37, FSPIQ, SUBSPIQ
 12   36    I/O/T  SPIIO7, GPIO36, FSPICLK, SUBSPICLK
 13   35    I/O/T  SPIIO6, GPIO35, FSPID, SUBSPID
 14   0     I/O/T  RTC_GPIO0, GPIO0
 15   45    I/O/T  GPIO45
-16   48    I/O/T  GPIO48, SPICLK_N, SUBSPICLK_N_DIFF
+16   48    I/O/T  GPIO48, SPICLK_N, SUBSPICLK_N_DIFF, RGB LED
 17   47    I/O/T  GPIO47, SPICLK_P, SUBSPICLK_P_DIFF
 18   21    I/O/T  RTC_GPIO21, GPIO21
 19   20    I/O/T  RTC_GPIO20, GPIO20, U1CTS, ADC2_CH9, CLK_OUT1, USB_D+
@@ -287,17 +225,18 @@ No.  Name  Type   Function
 .. [#] P: Power supply; I: Input; O: Output; T: High impedance.
 
 
-For description of function names, please refer to `ESP32-S3 Series Datasheet <https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf>`_ (PDF).
+For description of function names, please refer to `Chip Datasheet <https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf>`_ (PDF).
 
 
 Pin Layout
 ^^^^^^^^^^^
 
 
-.. figure:: ../../../_static/ESP32-S3_DevKitC-1_pinlayout_v1.1.jpg
+.. figure:: ../../../_static/ESP32-S3-DevKitC-1-pin-layout.png
     :align: center
     :scale: 50%
     :alt: ESP32-S3-DevKitC-1 (click to enlarge)
+    :figclass: align-center
 
     ESP32-S3-DevKitC-1 Pin Layout (click to enlarge)
 
@@ -305,11 +244,7 @@ Pin Layout
 Hardware Revision Details
 =========================
 
-:doc:`Initial release <user-guide-devkitc-1-v1.0>`
-
-.. note::
-
-    Both versions of ESP32-S3-DevKitC-1 are available on the market. The main difference lies in that the RGB LED is connected to different pins.
+This is the first revision of this board released.
 
 
 Related Documents
@@ -317,15 +252,9 @@ Related Documents
 
 - `ESP32-S3 Datasheet <https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf>`_ (PDF)
 - `ESP32-S3-WROOM-1 & ESP32-S3-WROOM-1U Datasheet <https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf>`_ (PDF)
-- `ESP32-S3-WROOM-2 Datasheet <https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-2_datasheet_en.pdf>`_ (PDF)
-- `ESP32-S3-DevKitC-1 Schematic <https://dl.espressif.com/dl/schematics/SCH_ESP32-S3-DevKitC-1_V1.1_20221130.pdf>`_ (PDF)
-- `ESP32-S3-DevKitC-1 PCB layout <https://dl.espressif.com/dl/schematics/PCB_ESP32-S3-DevKitC-1_V1.1_20220429.pdf>`_ (PDF)
+- `ESP32-S3-DevKitC-1 Schematic <https://dl.espressif.com/dl/SCH_ESP32-S3-DEVKITC-1_V1_20210312C.pdf>`_ (PDF)
+- `ESP32-S3-DevKitC-1 PCB layout <https://dl.espressif.com/dl/PCB_ESP32-S3-DevKitC-1_V1_20210312CB.pdf>`_ (PDF)
 - `ESP32-S3-DevKitC-1 Dimensions <https://dl.espressif.com/dl/DXF_ESP32-S3-DevKitC-1_V1_20210312CB.pdf>`_ (PDF)
 - `ESP32-S3-DevKitC-1 Dimensions source file <https://dl.espressif.com/dl/DXF_ESP32-S3-DevKitC-1_V1_20210312CB.dxf>`_ (DXF) - You can view it with `Autodesk Viewer <https://viewer.autodesk.com/>`_ online
 
 For further design documentation for the board, please contact us at `sales@espressif.com <sales@espressif.com>`_.
-
-.. toctree::
-    :hidden:
-
-    user-guide-devkitc-1-v1.0

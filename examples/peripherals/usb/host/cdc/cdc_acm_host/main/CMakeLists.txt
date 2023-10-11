@@ -1,2 +1,2 @@
-idf_component_register(SRCS "usb_cdc_example_main.c"
+idf_component_register(SRCS "usb-cdc.c"
                     INCLUDE_DIRS ".")

@@ -1,7 +1,18 @@
 #!/usr/bin/env python
 #
-# SPDX-FileCopyrightText: 2020-2022 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2020 Espressif Systems (Shanghai) CO LTD
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from __future__ import division
 
@@ -11,10 +22,17 @@ import json
 import os
 import struct
 from functools import partial
-from typing import Dict, List
+
+from future.utils import iteritems
+
+try:
+    from itertools import izip as zip
+except ImportError:
+    # Python 3
+    pass
 
 
-def round_up_int_div(n: int, d: int) -> int:
+def round_up_int_div(n, d):
     # equivalent to math.ceil(n / d)
     return (n + d - 1) // d
 
@@ -31,23 +49,23 @@ class UF2Writer(object):
     UF2_FLAG_FAMILYID_PRESENT = 0x00002000
     UF2_FLAG_MD5_PRESENT = 0x00004000
 
-    def __init__(self, chip_id: int, output_file: os.PathLike, chunk_size: int) -> None:
+    def __init__(self, chip_id, output_file, chunk_size):
         self.chip_id = chip_id
         self.CHUNK_SIZE = self.UF2_DATA_SIZE - self.UF2_MD5_PART_SIZE if chunk_size is None else chunk_size
         self.f = open(output_file, 'wb')
 
-    def __enter__(self) -> 'UF2Writer':
+    def __enter__(self):
         return self
 
-    def __exit__(self, exc_type: str, exc_val: int, exc_tb: List) -> None:
+    def __exit__(self, exc_type, exc_val, exc_tb):
         if self.f:
             self.f.close()
 
     @staticmethod
-    def _to_uint32(num: int) -> bytes:
+    def _to_uint32(num):
         return struct.pack('<I', num)
 
-    def _write_block(self, addr: int, chunk: bytes, len_chunk: int, block_no: int, blocks: int) -> None:
+    def _write_block(self, addr, chunk, len_chunk, block_no, blocks):
         assert len_chunk > 0
         assert len_chunk <= self.CHUNK_SIZE
         assert block_no < blocks
@@ -64,7 +82,7 @@ class UF2Writer(object):
         md5_part = self._to_uint32(addr)
         md5_part += self._to_uint32(len_chunk)
         md5_part += hashlib.md5(chunk).digest()
-        assert len(md5_part) == self.UF2_MD5_PART_SIZE
+        assert(len(md5_part) == self.UF2_MD5_PART_SIZE)
 
         block += md5_part
         block += b'\x00' * (self.UF2_DATA_SIZE - self.UF2_MD5_PART_SIZE - len_chunk)
@@ -72,7 +90,7 @@ class UF2Writer(object):
         assert len(block) == self.UF2_BLOCK_SIZE
         self.f.write(block)
 
-    def add_file(self, addr: int, f_path: os.PathLike) -> None:
+    def add_file(self, addr, f_path):
         blocks = round_up_int_div(os.path.getsize(f_path), self.CHUNK_SIZE)
         with open(f_path, 'rb') as fin:
             a = addr
@@ -82,7 +100,7 @@ class UF2Writer(object):
                 a += len_chunk
 
 
-def action_write(args: Dict) -> None:
+def action_write(args):
     with UF2Writer(args['chip_id'], args['output_file'], args['chunk_size']) as writer:
         for addr, f in args['files']:
             print('Adding {} at {:#x}'.format(f, addr))
@@ -90,19 +108,19 @@ def action_write(args: Dict) -> None:
     print('"{}" has been written.'.format(args['output_file']))
 
 
-def main() -> None:
+def main():
     parser = argparse.ArgumentParser()
 
-    def four_byte_aligned(integer: int) -> bool:
+    def four_byte_aligned(integer):
         return integer & 3 == 0
 
-    def parse_chunk_size(string: str) -> int:
+    def parse_chunk_size(string):
         num = int(string, 0)
         if not four_byte_aligned(num):
             raise argparse.ArgumentTypeError('Chunk size should be a 4-byte aligned number')
         return num
 
-    def parse_chip_id(string: str) -> int:
+    def parse_chip_id(string):
         num = int(string, 16)
         if num < 0 or num > 0xFFFFFFFF:
             raise argparse.ArgumentTypeError('Chip ID should be a 4-byte unsigned integer')
@@ -136,12 +154,12 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    def check_file(file_name: str) -> str:
+    def check_file(file_name):
         if not os.path.isfile(file_name):
             raise RuntimeError('{} is not a regular file!'.format(file_name))
         return file_name
 
-    def parse_addr(string: str) -> int:
+    def parse_addr(string):
         num = int(string, 0)
         if not four_byte_aligned(num):
             raise RuntimeError('{} is not a 4-byte aligned valid address'.format(string))
@@ -154,7 +172,7 @@ def main() -> None:
     if args.json:
         json_dir = os.path.dirname(os.path.abspath(args.json))
 
-        def process_json_file(path: str) -> str:
+        def process_json_file(path):
             '''
             The input path is relative to json_dir. This function makes it relative to the current working
             directory.
@@ -170,15 +188,15 @@ def main() -> None:
                 flash_dic = dict((x['offset'], x['file']) for x in bin_selection)
             except KeyError:
                 print('Invalid binary was selected.')
-                valid = [k if all(x in v for x in ('offset', 'file')) else None for k, v in json_content.items()]
+                valid = [k if all(x in v for x in ('offset', 'file')) else None for k, v in iteritems(json_content)]
                 print('Valid ones:', ' '.join(x for x in valid if x))
                 exit(1)
         else:
             flash_dic = json_content['flash_files']
 
-        files += [(parse_addr(addr), process_json_file(f_name)) for addr, f_name in flash_dic.items()]
+        files += [(parse_addr(addr), process_json_file(f_name)) for addr, f_name in iteritems(flash_dic)]
 
-    files = sorted([(addr, f_name) for addr, f_name in dict(files).items()],
+    files = sorted([(addr, f_name) for addr, f_name in iteritems(dict(files))],
                    key=lambda x: x[0])  # remove possible duplicates and sort based on the address
 
     cmd_args = {'output_file': args.output_file,

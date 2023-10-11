@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -95,7 +95,7 @@ const esp_phy_init_data_t* esp_phy_get_init_data(void);
 void esp_phy_release_init_data(const esp_phy_init_data_t* data);
 
 /**
- * @brief Function called by esp_phy_load_cal_and_init to load PHY calibration data
+ * @brief Function called by esp_phy_init to load PHY calibration data
  *
  * This is a convenience function which can be used to load PHY calibration
  * data from NVS. Data can be stored to NVS using esp_phy_store_cal_data_to_nvs
@@ -106,6 +106,13 @@ void esp_phy_release_init_data(const esp_phy_init_data_t* data);
  * or obtained for a different version of software), this function will
  * return an error.
  *
+ * If "Initialize PHY in startup code" option is set in menuconfig, this
+ * function will be used to load calibration data. To provide a different
+ * mechanism for loading calibration data, disable
+ * "Initialize PHY in startup code" option in menuconfig and call esp_phy_init
+ * function from the application. For an example usage of esp_phy_init and
+ * this function, see esp_phy_store_cal_data_to_nvs function in cpu_start.c
+ *
  * @param out_cal_data pointer to calibration data structure to be filled with
  *                     loaded data.
  * @return ESP_OK on success
@@ -113,12 +120,18 @@ void esp_phy_release_init_data(const esp_phy_init_data_t* data);
 esp_err_t esp_phy_load_cal_data_from_nvs(esp_phy_calibration_data_t* out_cal_data);
 
 /**
- * @brief Function called by esp_phy_load_cal_and_init to store PHY calibration data
+ * @brief Function called by esp_phy_init to store PHY calibration data
  *
  * This is a convenience function which can be used to store PHY calibration
- * data to the NVS. Calibration data is returned by esp_phy_load_cal_and_init function.
+ * data to the NVS. Calibration data is returned by esp_phy_init function.
  * Data saved using this function to the NVS can later be loaded using
  * esp_phy_store_cal_data_to_nvs function.
+ *
+ * If "Initialize PHY in startup code" option is set in menuconfig, this
+ * function will be used to store calibration data. To provide a different
+ * mechanism for storing calibration data, disable
+ * "Initialize PHY in startup code" option in menuconfig and call esp_phy_init
+ * function from the application.
  *
  * @param cal_data pointer to calibration data which has to be saved.
  * @return ESP_OK on success
@@ -158,25 +171,6 @@ void esp_phy_enable(void);
 void esp_phy_disable(void);
 
 /**
- * @brief Enable BTBB module
- *
- * BTBB module should be enabled in order to use IEEE802154 or BT.
- * Now BTBB enabling job is done automatically when start IEEE802154 or BT. Users should not
- * call this API in their application.
- *
- */
-void esp_btbb_enable(void);
-
-/**
- * @brief Disable BTBB module
- *
- * Dsiable BTBB module, used by IEEE802154 or Bluetooth.
- * Users should not call this API in their application.
- *
- */
-void esp_btbb_disable(void);
-
-/**
  * @brief Load calibration data from NVS and initialize PHY and RF module
  */
 void esp_phy_load_cal_and_init(void);
@@ -184,13 +178,12 @@ void esp_phy_load_cal_and_init(void);
 /**
  * @brief Initialize backup memory for Phy power up/down
  */
-void esp_phy_modem_init(void);
+void esp_phy_pd_mem_init(void);
 
 /**
  * @brief Deinitialize backup memory for Phy power up/down
- * Set phy_init_flag if all modems deinit on ESP32C3
  */
-void esp_phy_modem_deinit(void);
+void esp_phy_pd_mem_deinit(void);
 
 #if CONFIG_MAC_BB_PD
 /**
@@ -258,17 +251,6 @@ esp_err_t esp_phy_apply_phy_init_data(uint8_t *init_data);
  */
 char * get_phy_version_str(void);
 
-/**
- * @brief Enable phy track pll
- *
- */
-void phy_track_pll_init(void);
-
-/**
- * @brief Disable phy track pll
- *
- */
-void phy_track_pll_deinit(void);
 #ifdef __cplusplus
 }
 #endif

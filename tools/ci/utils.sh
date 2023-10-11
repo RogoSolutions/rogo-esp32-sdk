@@ -44,9 +44,9 @@ function get_all_submodules() {
 
 function set_component_ut_vars() {
   local exclude_list_fp="${IDF_PATH}/tools/ci/component_ut_excludes.txt"
-  export COMPONENT_UT_DIRS=$(find components/ -name test_apps -type d | xargs)
+  export COMPONENT_UT_DIRS=$(find components/ -name test_apps -type d)
   export COMPONENT_UT_EXCLUDES=$([ -r $exclude_list_fp ] && cat $exclude_list_fp | xargs)
-  echo "exported variables COMPONENT_UT_DIRS, COMPONENT_UT_EXCLUDES"
+  echo "COMPONENT_UT_DIRS, COMPONENT_UT_EXCLUDES written into export"
 }
 
 function error() {
@@ -62,21 +62,17 @@ function warning() {
 }
 
 function run_cmd() {
-  local cmd="$*"
   local start=$(date +%s)
-
-  info "\$ ${cmd}"
-  eval "${cmd}"
-
+  eval "$@"
   local ret=$?
   local end=$(date +%s)
-  local runtime=$((end-start))
+  local duration=$((end - start))
 
   if [[ $ret -eq 0 ]]; then
-    info "==> '\$ ${cmd}' succeeded in ${runtime} seconds."
+    info "(\$ $*) succeeded in ${duration} seconds."
     return 0
   else
-    error "==> '\$ ${cmd}' failed (${ret}) in ${runtime} seconds."
+    error "(\$ $*) failed in ${duration} seconds."
     return $ret
   fi
 }

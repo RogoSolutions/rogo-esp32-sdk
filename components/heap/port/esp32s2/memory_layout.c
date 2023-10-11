@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#ifndef BOOTLOADER_BUILD
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -113,7 +114,6 @@ const size_t soc_memory_region_count = sizeof(soc_memory_regions)/sizeof(soc_mem
 
 extern int _dram0_rtos_reserved_start;
 extern int _data_start, _heap_start, _iram_start, _iram_end, _rtc_force_fast_end, _rtc_noinit_end;
-extern int _rtc_reserved_start, _rtc_reserved_end;
 
 /* Reserved memory regions
 
@@ -151,4 +151,4 @@ SOC_RESERVE_MEMORY_REGION(SOC_RTC_DRAM_LOW, (intptr_t)&_rtc_force_fast_end, rtcr
 #endif
 #endif
 
-SOC_RESERVE_MEMORY_REGION((intptr_t)&_rtc_reserved_start, (intptr_t)&_rtc_reserved_end, rtc_reserved_data);
+#endif // BOOTLOADER_BUILD

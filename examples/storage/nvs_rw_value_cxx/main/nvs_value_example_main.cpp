@@ -10,7 +10,6 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 #include <stdio.h>
-#include <inttypes.h>
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "nvs_handle.hpp"
@@ -33,8 +32,9 @@ extern "C" void app_main(void)
     // Open
     printf("\n");
     printf("Opening Non-Volatile Storage (NVS) handle... ");
+    esp_err_t result;
     // Handle will automatically close when going out of scope or when it's reset.
-    std::unique_ptr<nvs::NVSHandle> handle = nvs::open_nvs_handle("storage", NVS_READWRITE, &err);
+    std::shared_ptr<nvs::NVSHandle> handle = nvs::open_nvs_handle("storage", NVS_READWRITE, &result);
     if (err != ESP_OK) {
         printf("Error (%s) opening NVS handle!\n", esp_err_to_name(err));
     } else {
@@ -47,7 +47,7 @@ extern "C" void app_main(void)
         switch (err) {
             case ESP_OK:
                 printf("Done\n");
-                printf("Restart counter = %" PRIu32 "\n", restart_counter);
+                printf("Restart counter = %d\n", restart_counter);
                 break;
             case ESP_ERR_NVS_NOT_FOUND:
                 printf("The value is not initialized yet!\n");

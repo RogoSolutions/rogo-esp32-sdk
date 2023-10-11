@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <string.h>
 
@@ -12,7 +20,7 @@
 #include "esp_err.h"
 #include "esp_debug_helpers.h"
 #include "soc/soc_memory_layout.h"
-#include "esp_cpu_utils.h"
+#include "soc/cpu.h"
 #include "esp_private/panic_internal.h"
 
 #include "xtensa/xtensa_context.h"
@@ -36,12 +44,12 @@ bool IRAM_ATTR esp_backtrace_get_next_frame(esp_backtrace_frame_t *frame)
 static void IRAM_ATTR print_entry(uint32_t pc, uint32_t sp, bool panic)
 {
     if (panic) {
-        panic_print_str(" 0x");
+        panic_print_str("0x");
         panic_print_hex(pc);
         panic_print_str(":0x");
         panic_print_hex(sp);
     } else {
-        esp_rom_printf(" 0x%08X:0x%08X", pc, sp);
+        esp_rom_printf("0x%08X:0x%08X", pc, sp);
     }
 }
 
@@ -80,6 +88,7 @@ esp_err_t IRAM_ATTR esp_backtrace_print_from_frame(int depth, const esp_backtrac
             corrupted = true;
         }
         print_entry(esp_cpu_process_stack_pc(stk_frame.pc), stk_frame.sp, panic);
+        print_str(" ", panic);
     }
 
     //Print backtrace termination marker

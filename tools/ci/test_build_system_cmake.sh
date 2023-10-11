@@ -38,14 +38,6 @@ export PATH="$IDF_PATH/tools:$PATH"  # for idf.py
 # Some tests assume that ccache is not enabled
 unset IDF_CCACHE_ENABLE
 
-function get_file_size() {
-  if [[ $OSTYPE == 'darwin'* ]]; then
-    BINSIZE=$(stat -f "%z" ${1})
-  else
-    BINSIZE=$(stat -c "%s" ${1})
-  fi
-}
-
 function run_tests()
 {
     FAILURES=
@@ -262,7 +254,7 @@ function run_tests()
     # and therefore should rebuild
     assert_rebuilt esp-idf/newlib/CMakeFiles/${IDF_COMPONENT_PREFIX}_newlib.dir/newlib_init.c.obj
     assert_rebuilt esp-idf/nvs_flash/CMakeFiles/${IDF_COMPONENT_PREFIX}_nvs_flash.dir/src/nvs_api.cpp.obj
-    assert_rebuilt esp-idf/esp_system/CMakeFiles/${IDF_COMPONENT_PREFIX}_esp_system.dir/port/arch/xtensa/panic_handler_asm.S.obj
+    assert_rebuilt esp-idf/freertos/CMakeFiles/${IDF_COMPONENT_PREFIX}_freertos.dir/port/xtensa/xtensa_vectors.S.obj
     mv sdkconfig.bak sdkconfig
 
     print_status "Updating project CMakeLists.txt triggers full recompile"
@@ -277,7 +269,7 @@ function run_tests()
     # similar to previous test
     assert_rebuilt esp-idf/newlib/CMakeFiles/${IDF_COMPONENT_PREFIX}_newlib.dir/newlib_init.c.obj
     assert_rebuilt esp-idf/nvs_flash/CMakeFiles/${IDF_COMPONENT_PREFIX}_nvs_flash.dir/src/nvs_api.cpp.obj
-    assert_rebuilt esp-idf/esp_system/CMakeFiles/${IDF_COMPONENT_PREFIX}_esp_system.dir/port/arch/xtensa/panic_handler_asm.S.obj
+    assert_rebuilt esp-idf/freertos/CMakeFiles/${IDF_COMPONENT_PREFIX}_freertos.dir/port/xtensa/xtensa_vectors.S.obj
     mv sdkconfig.bak sdkconfig
 
     print_status "Can build with Ninja (no idf.py)"
@@ -467,6 +459,14 @@ function run_tests()
     clean_build_dir
     rm sdkconfig
 
+    print_status "Can build with auto generated CMakeLists.txt"
+    clean_build_dir
+    mv CMakeLists.txt CMakeLists.bak
+    ${IDF_PATH}/tools/cmake/convert_to_cmake.py .
+    idf.py build || failure "Auto generated CMakeLists.txt build failed"
+    mv CMakeLists.bak CMakeLists.txt
+    assert_built ${APP_BINS} ${BOOTLOADER_BINS} ${PARTITION_BIN}
+
     print_status "Setting EXTRA_COMPONENT_DIRS works"
     clean_build_dir
     (idf.py reconfigure | grep "$PWD/main") || failure  "Failed to verify original `main` directory"
@@ -479,28 +479,17 @@ function run_tests()
     mv main/main/main/* main
     rm -rf main/main
 
-    print_status "Non-existent paths in EXTRA_COMPONENT_DIRS are not allowed"
-    clean_build_dir
-    ! idf.py -DEXTRA_COMPONENT_DIRS="extra_components" reconfigure || failure "Build should fail when non-existent component path is added"
-
-    print_status "Component names may contain spaces"
-    clean_build_dir
-    mkdir -p "extra component"
-    echo "idf_component_register" > "extra component/CMakeLists.txt"
-    idf.py -DEXTRA_COMPONENT_DIRS="extra component;main" || failure "Build should succeed when a component name contains space"
-    rm -rf "extra component"
-
     print_status "sdkconfig should have contents of all files: sdkconfig, sdkconfig.defaults, sdkconfig.defaults.IDF_TARGET"
     idf.py clean > /dev/null
     idf.py fullclean > /dev/null
     rm -f sdkconfig.defaults
     rm -f sdkconfig
     echo "CONFIG_PARTITION_TABLE_OFFSET=0x10000" >> sdkconfig.defaults
-    echo "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y" >> sdkconfig.defaults.esp32
+    echo "CONFIG_ESP32_DEFAULT_CPU_FREQ_240=y" >> sdkconfig.defaults.esp32
     echo "CONFIG_PARTITION_TABLE_TWO_OTA=y" >> sdkconfig
     idf.py reconfigure > /dev/null
     grep "CONFIG_PARTITION_TABLE_OFFSET=0x10000" sdkconfig || failure "The define from sdkconfig.defaults should be into sdkconfig"
-    grep "CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y" sdkconfig || failure "The define from sdkconfig.defaults.esp32 should be into sdkconfig"
+    grep "CONFIG_ESP32_DEFAULT_CPU_FREQ_240=y" sdkconfig || failure "The define from sdkconfig.defaults.esp32 should be into sdkconfig"
     grep "CONFIG_PARTITION_TABLE_TWO_OTA=y" sdkconfig || failure "The define from sdkconfig should be into sdkconfig"
     rm sdkconfig sdkconfig.defaults sdkconfig.defaults.esp32
 
@@ -510,23 +499,10 @@ function run_tests()
     popd
     rm -r $IDF_PATH/examples/build_system/cmake/idf_as_lib/build
 
-    print_status "Test build ESP-IDF as a library to a custom CMake projects for all targets"
-    IDF_AS_LIB=$IDF_PATH/examples/build_system/cmake/idf_as_lib
-    # note: we just need to run cmake
-    for TARGET in "esp32" "esp32s2" "esp32s3" "esp32c3" "esp32c2" "esp32c6" "esp32h2"
-    do
-      echo "Build idf_as_lib for $TARGET target"
-      rm -rf build
-      mkdir -p build && cd build
-      cmake $IDF_AS_LIB -DCMAKE_TOOLCHAIN_FILE=$IDF_PATH/tools/cmake/toolchain-$TARGET.cmake -DTARGET=$TARGET || failure "Failed to generate idf_as_lib build files for target $TARGET"
-      cmake --build . || failure "Failed to build idf_as_lib for target $TARGET"
-      cd ..
-    done
-
     print_status "Building a project with CMake library imported and PSRAM workaround, all files compile with workaround"
     # Test for libraries compiled within ESP-IDF
     rm -r build sdkconfig
-    echo "CONFIG_SPIRAM=y" >> sdkconfig.defaults
+    echo "CONFIG_ESP32_SPIRAM_SUPPORT=y" >> sdkconfig.defaults
     echo "CONFIG_SPIRAM_CACHE_WORKAROUND=y" >> sdkconfig.defaults
     # note: we do 'reconfigure' here, as we just need to run cmake
     idf.py -C $IDF_PATH/examples/build_system/cmake/import_lib -B `pwd`/build -D SDKCONFIG_DEFAULTS="`pwd`/sdkconfig.defaults" reconfigure
@@ -537,15 +513,18 @@ function run_tests()
     print_status "Test for external libraries in custom CMake projects with ESP-IDF components linked"
     mkdir build
     IDF_AS_LIB=$IDF_PATH/examples/build_system/cmake/idf_as_lib
+    echo "CONFIG_ESP32_SPIRAM_SUPPORT=y" > $IDF_AS_LIB/sdkconfig
+    echo "CONFIG_SPIRAM_CACHE_WORKAROUND=y" >> $IDF_AS_LIB/sdkconfig
     # note: we just need to run cmake
     (cd build && cmake $IDF_AS_LIB -DCMAKE_TOOLCHAIN_FILE=$IDF_PATH/tools/cmake/toolchain-esp32.cmake -DTARGET=esp32)
     grep -q '"command"' build/compile_commands.json || failure "compile_commands.json missing or has no no 'commands' in it"
+    (grep '"command"' build/compile_commands.json | grep -v mfix-esp32-psram-cache-issue) && failure "All commands in compile_commands.json should use PSRAM cache workaround"
 
     for strat in MEMW NOPS DUPLDST; do
         print_status "Test for external libraries in custom CMake projects with PSRAM strategy $strat"
         rm -r build sdkconfig sdkconfig.defaults sdkconfig.defaults.esp32
         stratlc=`echo $strat | tr A-Z a-z`
-        echo "CONFIG_SPIRAM=y" > sdkconfig.defaults
+        echo "CONFIG_ESP32_SPIRAM_SUPPORT=y" > sdkconfig.defaults
         echo "CONFIG_SPIRAM_CACHE_WORKAROUND_STRATEGY_$strat=y"  >> sdkconfig.defaults
         echo "CONFIG_SPIRAM_CACHE_WORKAROUND=y" >> sdkconfig.defaults
         # note: we do 'reconfigure' here, as we just need to run cmake
@@ -636,62 +615,7 @@ endmenu\n" >> ${IDF_PATH}/Kconfig
     git checkout -- sdkconfig.rename Kconfig
     popd
 
-    echo "Can have multiple deprecated Kconfig options map to a single new option"
-    idf.py clean > /dev/null
-    rm -f sdkconfig.defaults
-    rm -f sdkconfig
-    echo "" > ${IDF_PATH}/sdkconfig.rename
-    idf.py reconfigure > /dev/null
-    echo "CONFIG_TEST_NEW_OPTION=y" >> sdkconfig
-    echo "CONFIG_TEST_OLD_OPTION_1 CONFIG_TEST_NEW_OPTION" >> ${IDF_PATH}/sdkconfig.rename
-    echo "CONFIG_TEST_OLD_OPTION_2 CONFIG_TEST_NEW_OPTION" >> ${IDF_PATH}/sdkconfig.rename
-    echo -e "\n\
-    menu \"test\"\n\
-    config TEST_NEW_OPTION\n\
-        bool \"test\"\n\
-        default \"n\"\n\
-        help\n\
-            TEST_NEW_OPTION description\n\
-    endmenu\n" >> ${IDF_PATH}/Kconfig
-    idf.py reconfigure > /dev/null
-    grep "CONFIG_TEST_OLD_OPTION_1=y" sdkconfig || failure "CONFIG_TEST_OLD_OPTION_1 should be in sdkconfig for backward compatibility"
-    grep "CONFIG_TEST_OLD_OPTION_2=y" sdkconfig || failure "CONFIG_TEST_OLD_OPTION_2 should be in sdkconfig for backward compatibility"
-    grep "#define CONFIG_TEST_OLD_OPTION_1 CONFIG_TEST_NEW_OPTION" build/config/sdkconfig.h || failure "sdkconfig.h should contain the compatibility macro"
-    grep "#define CONFIG_TEST_OLD_OPTION_2 CONFIG_TEST_NEW_OPTION" build/config/sdkconfig.h || failure "sdkconfig.h should contain the compatibility macro"
-    grep "set(CONFIG_TEST_OLD_OPTION_1 \"y\")" build/config/sdkconfig.cmake || failure "CONFIG_TEST_OLD_OPTION_1 should be in auto.conf for backward compatibility"
-    grep "set(CONFIG_TEST_OLD_OPTION_2 \"y\")" build/config/sdkconfig.cmake || failure "CONFIG_TEST_OLD_OPTION_2 should be in auto.conf for backward compatibility"
-    rm -rf sdkconfig sdkconfig.defaults build
-    pushd ${IDF_PATH}
-    git checkout -- sdkconfig.rename Kconfig
-    popd
-
-    echo "Can have target specific deprecated Kconfig options"
-    idf.py clean
-    rm -f sdkconfig
-    echo "CONFIG_TEST_OLD_OPTION=y" > sdkconfig
-    echo "CONFIG_TEST_OLD_OPTION CONFIG_TEST_NEW_OPTION" >> ${IDF_PATH}/components/esp_system/sdkconfig.rename.esp32s2
-    echo -e "\n\
-    menu \"test\"\n\
-    config TEST_NEW_OPTION\n\
-        bool \"TEST_NEW_OPTION\"\n\
-        default y\n\
-        help\n\
-            TEST_NEW_OPTION description\n\
-    endmenu\n" >> ${IDF_PATH}/Kconfig
-    idf.py set-target esp32 > /dev/null
-    grep "CONFIG_TEST_OLD_OPTION=y" sdkconfig && failure "CONFIG_TEST_OLD_OPTION=y should NOT be in sdkconfig"
-    grep "CONFIG_TEST_NEW_OPTION=y" sdkconfig || failure "CONFIG_TEST_NEW_OPTION=y should be in sdkconfig"
-    rm -f sdkconfig
-    idf.py set-target esp32s2 > /dev/null
-    grep "CONFIG_TEST_OLD_OPTION=y" sdkconfig || failure "CONFIG_TEST_OLD_OPTION=y should be in esp32s2's sdkconfig for backward compatibility"
-    grep "CONFIG_TEST_NEW_OPTION=y" sdkconfig || failure "CONFIG_TEST_NEW_OPTION=y should be in sdkconfig"
-    rm -rf sdkconfig sdkconfig.defaults build
-    pushd ${IDF_PATH}
-    git checkout -- components/esp_system/sdkconfig.rename.esp32s2 Kconfig
-    popd
-
-
-    print_status "Kconfserver can be invoked by idf.py"
+    print_status "Confserver can be invoked by idf.py"
     echo '{"version": 1}' | idf.py confserver || failure "Couldn't load confserver"
 
     print_status "Check ccache is used to build"
@@ -747,17 +671,11 @@ endmenu\n" >> ${IDF_PATH}/Kconfig
     rm -rf esp32
     rm -rf mycomponents
 
-    print_status "toolchain prefix is set in project description file"
-    clean_build_dir
-    idf.py reconfigure
-    grep "prefix.*esp.*elf-" $PWD/build/project_description.json || failure "toolchain prefix not set or determined by CMake"
-
     # idf.py subcommand options, (using monitor with as example)
     print_status "Can set options to subcommands: print_filter for monitor"
-    clean_build_dir
     mv ${IDF_PATH}/tools/idf_monitor.py ${IDF_PATH}/tools/idf_monitor.py.tmp
     echo "import sys;print(sys.argv[1:])" > ${IDF_PATH}/tools/idf_monitor.py
-    idf.py build || failure "Failed to build project"
+    idf.py build || "Failed to build project"
     idf.py monitor --print-filter="*:I" -p tty.fake | grep "'--print_filter', '\*:I'" || failure "It should process options for subcommands (and pass print-filter to idf_monitor.py)"
     mv ${IDF_PATH}/tools/idf_monitor.py.tmp ${IDF_PATH}/tools/idf_monitor.py
 
@@ -819,23 +737,6 @@ endmenu\n" >> ${IDF_PATH}/Kconfig
     ( idf.py build 2>&1 | grep "does not fit in configured flash size 1MB" ) || failure "Build didn't fail with expected flash size failure message"
     mv sdkconfig.bak sdkconfig
 
-    print_status "Warning is given if smallest partition is nearly full"
-    clean_build_dir
-    # Build a first time to get the binary size and to check that no warning is issued.
-    ( idf.py build 2>&1 | grep "partition is nearly full" ) && failure "Warning for nearly full smallest partition was given when the condition is not fulfilled"
-    # Get the size of the binary, in KB. Add 1 to the total.
-    # The goal is to create an app partition which is slightly bigger than the binary itself
-    get_file_size "build/app-template.bin"
-    # Put the returned size ($BINSIZE) in a new variable, convert it to KB and add 1
-    let size=${BINSIZE}/1024+1
-    cp ${IDF_PATH}/components/partition_table/partitions_singleapp.csv partitions.csv
-    ${SED} -i "s/factory,  app,  factory, ,        1M/factory,  app,  factory, ,        ${size}K/" partitions.csv
-    echo "CONFIG_PARTITION_TABLE_CUSTOM=y" > sdkconfig
-    # don't use FreeRTOS SMP build for this test - follow up ticket: IDF-5386
-    echo "CONFIG_FREERTOS_SMP=n" >> sdkconfig
-    ( idf.py build 2>&1 | grep "partition is nearly full" ) || failure "No warning for nearly full smallest partition was given when the condition is fulfilled"
-    rm -f partitions.csv sdkconfig
-
     print_status "Flash size is correctly set in the bootloader image header"
     # Build with the default 2MB setting
     rm sdkconfig
@@ -885,16 +786,9 @@ endmenu\n" >> ${IDF_PATH}/Kconfig
     rm -rf build sdkconfig
 
     print_status "Loadable ELF build works"
-    echo "CONFIG_APP_BUILD_TYPE_RAM=y" > sdkconfig
-
-    # Set recommend configs to reduce memory footprint
-    echo "CONFIG_VFS_SUPPORT_TERMIOS=n" >> sdkconfig
-    echo "CONFIG_NEWLIB_NANO_FORMAT=y" >> sdkconfig
-    echo "CONFIG_ESP_SYSTEM_PANIC_PRINT_HALT=y" >> sdkconfig
-    echo "CONFIG_ESP_ERR_TO_NAME_LOOKUP=n" >> sdkconfig
-
+    echo "CONFIG_APP_BUILD_TYPE_ELF_RAM=y" > sdkconfig
     idf.py reconfigure || failure "Couldn't configure for loadable ELF file"
-    test ! -f build/flasher_args.json && failure "flasher_args.json should be generated in a loadable ELF build"
+    test -f build/flasher_args.json && failure "flasher_args.json should not be generated in a loadable ELF build"
     idf.py build || failure "Couldn't build a loadable ELF file"
 
     print_status "Defaults set properly for unspecified idf_build_process args"
@@ -912,15 +806,15 @@ endmenu\n" >> ${IDF_PATH}/Kconfig
 
     print_status "Getting component overriden dir"
     clean_build_dir
-    mkdir -p components/hal
-    echo "idf_component_get_property(overriden_dir \${COMPONENT_NAME} COMPONENT_OVERRIDEN_DIR)" >> components/hal/CMakeLists.txt
-    echo "message(STATUS overriden_dir:\${overriden_dir})" >> components/hal/CMakeLists.txt
-    (idf.py reconfigure | grep "overriden_dir:$IDF_PATH/components/hal") || failure  "Failed to get overriden dir" # no registration, overrides registration as well
+    mkdir -p components/esp32
+    echo "idf_component_get_property(overriden_dir \${COMPONENT_NAME} COMPONENT_OVERRIDEN_DIR)" >> components/esp32/CMakeLists.txt
+    echo "message(STATUS overriden_dir:\${overriden_dir})" >> components/esp32/CMakeLists.txt
+    (idf.py reconfigure | grep "overriden_dir:$IDF_PATH/components/esp32") || failure  "Failed to get overriden dir" # no registration, overrides registration as well
     print_status "Overriding Kconfig"
-    echo "idf_component_register(KCONFIG \${overriden_dir}/Kconfig)" >> components/hal/CMakeLists.txt
-    echo "idf_component_get_property(kconfig \${COMPONENT_NAME} KCONFIG)" >> components/hal/CMakeLists.txt
-    echo "message(STATUS kconfig:\${overriden_dir}/Kconfig)" >> components/hal/CMakeLists.txt
-    (idf.py reconfigure | grep "kconfig:$IDF_PATH/components/hal/Kconfig") || failure  "Failed to verify original `main` directory"
+    echo "idf_component_register(KCONFIG \${overriden_dir}/Kconfig)" >> components/esp32/CMakeLists.txt
+    echo "idf_component_get_property(kconfig \${COMPONENT_NAME} KCONFIG)" >> components/esp32/CMakeLists.txt
+    echo "message(STATUS kconfig:\${overriden_dir}/Kconfig)" >> components/esp32/CMakeLists.txt
+    (idf.py reconfigure | grep "kconfig:$IDF_PATH/components/esp32/Kconfig") || failure  "Failed to verify original `main` directory"
     rm -rf components
 
     print_status "Project components prioritized over EXTRA_COMPONENT_DIRS"
@@ -935,14 +829,6 @@ endmenu\n" >> ${IDF_PATH}/Kconfig
     (idf.py reconfigure | grep "$PWD/components/my_component") || failure  "Project components should be prioritized over EXTRA_COMPONENT_DIRS"
     mv CMakeLists.bak CMakeLists.txt # revert previous modifications
     rm -rf extra_dir components
-
-    print_status "Components in EXCLUDE_COMPONENTS not passed to idf_component_manager"
-    clean_build_dir
-    idf.py create-component -C components/ to_be_excluded || failure "Failed to create a component"
-    echo "invalid syntax..." > components/to_be_excluded/idf_component.yml
-    ! idf.py reconfigure || failure "Build should have failed due to invalid syntax in idf_component.yml"
-    idf.py -DEXCLUDE_COMPONENTS=to_be_excluded reconfigure || failure "Build should have succeeded when the component is excluded"
-    rm -rf components/to_be_excluded
 
     print_status "Create project using idf.py and build it"
     echo "Trying to create project."
@@ -995,37 +881,12 @@ endmenu\n" >> ${IDF_PATH}/Kconfig
     cd ${TESTDIR}/template
     # click warning
     idf.py post_debug &> tmp.log
-    grep "Error: Command \"post_debug\" is deprecated since v4.4 and was removed in v5.0." tmp.log || failure "Missing deprecation warning with command \"post_debug\""
+    grep "Warning: Command \"post_debug\" is deprecated and will be removed in v5.0." tmp.log || failure "Missing deprecation warning with command \"post_debug\""
     rm tmp.log
     # cmake warning
     idf.py efuse_common_table &> tmp.log
-    grep "Have you wanted to run \"efuse-common-table\" instead?" tmp.log || failure "Missing deprecation warning with command \"efuse_common_table\""
+    grep "Warning: Command efuse_common_table is deprecated and will be removed in the next major release." tmp.log || failure "Missing deprecation warning with command \"efuse_common_table\""
     rm tmp.log
-
-    print_status "Save-defconfig checks"
-    cd ${TESTDIR}/template
-    rm -f sdkconfig.defaults
-    rm -f sdkconfig
-    idf.py fullclean > /dev/null
-    echo "CONFIG_COMPILER_OPTIMIZATION_SIZE=y" >> sdkconfig
-    echo "CONFIG_ESPTOOLPY_FLASHFREQ_80M=y" >> sdkconfig
-    idf.py save-defconfig
-    wc -l sdkconfig.defaults
-    grep "CONFIG_IDF_TARGET" sdkconfig.defaults && failure "CONFIG_IDF_TARGET should not be in sdkconfig.defaults"
-    grep "CONFIG_COMPILER_OPTIMIZATION_SIZE=y" sdkconfig.defaults || failure "Missing CONFIG_COMPILER_OPTIMIZATION_SIZE=y in sdkconfig.defaults"
-    grep "CONFIG_ESPTOOLPY_FLASHFREQ_80M=y" sdkconfig.defaults || failure "Missing CONFIG_ESPTOOLPY_FLASHFREQ_80M=y in sdkconfig.defaults"
-    idf.py fullclean > /dev/null
-    rm -f sdkconfig.defaults
-    rm -f sdkconfig
-    idf.py set-target esp32c3
-    echo "CONFIG_PARTITION_TABLE_OFFSET=0x8001" >> sdkconfig
-    idf.py save-defconfig
-    wc -l sdkconfig.defaults
-    grep "CONFIG_IDF_TARGET=\"esp32c3\"" sdkconfig.defaults || failure "Missing CONFIG_IDF_TARGET=\"esp32c3\" in sdkconfig.defaults"
-    grep "CONFIG_PARTITION_TABLE_OFFSET=0x8001" sdkconfig.defaults || failure "Missing CONFIG_PARTITION_TABLE_OFFSET=0x8001 in sdkconfig.defaults"
-    idf.py fullclean > /dev/null
-    rm -f sdkconfig.defaults
-    rm -f sdkconfig
 
     print_status "All tests completed"
     if [ -n "${FAILURES}" ]; then

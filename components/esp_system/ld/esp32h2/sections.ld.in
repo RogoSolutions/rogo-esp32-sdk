@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -16,21 +16,24 @@ SECTIONS
   .rtc.text :
   {
     . = ALIGN(4);
-    _rtc_fast_start = ABSOLUTE(.);
-    _rtc_text_start = ABSOLUTE(.);
-    *(.rtc.entry.text)
 
     mapping[rtc_text]
 
     *rtc_wake_stub*.*(.literal .text .literal.* .text.*)
-    *(.rtc_text_end_test)
-
-    /* 16B padding for possible CPU prefetch and 4B alignment for PMS split lines */
-    . += _esp_memprot_prefetch_pad_size;
-    . = ALIGN(4);
-
     _rtc_text_end = ABSOLUTE(.);
-  } > lp_ram_seg
+  } > rtc_iram_seg
+
+  /**
+   * This section is required to skip rtc.text area because rtc_iram_seg and
+   * rtc_data_seg are reflect the same address space on different buses.
+   */
+  .rtc.dummy :
+  {
+    _rtc_dummy_start = ABSOLUTE(.);
+    _rtc_fast_start = ABSOLUTE(.);
+    . = SIZEOF(.rtc.text);
+    _rtc_dummy_end = ABSOLUTE(.);
+  } > rtc_data_seg
 
   /**
    * This section located in RTC FAST Memory area.
@@ -47,13 +50,15 @@ SECTIONS
     *(.rtc.force_fast .rtc.force_fast.*)
     . = ALIGN(4) ;
     _rtc_force_fast_end = ABSOLUTE(.);
-  } > lp_ram_seg
+  } > rtc_data_seg
 
   /**
    * RTC data section holds RTC wake stub
    * data/rodata, including from any source file
    * named rtc_wake_stub*.c and the data marked with
    * RTC_DATA_ATTR, RTC_RODATA_ATTR attributes.
+   * The memory location of the data is dependent on
+   * CONFIG_ESP32H2_RTCDATA_IN_FAST_MEM option.
    */
   .rtc.data :
   {
@@ -61,27 +66,28 @@ SECTIONS
 
     mapping[rtc_data]
 
-    *rtc_wake_stub*.*(.data .rodata .data.* .rodata.* .srodata.*)
+    *rtc_wake_stub*.*(.data .rodata .data.* .rodata.* .bss .bss.*)
     _rtc_data_end = ABSOLUTE(.);
-  } > lp_ram_seg
+  } > rtc_data_location
 
   /* RTC bss, from any source file named rtc_wake_stub*.c */
   .rtc.bss (NOLOAD) :
   {
     _rtc_bss_start = ABSOLUTE(.);
-    *rtc_wake_stub*.*(.bss .bss.* .sbss .sbss.*)
+    *rtc_wake_stub*.*(.bss .bss.*)
     *rtc_wake_stub*.*(COMMON)
 
     mapping[rtc_bss]
 
     _rtc_bss_end = ABSOLUTE(.);
-  } > lp_ram_seg
+  } > rtc_data_location
 
   /**
    * This section holds data that should not be initialized at power up
    * and will be retained during deep sleep.
    * User data marked with RTC_NOINIT_ATTR will be placed
    * into this section. See the file "esp_attr.h" for more information.
+   * The memory location of the data is dependent on CONFIG_ESP32H2_RTCDATA_IN_FAST_MEM option.
    */
   .rtc_noinit (NOLOAD):
   {
@@ -90,7 +96,7 @@ SECTIONS
     *(.rtc_noinit .rtc_noinit.*)
     . = ALIGN(4) ;
     _rtc_noinit_end = ABSOLUTE(.);
-  } > lp_ram_seg
+  } > rtc_data_location
 
   /**
    * This section located in RTC SLOW Memory area.
@@ -104,28 +110,7 @@ SECTIONS
     *(.rtc.force_slow .rtc.force_slow.*)
     . = ALIGN(4) ;
     _rtc_force_slow_end = ABSOLUTE(.);
-  } > lp_ram_seg
-
-  /**
-   * This section holds RTC data that should have fixed addresses.
-   * The data are not initialized at power-up and are retained during deep sleep.
-   */
-  .rtc_reserved (NOLOAD):
-  {
-    . = ALIGN(4);
-    _rtc_reserved_start = ABSOLUTE(.);
-    /* New data can only be added here to ensure existing data are not moved.
-       Because data have adhered to the end of the segment and code is relied on it.
-       >> put new data here << */
-
-    *(.rtc_timer_data_in_rtc_mem .rtc_timer_data_in_rtc_mem.*)
-    KEEP(*(.bootloader_data_rtc_mem .bootloader_data_rtc_mem.*))
-    _rtc_reserved_end = ABSOLUTE(.);
-  } > rtc_reserved_seg
-
-  _rtc_reserved_length = _rtc_reserved_end - _rtc_reserved_start;
-  ASSERT((_rtc_reserved_length <= LENGTH(rtc_reserved_seg)),
-          "RTC reserved segment data does not fit.")
+  } > rtc_slow_seg
 
   /* Get size of rtc slow data based on rtc_data_location alias */
   _rtc_slow_length = (ORIGIN(rtc_slow_seg) == ORIGIN(rtc_data_location))
@@ -159,39 +144,6 @@ SECTIONS
 
   } > iram0_0_seg
 
-  /* Marks the end of IRAM code segment */
-  .iram0.text_end (NOLOAD) :
-  {
-    /* ESP32-H2 memprot requires 16B padding for possible CPU prefetch and 512B alignment for PMS split lines */
-    . += _esp_memprot_prefetch_pad_size;
-    . = ALIGN(_esp_memprot_align_size);
-    /* iram_end_test section exists for use by memprot unit tests only */
-    *(.iram_end_test)
-    _iram_text_end = ABSOLUTE(.);
-  } > iram0_0_seg
-
-  .iram0.data :
-  {
-    . = ALIGN(16);
-    _iram_data_start = ABSOLUTE(.);
-
-    mapping[iram0_data]
-
-    _iram_data_end = ABSOLUTE(.);
-  } > iram0_0_seg
-
-  .iram0.bss (NOLOAD) :
-  {
-    . = ALIGN(16);
-    _iram_bss_start = ABSOLUTE(.);
-
-    mapping[iram0_bss]
-
-    _iram_bss_end = ABSOLUTE(.);
-    . = ALIGN(16);
-    _iram_end = ABSOLUTE(.);
-  } > iram0_0_seg
-
   /**
    * This section is required to skip .iram0.text area because iram0_0_seg and
    * dram0_0_seg reflect the same address space on different buses.
@@ -212,6 +164,10 @@ SECTIONS
     *(.gnu.linkonce.s.*)
     *(.gnu.linkonce.s2.*)
     *(.jcr)
+
+    _esp_system_init_fn_array_start = ABSOLUTE(.);
+    KEEP (*(SORT(.esp_system_init_fn) SORT(.esp_system_init_fn.*)))
+    _esp_system_init_fn_array_end = ABSOLUTE(.);
 
     mapping[dram0_data]
 
@@ -279,7 +235,7 @@ SECTIONS
       * safe access to up to 16 bytes after the last real instruction, add
       * dummy bytes to ensure this
       */
-    . += _esp_flash_mmap_prefetch_pad_size;
+    . += 16;
 
     _text_end = ABSOLUTE(.);
     _instruction_reserved_end = ABSOLUTE(.);
@@ -295,18 +251,18 @@ SECTIONS
 
   /**
    * This dummy section represents the .flash.text section but in default_rodata_seg.
-   * Thus, it must have its alignment and (at least) its size.
+   * Thus, it must have its alignement and (at least) its size.
    */
   .flash_rodata_dummy (NOLOAD):
   {
     _flash_rodata_dummy_start = .;
-    /* Start at the same alignment constraint than .flash.text */
+    /* Start at the same alignement constraint than .flash.text */
     . = ALIGN(ALIGNOF(.flash.text));
     /* Create an empty gap as big as .flash.text section */
     . = . + SIZEOF(.flash.text);
-    /* Prepare the alignment of the section above. Few bytes (0x20) must be
+    /* Prepare the alignement of the section above. Few bytes (0x20) must be
      * added for the mapping header. */
-    . = ALIGN(_esp_mmu_block_size) + 0x20;
+    . = ALIGN(0x10000) + 0x20;
     _rodata_reserved_start = .;
   } > default_rodata_seg
 
@@ -370,9 +326,6 @@ SECTIONS
     soc_reserved_memory_region_start = ABSOLUTE(.);
     KEEP (*(.reserved_memory_address))
     soc_reserved_memory_region_end = ABSOLUTE(.);
-    _esp_system_init_fn_array_start = ABSOLUTE(.);
-    KEEP (*(SORT(.esp_system_init_fn) SORT(.esp_system_init_fn.*)))
-    _esp_system_init_fn_array_end = ABSOLUTE(.);
     _rodata_end = ABSOLUTE(.);
     /* Literals are also RO data. */
     _lit4_start = ABSOLUTE(.);
@@ -391,8 +344,8 @@ SECTIONS
     . = ALIGN(ALIGNOF(.eh_frame));
   } > default_rodata_seg
 
-  /* Keep this section shall be at least aligned on 4 */
-  .eh_frame : ALIGN(8)
+    /* Keep this section shall be at least aligned on 4 */
+  .eh_frame : ALIGN(4)
   {
     __eh_frame = ABSOLUTE(.);
     KEEP (*(.eh_frame))
@@ -411,11 +364,38 @@ SECTIONS
     __eh_frame_hdr_end = ABSOLUTE(.);
   } > default_rodata_seg
 
-  .flash.rodata_noload (NOLOAD) :
+  /* Marks the end of IRAM code segment */
+  .iram0.text_end (NOLOAD) :
   {
-    . = ALIGN (4);
-    mapping[rodata_noload]
-  } > default_rodata_seg
+    /* ESP32-H2 memprot requires 16B padding for possible CPU prefetch and 512B alignment for PMS split lines */
+    . += _esp_memprot_prefetch_pad_size;
+    . = ALIGN(_esp_memprot_align_size);
+    /* iram_end_test section exists for use by memprot unit tests only */
+    *(.iram_end_test)
+    _iram_text_end = ABSOLUTE(.);
+  } > iram0_0_seg
+
+  .iram0.data :
+  {
+    . = ALIGN(16);
+    _iram_data_start = ABSOLUTE(.);
+
+    mapping[iram0_data]
+
+    _iram_data_end = ABSOLUTE(.);
+  } > iram0_0_seg
+
+  .iram0.bss (NOLOAD) :
+  {
+    . = ALIGN(16);
+    _iram_bss_start = ABSOLUTE(.);
+
+    mapping[iram0_bss]
+
+    _iram_bss_end = ABSOLUTE(.);
+    . = ALIGN(16);
+    _iram_end = ABSOLUTE(.);
+  } > iram0_0_seg
 
   /* Marks the end of data, bss and possibly rodata  */
   .dram0.heap_start (NOLOAD) :

@@ -57,7 +57,7 @@ static inline uint32_t esp_apptrace_tmo_remaining_us(esp_apptrace_tmo_t *tmo)
 
 /** Tracing module synchronization lock */
 typedef struct {
-    spinlock_t mux;
+    portMUX_TYPE mux;
     unsigned int_state;
 } esp_apptrace_lock_t;
 

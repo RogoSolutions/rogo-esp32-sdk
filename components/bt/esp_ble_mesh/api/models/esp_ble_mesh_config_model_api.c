@@ -59,8 +59,8 @@ esp_err_t esp_ble_mesh_config_client_get_state(esp_ble_mesh_client_common_param_
     arg.cfg_client_get_state.params = params;
     arg.cfg_client_get_state.get_state = get_state;
 
-    return (btc_transfer_context(&msg, &arg, sizeof(btc_ble_mesh_config_client_args_t), btc_ble_mesh_config_client_arg_deep_copy,
-                btc_ble_mesh_config_client_arg_deep_free) == BT_STATUS_SUCCESS ? ESP_OK : ESP_FAIL);
+    return (btc_transfer_context(&msg, &arg, sizeof(btc_ble_mesh_config_client_args_t), btc_ble_mesh_config_client_arg_deep_copy)
+            == BT_STATUS_SUCCESS ? ESP_OK : ESP_FAIL);
 }
 
 esp_err_t esp_ble_mesh_config_client_set_state(esp_ble_mesh_client_common_param_t *params,
@@ -84,12 +84,11 @@ esp_err_t esp_ble_mesh_config_client_set_state(esp_ble_mesh_client_common_param_
     arg.cfg_client_set_state.params = params;
     arg.cfg_client_set_state.set_state = set_state;
 
-    return (btc_transfer_context(&msg, &arg, sizeof(btc_ble_mesh_config_client_args_t), btc_ble_mesh_config_client_arg_deep_copy,
-                btc_ble_mesh_config_client_arg_deep_free) == BT_STATUS_SUCCESS ? ESP_OK : ESP_FAIL);
+    return (btc_transfer_context(&msg, &arg, sizeof(btc_ble_mesh_config_client_args_t), btc_ble_mesh_config_client_arg_deep_copy)
+            == BT_STATUS_SUCCESS ? ESP_OK : ESP_FAIL);
 }
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+// Ninh.D.H 21.06.2023
 esp_err_t esp_ble_mesh_rogo_config_client_set_state(esp_ble_mesh_client_rogo_param_t *params,
                                                     esp_ble_mesh_cfg_client_set_state_t *set_state)
 {
@@ -111,10 +110,9 @@ esp_err_t esp_ble_mesh_rogo_config_client_set_state(esp_ble_mesh_client_rogo_par
     arg.cfg_client_rogo_set_state.params = params;
     arg.cfg_client_rogo_set_state.set_state = set_state;
 
-    return (btc_transfer_context(&msg, &arg, sizeof(btc_ble_mesh_config_client_args_t), btc_ble_mesh_config_client_rogo_arg_deep_copy,
-                btc_ble_mesh_config_client_arg_deep_free) == BT_STATUS_SUCCESS ? ESP_OK : ESP_FAIL);
+    return (btc_transfer_context(&msg, &arg, sizeof(btc_ble_mesh_config_client_args_t), btc_ble_mesh_config_client_rogo_arg_deep_copy)
+            == BT_STATUS_SUCCESS ? ESP_OK : ESP_FAIL);
 }
-/************************************************************************************************/
 
 #endif /* CONFIG_BLE_MESH_CFG_CLI */
 

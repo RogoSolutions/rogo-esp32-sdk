@@ -22,11 +22,9 @@
 #if (CONFIG_BLE_MESH_NODE && CONFIG_BLE_MESH_PB_GATT) || \
     CONFIG_BLE_MESH_GATT_PROXY_SERVER
 
-#if !CONFIG_BLE_MESH_BQB_TEST
 /* Not support enabling Proxy Client and Proxy Server simultaneously */
 _Static_assert(!(IS_ENABLED(CONFIG_BLE_MESH_GATT_PROXY_SERVER) &&IS_ENABLED(CONFIG_BLE_MESH_GATT_PROXY_CLIENT)),
                "Not support Proxy Server and Proxy Client simultaneously");
-#endif
 
 #define PDU_TYPE(data)     (data[0] & BIT_MASK(6))
 #define PDU_SAR(data)      (data[0] >> 6)
@@ -75,7 +73,6 @@ static uint16_t proxy_ccc_val;
 #if defined(CONFIG_BLE_MESH_PB_GATT)
 static uint16_t prov_ccc_val;
 static bool prov_fast_adv;
-static uint32_t prov_start_time;
 #endif
 
 static struct bt_mesh_proxy_client {
@@ -1380,16 +1377,12 @@ int32_t bt_mesh_proxy_server_adv_start(void)
     }
 
 #if defined(CONFIG_BLE_MESH_PB_GATT)
-    if (prov_fast_adv) {
-        prov_start_time = k_uptime_get_32();
-    }
-
     if (!bt_mesh_is_provisioned()) {
         const struct bt_mesh_adv_param *param;
         struct bt_mesh_adv_data prov_sd[2];
         size_t prov_sd_len;
 
-        if (k_uptime_get_32() - prov_start_time < K_SECONDS(60)) {
+        if (prov_fast_adv) {
             param = &fast_adv_param;
         } else {
             param = &slow_adv_param;

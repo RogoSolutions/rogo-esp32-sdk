@@ -1,9 +1,4 @@
 /*
- * SPDX-FileCopyrightText: 2013-2017 Peter Andersson (pelleplutt1976<at>gmail.com)
- *
- * SPDX-License-Identifier: MIT
- */
-/*
  * spiffs_config.h
  *
  *  Created on: Jul 3, 2013
@@ -25,7 +20,6 @@
 #include <sdkconfig.h>
 #include <esp_log.h>
 #include <assert.h>
-#include "esp_assert.h"
 
 // compile time switches
 #define SPIFFS_TAG "SPIFFS"
@@ -71,7 +65,7 @@ extern void spiffs_api_unlock(struct spiffs_t *fs);
 
 // Defines spiffs debug print formatters
 // some general signed number
-#define _SPIPRIi   "%"PRIdMAX
+#define _SPIPRIi   "%d"
 // address
 #define _SPIPRIad  "%08x"
 // block
@@ -167,7 +161,7 @@ extern void spiffs_api_unlock(struct spiffs_t *fs);
 // spiffs_object_ix_header fields + at least some LUT entries)
 #define SPIFFS_OBJ_META_LEN             (CONFIG_SPIFFS_META_LENGTH)
 #define SPIFFS_PAGE_EXTRA_SIZE          (64)
-ESP_STATIC_ASSERT(SPIFFS_OBJ_META_LEN + SPIFFS_OBJ_NAME_LEN + SPIFFS_PAGE_EXTRA_SIZE
+_Static_assert(SPIFFS_OBJ_META_LEN + SPIFFS_OBJ_NAME_LEN + SPIFFS_PAGE_EXTRA_SIZE
         <= CONFIG_SPIFFS_PAGE_SIZE, "SPIFFS_OBJ_META_LEN or SPIFFS_OBJ_NAME_LEN too long");
 
 // Size of buffer allocated on stack used when copying data.

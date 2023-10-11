@@ -2,7 +2,6 @@
 archive: libapp_trace.a
 entries:
     app_trace (noflash)
-    port_uart (noflash)
     app_trace_util (noflash)
     if APPTRACE_MEMBUFS_APPTRACE_PROTO_ENABLE:
       app_trace_membufs_proto (noflash)
@@ -17,7 +16,8 @@ entries:
 [mapping:app_trace_driver]
 archive: libdriver.a
 entries:
-    if APPTRACE_SV_TS_SOURCE_GPTIMER = y:
-      gptimer (noflash)
+    if APPTRACE_SV_TS_SOURCE_TIMER_00 = y || APPTRACE_SV_TS_SOURCE_TIMER_01 = y
+       || APPTRACE_SV_TS_SOURCE_TIMER_10 = y || APPTRACE_SV_TS_SOURCE_TIMER_11 = y:
+      timer (noflash)
     else:
       * (default)

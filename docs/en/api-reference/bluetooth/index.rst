@@ -6,12 +6,12 @@ Bluetooth API
 .. toctree::
     :maxdepth: 2
 
-    bt_common
-    bt_le
-    :SOC_BT_CLASSIC_SUPPORTED: classic_bt
-    controller_vhci
-    :SOC_BLE_MESH_SUPPORTED: esp-ble-mesh
-    nimble/index
+    Bluetooth Controller && VHCI <controller_vhci>
+    Bluetooth Common <bt_common>
+    Bluetooth LE <bt_le>
+    :SOC_CLASSIC_BT_SUPPORTED: Bluetooth Classic <classic_bt>
+    NimBLE <nimble/index>
+    ESP-BLE-MESH <esp-ble-mesh>
 
 ESP-IDF currently supports two host stacks. The Bluedroid based stack (default) supports classic Bluetooth as well as BLE. On the other hand, Apache NimBLE based stack is BLE only. For users to make a choice:
 
@@ -22,7 +22,8 @@ ESP-IDF currently supports two host stacks. The Bluedroid based stack (default) 
 
     For the overview of the ESP32 Bluetooth stack architecture, follow the links below:
 
-       * `ESP32 Bluetooth Architecture (PDF) <https://espressif.com/sites/default/files/documentation/esp32_bluetooth_architecture_en.pdf>`_
+       * `ESP32 Bluetooth Architecture (PDF) [English] <http://espressif.com/sites/default/files/documentation/esp32_bluetooth_architecture_en.pdf>`_
+       * `ESP32 Bluetooth Architecture (PDF) [中文] <http://espressif.com/sites/default/files/documentation/esp32_bluetooth_architecture_cn.pdf>`_
 
 Code examples for this API section are provided in the :example:`bluetooth/bluedroid` directory of ESP-IDF examples.
 

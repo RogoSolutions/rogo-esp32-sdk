@@ -1,26 +1,32 @@
 Universal Asynchronous Receiver/Transmitter (UART)
 ==================================================
 
-{IDF_TARGET_UART_EXAMPLE_PORT:default = "UART_NUM_1", esp32 = "UART_NUM_2", esp32s3 = "UART_NUM_2"}
+{IDF_TARGET_UART_NUM:default = "UART_NUM_1", esp32 = "UART_NUM_2", esp32s3 = "UART_NUM_2"}
 
-Introduction
-------------
+Overview
+--------
 
-A Universal Asynchronous Receiver/Transmitter (UART) is a hardware feature that handles communication (i.e., timing requirements and data framing) using widely-adopted asynchronous serial communication interfaces, such as RS232, RS422, and RS485. A UART provides a widely adopted and cheap method to realize full-duplex or half-duplex data exchange among different devices.
+A Universal Asynchronous Receiver/Transmitter (UART) is a hardware feature that handles communication (i.e., timing requirements and data framing) using widely-adopted asynchronous serial communication interfaces, such as RS232, RS422, RS485. A UART provides a widely adopted and cheap method to realize full-duplex or half-duplex data exchange among different devices.
 
-The {IDF_TARGET_NAME} chip has {IDF_TARGET_SOC_UART_NUM} UART controllers (also referred to as port), each featuring an identical set of registers to simplify programming and for more flexibility.
+.. only:: esp32 or esp32s3
 
-Each UART controller is independently configurable with parameters such as baud rate, data bit length, bit ordering, number of stop bits, parity bit, etc. All the controllers are compatible with UART-enabled devices from various manufacturers and can also support Infrared Data Association (IrDA) protocols.
+    The {IDF_TARGET_NAME} chip has three UART controllers (UART0, UART1, and UART2), each featuring an identical set of registers to simplify programming and for more flexibility.
+
+.. only:: esp32s2 or esp32c3
+
+    The {IDF_TARGET_NAME} chip has two UART controllers (UART0 and UART1), each featuring an identical set of registers to simplify programming and for more flexibility.
+
+Each UART controller is independently configurable with parameters such as baud rate, data bit length, bit ordering, number of stop bits, parity bit etc. All the controllers are compatible with UART-enabled devices from various manufacturers and can also support Infrared Data Association protocols (IrDA).
 
 Functional Overview
 -------------------
 
-The overview describes how to establish communication between an {IDF_TARGET_NAME} and other UART devices using the functions and data types of the UART driver. A typical programming workflow is broken down into the sections provided below:
+The following overview describes how to establish communication between an {IDF_TARGET_NAME} and other UART devices using the functions and data types of the UART driver. The overview reflects a typical programming workflow and is broken down into the sections provided below:
 
 1. :ref:`uart-api-setting-communication-parameters` - Setting baud rate, data bits, stop bits, etc.
-2. :ref:`uart-api-setting-communication-pins` - Assigning pins for connection to a device
-3. :ref:`uart-api-driver-installation` - Allocating {IDF_TARGET_NAME}'s resources for the UART driver
-4. :ref:`uart-api-running-uart-communication` - Sending/receiving data
+2. :ref:`uart-api-setting-communication-pins` - Assigning pins for connection to a device.
+3. :ref:`uart-api-driver-installation` - Allocating {IDF_TARGET_NAME}'s resources for the UART driver.
+4. :ref:`uart-api-running-uart-communication` - Sending / receiving data
 5. :ref:`uart-api-using-interrupts` - Triggering interrupts on specific communication events
 6. :ref:`uart-api-deleting-driver` - Freeing allocated resources if a UART communication is no longer required
 
@@ -31,7 +37,7 @@ The UART driver's functions identify each of the UART controllers using :cpp:typ
 
 .. _uart-api-setting-communication-parameters:
 
-Set Communication Parameters
+Setting Communication Parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 UART communication parameters can be configured all in a single step or individually in multiple steps.
@@ -44,7 +50,7 @@ Call the function :cpp:func:`uart_param_config` and pass to it a :cpp:type:`uart
 
 .. code-block:: c
 
-    const uart_port_t uart_num = {IDF_TARGET_UART_EXAMPLE_PORT};
+    const uart_port_t uart_num = {IDF_TARGET_UART_NUM};
     uart_config_t uart_config = {
         .baud_rate = 115200,
         .data_bits = UART_DATA_8_BITS,
@@ -87,21 +93,21 @@ Each of the above functions has a ``_get_`` counterpart to check the currently s
 
 .. _uart-api-setting-communication-pins:
 
-Set Communication Pins
+Setting Communication Pins
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 After setting communication parameters, configure the physical GPIO pins to which the other UART device will be connected. For this, call the function :cpp:func:`uart_set_pin` and specify the GPIO pin numbers to which the driver should route the Tx, Rx, RTS, and CTS signals. If you want to keep a currently allocated pin number for a specific signal, pass the macro :c:macro:`UART_PIN_NO_CHANGE`.
 
-The same macro :c:macro:`UART_PIN_NO_CHANGE` should be specified for pins that will not be used.
+The same macro should be specified for pins that will not be used.
 
 .. code-block:: c
 
   // Set UART pins(TX: IO4, RX: IO5, RTS: IO18, CTS: IO19)
-  ESP_ERROR_CHECK(uart_set_pin({IDF_TARGET_UART_EXAMPLE_PORT}, 4, 5, 18, 19));
+  ESP_ERROR_CHECK(uart_set_pin({IDF_TARGET_UART_NUM}, 4, 5, 18, 19));
 
 .. _uart-api-driver-installation:
 
-Install Drivers
+Driver Installation
 ^^^^^^^^^^^^^^^^^^^
 
 Once the communication pins are set, install the driver by calling :cpp:func:`uart_driver_install` and specify the following parameters:
@@ -119,7 +125,7 @@ The function will allocate the required internal resources for the UART driver.
     const int uart_buffer_size = (1024 * 2);
     QueueHandle_t uart_queue;
     // Install UART driver using an event queue here
-    ESP_ERROR_CHECK(uart_driver_install({IDF_TARGET_UART_EXAMPLE_PORT}, uart_buffer_size, \
+    ESP_ERROR_CHECK(uart_driver_install({IDF_TARGET_UART_NUM}, uart_buffer_size, \
                                             uart_buffer_size, 10, &uart_queue, 0));
 
 Once this step is complete, you can connect the external UART device and check the communication.
@@ -127,7 +133,7 @@ Once this step is complete, you can connect the external UART device and check t
 
 .. _uart-api-running-uart-communication:
 
-Run UART Communication
+Running UART Communication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Serial communication is controlled by each UART controller's finite state machine (FSM).
@@ -144,11 +150,11 @@ The process of receiving data is similar, but the steps are reversed:
 2. FSM writes the data into Rx FIFO buffer
 3. Read the data from Rx FIFO buffer
 
-Therefore, an application will only write and read data from a specific buffer using :cpp:func:`uart_write_bytes` and :cpp:func:`uart_read_bytes` respectively, and the FSM will do the rest.
+Therefore, an application will be limited to writing and reading data from a respective buffer using :cpp:func:`uart_write_bytes` and :cpp:func:`uart_read_bytes` respectively, and the FSM will do the rest.
 
 
-Transmit Data
-"""""""""""""
+Transmitting
+""""""""""""
 
 After preparing the data for transmission, call the function :cpp:func:`uart_write_bytes` and pass the data buffer's address and data length to it. The function will copy the data to the Tx ring buffer (either immediately or after enough space is available), and then exit. When there is free space in the Tx FIFO buffer, an interrupt service routine (ISR) moves the data from the Tx ring buffer to the Tx FIFO buffer in the background. The code below demonstrates the use of this function.
 
@@ -172,19 +178,19 @@ There is a 'companion' function :cpp:func:`uart_wait_tx_done` that monitors the 
 .. code-block:: c
 
     // Wait for packet to be sent
-    const uart_port_t uart_num = {IDF_TARGET_UART_EXAMPLE_PORT};
+    const uart_port_t uart_num = {IDF_TARGET_UART_NUM};
     ESP_ERROR_CHECK(uart_wait_tx_done(uart_num, 100)); // wait timeout is 100 RTOS ticks (TickType_t)
 
 
-Receive Data
-""""""""""""
+Receiving
+"""""""""
 
 Once the data is received by the UART and saved in the Rx FIFO buffer, it needs to be retrieved using the function :cpp:func:`uart_read_bytes`. Before reading data, you can check the number of bytes available in the Rx FIFO buffer by calling :cpp:func:`uart_get_buffered_data_len`. An example of using these functions is given below.
 
 .. code-block:: c
 
     // Read data from UART.
-    const uart_port_t uart_num = {IDF_TARGET_UART_EXAMPLE_PORT};
+    const uart_port_t uart_num = {IDF_TARGET_UART_NUM};
     uint8_t data[128];
     int length = 0;
     ESP_ERROR_CHECK(uart_get_buffered_data_len(uart_num, (size_t*)&length));
@@ -212,12 +218,12 @@ The UART controller supports a number of communication modes. A mode can be sele
 
 .. _uart-api-using-interrupts:
 
-Use Interrupts
+Using Interrupts
 ^^^^^^^^^^^^^^^^
 
-There are many interrupts that can be generated depending on specific UART states or detected errors. The full list of available interrupts is provided in *{IDF_TARGET_NAME} Technical Reference Manual* > *UART Controller (UART)* > *UART Interrupts* and *UHCI Interrupts* [`PDF <{IDF_TARGET_TRM_EN_URL}#uart>`__]. You can enable or disable specific interrupts by calling :cpp:func:`uart_enable_intr_mask` or :cpp:func:`uart_disable_intr_mask` respectively.
+There are many interrupts that can be generated following specific UART states or detected errors. The full list of available interrupts is provided in *{IDF_TARGET_NAME} Technical Reference Manual* > *UART Controller (UART)* > *UART Interrupts* and *UHCI Interrupts* [`PDF <{IDF_TARGET_TRM_EN_URL}#uart>`__]. You can enable or disable specific interrupts by calling :cpp:func:`uart_enable_intr_mask` or :cpp:func:`uart_disable_intr_mask` respectively. The mask of all interrupts is available as :c:macro:`UART_INTR_MASK`.
 
-The :cpp:func:`uart_driver_install` function installs the driver's internal interrupt handler to manage the Tx and Rx ring buffers and provides high-level API functions like events (see below).
+By default, the :cpp:func:`uart_driver_install` function installs the driver's internal interrupt handler to manage the Tx and Rx ring buffers and provides high-level API functions like events (see below). It is also possible to register a lower level interrupt handler instead using :cpp:func:`uart_isr_register`, and to free it again using :cpp:func:`uart_isr_free`. Some UART driver functions which use the Tx and Rx ring buffers, events, etc. will not automatically work in this case - it is necessary to handle the interrupts directly in the ISR. Inside the custom handler implementation, clear the interrupt status bits using :cpp:func:`uart_clear_intr_status`.
 
 The API provides a convenient way to handle specific interrupts discussed in this document by wrapping them into dedicated functions:
 
@@ -229,9 +235,9 @@ The API provides a convenient way to handle specific interrupts discussed in thi
     - Enable the interrupts using the functions :cpp:func:`uart_enable_tx_intr` and :cpp:func:`uart_enable_rx_intr`
     - Disable these interrupts using the corresponding functions :cpp:func:`uart_disable_tx_intr` or :cpp:func:`uart_disable_rx_intr`
 
-- **Pattern detection**: An interrupt triggered on detecting a 'pattern' of the same character being received/sent repeatedly. This functionality is demonstrated in the example :example:`peripherals/uart/uart_events`. It can be used, e.g., to detect a command string with a specific number of identical characters (the 'pattern') at the end. The following functions are available:
+- **Pattern detection**: An interrupt triggered on detecting a 'pattern' of the same character being received/sent repeatedly for a number of times. This functionality is demonstrated in the example :example:`peripherals/uart/uart_events`. It can be used, e.g., to detect a command string followed by a specific number of identical characters (the 'pattern') added at the end of the command string. The following functions are available:
 
-    - Configure and enable this interrupt using :cpp:func:`uart_enable_pattern_det_baud_intr`
+    - Configure and enable this interrupt using :cpp:func:`uart_enable_pattern_det_intr`
     - Disable the interrupt using :cpp:func:`uart_disable_pattern_det_intr`
 
 
@@ -249,7 +255,7 @@ Deleting a Driver
 If the communication established with :cpp:func:`uart_driver_install` is no longer required, the driver can be removed to free allocated resources by calling :cpp:func:`uart_driver_delete`.
 
 
-Overview of RS485 Specific Communication 0ptions
+Overview of RS485 specific communication options
 ------------------------------------------------
 
 .. note::
@@ -266,7 +272,7 @@ The collision detection feature allows handling collisions when their interrupts
 
 The collision detection feature can work with circuit A and circuit C (see Section `Interface Connection Options`_). In the case of using circuit A or B, the RTS pin connected to the DE pin of the bus driver should be controlled by the user application. Use the function :cpp:func:`uart_get_collision_flag` to check if the collision detection flag has been raised.
 
-The {IDF_TARGET_NAME} UART controllers themselves do not support half-duplex communication as they cannot provide automatic control of the RTS pin connected to the RE/DE input of RS485 bus driver. However, half-duplex communication can be achieved via software control of the RTS pin by the UART driver. This can be enabled by selecting the :cpp:enumerator:`UART_MODE_RS485_HALF_DUPLEX` mode when calling :cpp:func:`uart_set_mode`.
+The {IDF_TARGET_NAME} UART controllers themselves do not support half-duplex communication as they cannot provide automatic control of the RTS pin connected to the ~RE/DE input of RS485 bus driver. However, half-duplex communication can be achieved via software control of the RTS pin by the UART driver. This can be enabled by selecting the :cpp:enumerator:`UART_MODE_RS485_HALF_DUPLEX` mode when calling :cpp:func:`uart_set_mode`.
 
 Once the host starts writing data to the Tx FIFO buffer, the UART driver automatically asserts the RTS pin (logic 1); once the last bit of the data has been transmitted, the driver de-asserts the RTS pin (logic 0). To use this mode, the software would have to disable the hardware flow control function. This mode works with all the used circuits shown below.
 
@@ -398,7 +404,7 @@ The UART peripherals have dedicated IO_MUX pins to which they are connected dire
 
 1. :c:macro:`UART_NUM_2_TXD_DIRECT_GPIO_NUM` returns the IO_MUX pin number of UART channel 2 TXD pin (pin 17)
 2. :c:macro:`UART_GPIO19_DIRECT_CHANNEL` returns the UART number of GPIO 19 when connected to the UART peripheral via IO_MUX (this is UART_NUM_0)
-3. :c:macro:`UART_CTS_GPIO19_DIRECT_CHANNEL` returns the UART number of GPIO 19 when used as the UART CTS pin via IO_MUX (this is UART_NUM_0). It is similar to the above macro but specifies the pin function which is also part of the IO_MUX assignment.
+3. :c:macro:`UART_CTS_GPIO19_DIRECT_CHANNEL` returns the UART number of GPIO 19 when used as the UART CTS pin via IO_MUX (this is UART_NUM_0). Similar to the above macro but specifies the pin function which is also part of the IO_MUX assignment.
 
 .. include-build-file:: inc/uart_channel.inc
 

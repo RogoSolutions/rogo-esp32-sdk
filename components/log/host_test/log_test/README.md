@@ -19,8 +19,10 @@ First, make sure that the target is set to Linux. Run `idf.py --preview set-targ
 
 ## Run
 
+IDF monitor doesn't work yet for Linux. You have to run the app manually: 
+
 ```bash
-idf.py monitor
+./build/test_log_host.elf
 ```
 
 ## Example Output
@@ -28,7 +30,7 @@ idf.py monitor
 Ideally, all tests pass, which is indicated by "All tests passed" in the last line:
 
 ```bash
-$ idf.py monitor
+$ ./build/test_log_host.elf 
 ===============================================================================
 All tests passed (8 assertions in 6 test cases)
 ```

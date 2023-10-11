@@ -1,12 +1,24 @@
-/*
- * Multi-precision integer library
- * ESP-IDF hardware accelerated parts based on mbedTLS implementation
+/**
+ * \brief  Multi-precision integer library, ESP32 hardware accelerated parts
  *
- * SPDX-FileCopyrightText: The Mbed TLS Contributors
+ *  based on mbedTLS implementation
  *
- * SPDX-License-Identifier: Apache-2.0
+ *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  Additions Copyright (C) 2016, Espressif Systems (Shanghai) PTE Ltd
+ *  SPDX-License-Identifier: Apache-2.0
  *
- * SPDX-FileContributor: 2016-2022 Espressif Systems (Shanghai) CO LTD
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may
+ *  not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
  */
 #include <stdio.h>
 #include <string.h>
@@ -15,23 +27,12 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <sys/param.h>
-
+#include "soc/hwcrypto_periph.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_attr.h"
-#include "esp_intr_alloc.h"
-#if CONFIG_PM_ENABLE
-#include "esp_pm.h"
-#endif
-
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
-
-#include "soc/hwcrypto_periph.h"
-#include "soc/periph_defs.h"
-#include "soc/soc_caps.h"
-
 #include "bignum_impl.h"
+#include "soc/soc_caps.h"
 
 #include <mbedtls/bignum.h>
 
@@ -55,77 +56,6 @@ static const __attribute__((unused)) char *TAG = "bignum";
 #define ciL    (sizeof(mbedtls_mpi_uint))         /* chars in limb  */
 #define biL    (ciL << 3)                         /* bits  in limb  */
 
-#if defined(CONFIG_MBEDTLS_MPI_USE_INTERRUPT)
-static SemaphoreHandle_t op_complete_sem;
-#if defined(CONFIG_PM_ENABLE)
-static esp_pm_lock_handle_t s_pm_cpu_lock;
-static esp_pm_lock_handle_t s_pm_sleep_lock;
-#endif
-
-static IRAM_ATTR void esp_mpi_complete_isr(void *arg)
-{
-    BaseType_t higher_woken;
-    esp_mpi_interrupt_clear();
-
-    xSemaphoreGiveFromISR(op_complete_sem, &higher_woken);
-    if (higher_woken) {
-        portYIELD_FROM_ISR();
-    }
-}
-
-
-static esp_err_t esp_mpi_isr_initialise(void)
-{
-    esp_mpi_interrupt_clear();
-    esp_mpi_interrupt_enable(true);
-    if (op_complete_sem == NULL) {
-        op_complete_sem = xSemaphoreCreateBinary();
-
-        if (op_complete_sem == NULL) {
-            ESP_LOGE(TAG, "Failed to create intr semaphore");
-            return ESP_FAIL;
-        }
-
-        esp_intr_alloc(ETS_RSA_INTR_SOURCE, 0, esp_mpi_complete_isr, NULL, NULL);
-    }
-
-    /* MPI is clocked proportionally to CPU clock, take power management lock */
-#ifdef CONFIG_PM_ENABLE
-    if (s_pm_cpu_lock == NULL) {
-        if (esp_pm_lock_create(ESP_PM_NO_LIGHT_SLEEP, 0, "mpi_sleep", &s_pm_sleep_lock) != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to create PM sleep lock");
-            return ESP_FAIL;
-        }
-        if (esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "mpi_cpu", &s_pm_cpu_lock) != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to create PM CPU lock");
-            return ESP_FAIL;
-        }
-    }
-    esp_pm_lock_acquire(s_pm_cpu_lock);
-    esp_pm_lock_acquire(s_pm_sleep_lock);
-#endif
-
-    return ESP_OK;
-}
-
-static int esp_mpi_wait_intr(void)
-{
-    if (!xSemaphoreTake(op_complete_sem, 2000 / portTICK_PERIOD_MS)) {
-        ESP_LOGE("MPI", "Timed out waiting for completion of MPI Interrupt");
-        return -1;
-    }
-
-#ifdef CONFIG_PM_ENABLE
-    esp_pm_lock_release(s_pm_cpu_lock);
-    esp_pm_lock_release(s_pm_sleep_lock);
-#endif  // CONFIG_PM_ENABLE
-
-    esp_mpi_interrupt_enable(false);
-
-    return 0;
-}
-
-#endif // CONFIG_MBEDTLS_MPI_USE_INTERRUPT
 
 /* Convert bit count to word count
  */
@@ -140,8 +70,8 @@ static inline size_t bits_to_words(size_t bits)
 #if defined(MBEDTLS_MPI_EXP_MOD_ALT) || defined(MBEDTLS_MPI_EXP_MOD_ALT_FALLBACK)
 static size_t mpi_words(const mbedtls_mpi *mpi)
 {
-    for (size_t i = mpi->MBEDTLS_PRIVATE(n); i > 0; i--) {
-        if (mpi->MBEDTLS_PRIVATE(p[i - 1]) != 0) {
+    for (size_t i = mpi->n; i > 0; i--) {
+        if (mpi->p[i - 1] != 0) {
             return i;
         }
     }
@@ -164,7 +94,7 @@ static mbedtls_mpi_uint modular_inverse(const mbedtls_mpi *M)
     uint64_t t = 1;
     uint64_t two_2_i_minus_1 = 2;   /* 2^(i-1) */
     uint64_t two_2_i = 4;           /* 2^i */
-    uint64_t N = M->MBEDTLS_PRIVATE(p[0]);
+    uint64_t N = M->p[0];
 
     for (i = 2; i <= 32; i++) {
         if ((mbedtls_mpi_uint) N * t % two_2_i >= two_2_i_minus_1) {
@@ -242,7 +172,7 @@ int esp_mpi_mul_mpi_mod(mbedtls_mpi *Z, const mbedtls_mpi *X, const mbedtls_mpi 
     MBEDTLS_MPI_CHK(mbedtls_mpi_grow(Z, z_words));
 
     esp_mpi_read_result_hw_op(Z, z_words);
-    Z->MBEDTLS_PRIVATE(s) = X->MBEDTLS_PRIVATE(s) * Y->MBEDTLS_PRIVATE(s);
+    Z->s = X->s * Y->s;
 
 cleanup:
     mbedtls_mpi_free(&Rinv);
@@ -260,11 +190,11 @@ cleanup:
 static size_t mbedtls_mpi_msb( const mbedtls_mpi *X )
 {
     int i, j;
-    if (X != NULL && X->MBEDTLS_PRIVATE(n) != 0) {
-        for (i = X->MBEDTLS_PRIVATE(n) - 1; i >= 0; i--) {
-            if (X->MBEDTLS_PRIVATE(p[i]) != 0) {
+    if (X != NULL && X->n != 0) {
+        for (i = X->n - 1; i >= 0; i--) {
+            if (X->p[i] != 0) {
                 for (j = biL - 1; j >= 0; j--) {
-                    if ((X->MBEDTLS_PRIVATE(p[i]) & (1 << j)) != 0) {
+                    if ((X->p[i] & (1 << j)) != 0) {
                         return (i * biL) + j;
                     }
                 }
@@ -364,7 +294,7 @@ static int esp_mpi_exp_mod( mbedtls_mpi *Z, const mbedtls_mpi *X, const mbedtls_
         return MBEDTLS_ERR_MPI_NOT_ACCEPTABLE;
     }
 
-    if (mbedtls_mpi_cmp_int(M, 0) <= 0 || (M->MBEDTLS_PRIVATE(p[0]) & 1) == 0) {
+    if (mbedtls_mpi_cmp_int(M, 0) <= 0 || (M->p[0] & 1) == 0) {
         return MBEDTLS_ERR_MPI_BAD_INPUT_DATA;
     }
 
@@ -384,7 +314,7 @@ static int esp_mpi_exp_mod( mbedtls_mpi *Z, const mbedtls_mpi *X, const mbedtls_
     } else {
         Rinv = _Rinv;
     }
-    if (Rinv->MBEDTLS_PRIVATE(p) == NULL) {
+    if (Rinv->p == NULL) {
         MBEDTLS_MPI_CHK(calculate_rinv(Rinv, M, num_words));
     }
 
@@ -397,39 +327,22 @@ static int esp_mpi_exp_mod( mbedtls_mpi *Z, const mbedtls_mpi *X, const mbedtls_
 #else
     esp_mpi_enable_hardware_hw_op();
 
-#if defined (CONFIG_MBEDTLS_MPI_USE_INTERRUPT)
-    if (esp_mpi_isr_initialise() == ESP_FAIL) {
-        ret = -1;
-        esp_mpi_disable_hardware_hw_op();
-        goto cleanup;
-    }
-#endif
-
     esp_mpi_exp_mpi_mod_hw_op(X, Y, M, Rinv, Mprime, num_words);
     ret = mbedtls_mpi_grow(Z, m_words);
     if (ret != 0) {
         esp_mpi_disable_hardware_hw_op();
         goto cleanup;
     }
-
-#if defined(CONFIG_MBEDTLS_MPI_USE_INTERRUPT)
-    ret = esp_mpi_wait_intr();
-    if (ret != 0) {
-        esp_mpi_disable_hardware_hw_op();
-        goto cleanup;
-    }
-#endif //CONFIG_MBEDTLS_MPI_USE_INTERRUPT
-
     esp_mpi_read_result_hw_op(Z, m_words);
     esp_mpi_disable_hardware_hw_op();
 #endif
 
     // Compensate for negative X
-    if (X->MBEDTLS_PRIVATE(s) == -1 && (Y->MBEDTLS_PRIVATE(p[0]) & 1) != 0) {
-        Z->MBEDTLS_PRIVATE(s) = -1;
+    if (X->s == -1 && (Y->p[0] & 1) != 0) {
+        Z->s = -1;
         MBEDTLS_MPI_CHK(mbedtls_mpi_add_mpi(Z, M, Z));
     } else {
-        Z->MBEDTLS_PRIVATE(s) = 1;
+        Z->s = 1;
     }
 
 cleanup:
@@ -494,12 +407,12 @@ int mbedtls_mpi_mul_mpi( mbedtls_mpi *Z, const mbedtls_mpi *X, const mbedtls_mpi
     }
     if (x_bits == 1) {
         ret = mbedtls_mpi_copy(Z, Y);
-        Z->MBEDTLS_PRIVATE(s) *= X->MBEDTLS_PRIVATE(s);
+        Z->s *= X->s;
         return ret;
     }
     if (y_bits == 1) {
         ret = mbedtls_mpi_copy(Z, X);
-        Z->MBEDTLS_PRIVATE(s) *= Y->MBEDTLS_PRIVATE(s);
+        Z->s *= Y->s;
         return ret;
     }
 
@@ -538,7 +451,7 @@ int mbedtls_mpi_mul_mpi( mbedtls_mpi *Z, const mbedtls_mpi *X, const mbedtls_mpi
 
     esp_mpi_disable_hardware_hw_op();
 
-    Z->MBEDTLS_PRIVATE(s) = X->MBEDTLS_PRIVATE(s) * Y->MBEDTLS_PRIVATE(s);
+    Z->s = X->s * Y->s;
 
 cleanup:
     return ret;
@@ -549,9 +462,9 @@ int mbedtls_mpi_mul_int( mbedtls_mpi *X, const mbedtls_mpi *A, mbedtls_mpi_uint 
     mbedtls_mpi _B;
     mbedtls_mpi_uint p[1];
 
-    _B.MBEDTLS_PRIVATE(s) = 1;
-    _B.MBEDTLS_PRIVATE(n) = 1;
-    _B.MBEDTLS_PRIVATE(p) = p;
+    _B.s = 1;
+    _B.n = 1;
+    _B.p = p;
     p[0] = b;
 
     return( mbedtls_mpi_mul_mpi( X, A, &_B ) );
@@ -582,15 +495,15 @@ static int mpi_mult_mpi_overlong(mbedtls_mpi *Z, const mbedtls_mpi *X, const mbe
     const size_t words_slice = y_words / 2;
     /* Yp holds lower bits of Y (declared to reuse Y's array contents to save on copying) */
     const mbedtls_mpi Yp = {
-        .MBEDTLS_PRIVATE(p) = Y->MBEDTLS_PRIVATE(p),
-        .MBEDTLS_PRIVATE(n) = words_slice,
-        .MBEDTLS_PRIVATE(s) = Y->MBEDTLS_PRIVATE(s)
+        .p = Y->p,
+        .n = words_slice,
+        .s = Y->s
     };
     /* Ypp holds upper bits of Y, right shifted (also reuses Y's array contents) */
     const mbedtls_mpi Ypp = {
-        .MBEDTLS_PRIVATE(p) = Y->MBEDTLS_PRIVATE(p) + words_slice,
-        .MBEDTLS_PRIVATE(n) = y_words - words_slice,
-        .MBEDTLS_PRIVATE(s) = Y->MBEDTLS_PRIVATE(s)
+        .p = Y->p + words_slice,
+        .n = y_words - words_slice,
+        .s = Y->s
     };
     mbedtls_mpi_init(&Ztemp);
 
@@ -641,25 +554,7 @@ static int mpi_mult_mpi_failover_mod_mult( mbedtls_mpi *Z, const mbedtls_mpi *X,
     MBEDTLS_MPI_CHK( mbedtls_mpi_grow(Z, hw_words) );
     esp_mpi_read_result_hw_op(Z, hw_words);
 
-    Z->MBEDTLS_PRIVATE(s) = X->MBEDTLS_PRIVATE(s) * Y->MBEDTLS_PRIVATE(s);
-    /*
-     * Relevant: https://github.com/espressif/esp-idf/issues/11850
-     * If the first condition fails then most likely hardware peripheral
-     * has produced an incorrect result for MPI operation. This can
-     * happen if data fed to the peripheral register was incorrect.
-     *
-     * z_words is calculated as the worst-case possible size of the result
-     * MPI Z. The difference between z_words and the actual words taken by
-     * the MPI result (mpi_words(Z)) can be a maximum of 1 word.
-     * The value z_bits (actual bits taken by the MPI result) is calculated
-     * as x_bits + y_bits bits, however, in some cases, z_bits can be
-     * x_bits + y_bits - 1 bits (see example below).
-     * 0b1111 * 0b1111 = 0b11100001 -> 8 bits
-     * 0b1000 * 0b1000 = 0b01000000 -> 7 bits.
-     * The code rounds up to the nearest word size, so the maximum difference
-     * could be of only 1 word. The second condition handles this.
-     */
-    assert((z_words >= mpi_words(Z)) && (z_words - mpi_words(Z) <= (size_t)1));
+    Z->s = X->s * Y->s;
 cleanup:
     esp_mpi_disable_hardware_hw_op();
     return ret;

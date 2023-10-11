@@ -1,27 +1,26 @@
 /*
- * SPDX-FileCopyrightText: 2015-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <stdint.h>
-#include "esp_attr.h"
 #include "soc/soc.h"
 #include "soc/rtc.h"
 #include "soc/rtc_cntl_reg.h"
 #include "soc/syscon_reg.h"
 #include "soc/dport_reg.h"
+#include "soc/rtc.h"
 #include "soc/i2s_reg.h"
 #include "soc/timer_group_reg.h"
 #include "soc/bb_reg.h"
 #include "soc/nrx_reg.h"
 #include "soc/fe_reg.h"
+#include "soc/rtc.h"
 #include "regi2c_ctrl.h"
-#include "soc/regi2c_dig_reg.h"
+#include "soc/rtc.h"
 
 #define RTC_CNTL_MEM_FOLW_CPU (RTC_CNTL_SLOWMEM_FOLW_CPU | RTC_CNTL_FASTMEM_FOLW_CPU)
-
-static const DRAM_ATTR rtc_sleep_pu_config_t pu_cfg = RTC_SLEEP_PU_CONFIG_ALL(1);
 
 /**
  * Configure whether certain peripherals are powered up in sleep
@@ -62,7 +61,8 @@ void rtc_sleep_get_default_config(uint32_t sleep_flags, rtc_sleep_config_t *out_
         .rtc_fastmem_pd_en = (sleep_flags & RTC_SLEEP_PD_RTC_FAST_MEM) ? 1 : 0,
         .rtc_slowmem_pd_en = (sleep_flags & RTC_SLEEP_PD_RTC_SLOW_MEM) ? 1 : 0,
         .rtc_peri_pd_en = (sleep_flags & RTC_SLEEP_PD_RTC_PERIPH) ? 1 : 0,
-        .modem_pd_en = (sleep_flags & RTC_SLEEP_PD_MODEM) ? 1 : 0,
+        .wifi_pd_en = (sleep_flags & RTC_SLEEP_PD_WIFI) ? 1 : 0,
+        .bt_pd_en = (sleep_flags & RTC_SLEEP_PD_BT) ? 1 : 0,
         .cpu_pd_en = (sleep_flags & RTC_SLEEP_PD_CPU) ? 1 : 0,
         .int_8m_pd_en = (sleep_flags & RTC_SLEEP_PD_INT_8M) ? 1 : 0,
         .dig_peri_pd_en = (sleep_flags & RTC_SLEEP_PD_DIG_PERIPH) ? 1 : 0,
@@ -72,6 +72,7 @@ void rtc_sleep_get_default_config(uint32_t sleep_flags, rtc_sleep_config_t *out_
         .xtal_fpu = (sleep_flags & RTC_SLEEP_PD_XTAL) ? 0 : 1,
         .deep_slp_reject = 1,
         .light_slp_reject = 1,
+        .dbg_atten_monitor = RTC_CNTL_DBG_ATTEN_MONITOR_DEFAULT,
         .rtc_dbias_slp = RTC_CNTL_DBIAS_1V10
     };
 
@@ -79,37 +80,30 @@ void rtc_sleep_get_default_config(uint32_t sleep_flags, rtc_sleep_config_t *out_
         assert(sleep_flags & RTC_SLEEP_PD_XTAL);
         out_config->dig_dbias_slp = 0;  //not used
         //rtc voltage from high to low
-        if ((sleep_flags & RTC_SLEEP_USE_ADC_TESEN_MONITOR) || (!(sleep_flags & RTC_SLEEP_PD_INT_8M))) {
+        if (sleep_flags & RTC_SLEEP_USE_ADC_TESEN_MONITOR) {
             /*
-             * rtc voltage in sleep mode >= 0.9v
-             * if 8MD256 select as RTC slow clock src, only need dbg_atten_slp set to 0
+             * rtc voltage in sleep mode >= 1.1v
              * Support all features:
-             * - 8MD256 as RTC slow clock src
-             * - ADC/Temperature sensor in monitor mode (ULP) (also need pd_cur_monitor = 0)
+             * - ADC/Temperature sensor in monitor mode (ULP) (also need pd_cur_monotor = 0)
              * - RTC IO as input
              * - RTC Memory at high temperature
              * - ULP
              * - Touch sensor
+             * - 8MD256 as RTC slow clock src
              */
             out_config->rtc_regulator_fpu = 1;
             out_config->dbg_atten_slp = RTC_CNTL_DBG_ATTEN_DEEPSLEEP_NODROP;
         } else if (sleep_flags & RTC_SLEEP_NO_ULTRA_LOW) {
             /*
-             * rtc voltage in sleep mode >= 0.7v (default mode):
-             * Support follow features:
-             * - RTC IO as input
-             * - RTC Memory at high temperature
-             * - ULP
-             * - Touch sensor
+             * rtc voltage in sleep need stable and not less than 0.7v (default mode):
+             * can't use ADC/Temperature sensor in monitor mode
              */
             out_config->rtc_regulator_fpu = 1;
             out_config->dbg_atten_slp = RTC_CNTL_DBG_ATTEN_DEEPSLEEP_DEFAULT;
         } else {
             /*
              * rtc regulator not opened and rtc voltage is about 0.66v (ultra low power):
-             * Support follow features:
-             * - ULP
-             * - Touch sensor
+               also can't use RTC IO as input, RTC memory can't work under high temperature
              */
             out_config->rtc_regulator_fpu = 0;
             out_config->dbg_atten_slp = RTC_CNTL_DBG_ATTEN_DEEPSLEEP_ULTRA_LOW;
@@ -119,36 +113,23 @@ void rtc_sleep_get_default_config(uint32_t sleep_flags, rtc_sleep_config_t *out_
         //voltage from high to low
         if ((sleep_flags & RTC_SLEEP_DIG_USE_8M) || !(sleep_flags & RTC_SLEEP_PD_XTAL)) {
             /*
-             * digital voltage not less than 1.1v, rtc voltage is about 1.1v
+             * digital voltage not less than 1.1v, rtc voltage not less than 1.1v to keep system stable
              * Support all features:
              * - XTAL
              * - RC 8M used by digital system
-             * - 8MD256 as RTC slow clock src (only need dbg_atten_slp to 0)
-             * - ADC/Temperature sensor in monitor mode (ULP) (also need pd_cur_monitor = 0)
+             * - ADC/Temperature sensor in monitor mode (ULP)
              * - ULP
              * - Touch sensor
+             * - 8MD256 as RTC slow clock src
              */
             out_config->dbg_atten_slp = RTC_CNTL_DBG_ATTEN_LIGHTSLEEP_NODROP;
             out_config->dig_dbias_slp = RTC_CNTL_DBIAS_1V10;
-         } else if (!(sleep_flags & RTC_SLEEP_PD_INT_8M)){
-            /*
-             * dbg_atten_slp need to set to 0.
-             * digital voltage is about 0.67v, rtc voltage is about 1.1v
-             * Support features:
-             * - 8MD256 as RTC slow clock src
-             * - ADC/Temperature sensor in monitor mode (ULP) (also need pd_cur_monitor = 0)
-             * - ULP
-             * - Touch sensor
-            */
-            out_config->dbg_atten_slp = RTC_CNTL_DBG_ATTEN_LIGHTSLEEP_NODROP;
-            out_config->dig_dbias_slp = 0;
         } else {
             /*
-             * digital voltage not less than 0.6v, rtc voltage is about 0.95v
-             * Support features:
-             * - ADC/Temperature sensor in monitor mode (ULP) (also need pd_cur_monitor = 0)
-             * - ULP
-             * - Touch sensor
+             * digital voltage not less than 0.6v
+             * if use RTC_SLEEP_USE_ADC_TESEN_MONITOR, rtc voltage need to be >= 0.9v(default voltage), others just use default rtc voltage.
+             * - not support XTAL
+             * - not support RC 8M in digital system
             */
             out_config->dbg_atten_slp = RTC_CNTL_DBG_ATTEN_LIGHTSLEEP_DEFAULT;
             out_config->dig_dbias_slp = RTC_CNTL_DBIAS_SLP;
@@ -174,17 +155,25 @@ void rtc_sleep_get_default_config(uint32_t sleep_flags, rtc_sleep_config_t *out_
 void rtc_sleep_init(rtc_sleep_config_t cfg)
 {
     if (cfg.lslp_mem_inf_fpu) {
+        rtc_sleep_pu_config_t pu_cfg = RTC_SLEEP_PU_CONFIG_ALL(1);
         rtc_sleep_pu(pu_cfg);
     }
-
-    if (cfg.modem_pd_en) {
+    /* mem force pu */
+    SET_PERI_REG_MASK(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_LSLP_MEM_FORCE_PU);
+    if (cfg.wifi_pd_en) {
         REG_CLR_BIT(RTC_CNTL_DIG_ISO_REG, RTC_CNTL_WIFI_FORCE_NOISO | RTC_CNTL_WIFI_FORCE_ISO);
         REG_CLR_BIT(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_WIFI_FORCE_PU);
         SET_PERI_REG_MASK(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_WIFI_PD_EN);
     } else {
         CLEAR_PERI_REG_MASK(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_WIFI_PD_EN);
     }
-
+    if (cfg.bt_pd_en) {
+        REG_CLR_BIT(RTC_CNTL_DIG_ISO_REG, RTC_CNTL_BT_FORCE_NOISO | RTC_CNTL_BT_FORCE_ISO);
+        REG_CLR_BIT(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_BT_FORCE_PU);
+        SET_PERI_REG_MASK(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_BT_PD_EN);
+    } else {
+        CLEAR_PERI_REG_MASK(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_BT_PD_EN);
+    }
     if (cfg.cpu_pd_en) {
         REG_CLR_BIT(RTC_CNTL_DIG_ISO_REG, RTC_CNTL_CPU_TOP_FORCE_NOISO | RTC_CNTL_CPU_TOP_FORCE_ISO);
         REG_CLR_BIT(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_CPU_TOP_FORCE_PU);
@@ -192,7 +181,6 @@ void rtc_sleep_init(rtc_sleep_config_t cfg)
     } else {
         CLEAR_PERI_REG_MASK(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_CPU_TOP_PD_EN);
     }
-
     if (cfg.dig_peri_pd_en) {
         REG_CLR_BIT(RTC_CNTL_DIG_ISO_REG, RTC_CNTL_DG_PERI_FORCE_NOISO | RTC_CNTL_DG_PERI_FORCE_ISO);
         REG_CLR_BIT(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_DG_PERI_FORCE_PU);
@@ -200,7 +188,6 @@ void rtc_sleep_init(rtc_sleep_config_t cfg)
     } else {
         CLEAR_PERI_REG_MASK(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_DG_PERI_PD_EN);
     }
-
     if (cfg.rtc_peri_pd_en) {
         REG_CLR_BIT(RTC_CNTL_PWC_REG, RTC_CNTL_FORCE_NOISO | RTC_CNTL_FORCE_ISO | RTC_CNTL_FORCE_PU);
         SET_PERI_REG_MASK(RTC_CNTL_PWC_REG, RTC_CNTL_PD_EN);
@@ -213,13 +200,12 @@ void rtc_sleep_init(rtc_sleep_config_t cfg)
     REGI2C_WRITE_MASK(I2C_DIG_REG, I2C_DIG_REG_EXT_RTC_DREG_SLEEP, cfg.rtc_dbias_slp);
     REGI2C_WRITE_MASK(I2C_DIG_REG, I2C_DIG_REG_EXT_DIG_DREG_SLEEP, cfg.dig_dbias_slp);
 
+    REG_SET_FIELD(RTC_CNTL_BIAS_CONF_REG, RTC_CNTL_DBG_ATTEN_MONITOR, cfg.dbg_atten_monitor);
+    REG_SET_FIELD(RTC_CNTL_BIAS_CONF_REG, RTC_CNTL_BIAS_SLEEP_MONITOR, cfg.bias_sleep_monitor);
     REG_SET_FIELD(RTC_CNTL_BIAS_CONF_REG, RTC_CNTL_DBG_ATTEN_DEEP_SLP, cfg.dbg_atten_slp);
     REG_SET_FIELD(RTC_CNTL_BIAS_CONF_REG, RTC_CNTL_BIAS_SLEEP_DEEP_SLP, cfg.bias_sleep_slp);
-    REG_SET_FIELD(RTC_CNTL_BIAS_CONF_REG, RTC_CNTL_PD_CUR_DEEP_SLP, cfg.pd_cur_slp);
-
-    REG_SET_FIELD(RTC_CNTL_BIAS_CONF_REG, RTC_CNTL_DBG_ATTEN_MONITOR, RTC_CNTL_DBG_ATTEN_MONITOR_DEFAULT);
-    REG_SET_FIELD(RTC_CNTL_BIAS_CONF_REG, RTC_CNTL_BIAS_SLEEP_MONITOR, cfg.bias_sleep_monitor);
     REG_SET_FIELD(RTC_CNTL_BIAS_CONF_REG, RTC_CNTL_PD_CUR_MONITOR, cfg.pd_cur_monitor);
+    REG_SET_FIELD(RTC_CNTL_BIAS_CONF_REG, RTC_CNTL_PD_CUR_DEEP_SLP, cfg.pd_cur_slp);
 
     if (cfg.deep_slp) {
         SET_PERI_REG_MASK(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_DG_WRAP_PD_EN);
@@ -231,8 +217,8 @@ void rtc_sleep_init(rtc_sleep_config_t cfg)
         REG_SET_FIELD(RTC_CNTL_REGULATOR_DRV_CTRL_REG, RTC_CNTL_DG_VDD_DRV_B_SLP, RTC_CNTL_DG_VDD_DRV_B_SLP_DEFAULT);
         CLEAR_PERI_REG_MASK(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_DG_WRAP_PD_EN);
     }
-    /* mem force pu */
-    SET_PERI_REG_MASK(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_LSLP_MEM_FORCE_PU);
+    /* mem pd */
+    CLEAR_PERI_REG_MASK(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_LSLP_MEM_FORCE_PU);
 
     REG_SET_FIELD(RTC_CNTL_REG, RTC_CNTL_REGULATOR_FORCE_PU, cfg.rtc_regulator_fpu);
     if (!cfg.int_8m_pd_en) {
@@ -260,6 +246,12 @@ void rtc_sleep_low_init(uint32_t slowclk_period)
     REG_SET_FIELD(RTC_CNTL_TIMER1_REG, RTC_CNTL_PLL_BUF_WAIT, RTC_CNTL_PLL_BUF_WAIT_SLP_CYCLES);
     REG_SET_FIELD(RTC_CNTL_TIMER1_REG, RTC_CNTL_XTL_BUF_WAIT, rtc_time_us_to_slowclk(RTC_CNTL_XTL_BUF_WAIT_SLP_US, slowclk_period));
     REG_SET_FIELD(RTC_CNTL_TIMER1_REG, RTC_CNTL_CK8M_WAIT, RTC_CNTL_CK8M_WAIT_SLP_CYCLES);
+}
+
+void rtc_sleep_set_wakeup_time(uint64_t t)
+{
+    WRITE_PERI_REG(RTC_CNTL_SLP_TIMER0_REG, t & UINT32_MAX);
+    WRITE_PERI_REG(RTC_CNTL_SLP_TIMER1_REG, t >> 32);
 }
 
 static uint32_t rtc_sleep_finish(uint32_t lslp_mem_inf_fpu);
@@ -291,6 +283,7 @@ static uint32_t rtc_sleep_finish(uint32_t lslp_mem_inf_fpu)
 
     /* restore config if it is a light sleep */
     if (lslp_mem_inf_fpu) {
+        rtc_sleep_pu_config_t pu_cfg = RTC_SLEEP_PU_CONFIG_ALL(1);
         rtc_sleep_pu(pu_cfg);
     }
 

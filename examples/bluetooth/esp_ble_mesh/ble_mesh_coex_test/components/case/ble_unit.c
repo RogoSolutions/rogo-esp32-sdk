@@ -1,12 +1,11 @@
-/*
- * ESP BLE Mesh Example
- *
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
+/* ESP BLE Mesh Example
 
-#include <inttypes.h>
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
 
 #include "ble_unit.h"
 #include "sync.h"
@@ -104,7 +103,7 @@ static void ble_gap_util_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_pa
                     &&  (memcmp(default_adv_data, param->scan_rst.ble_adv, sizeof(default_adv_data)) == 0)) {
                 scan_count.adv_count += 1;
                 if (scan_count.adv_count % 10 == 0) {
-                    ESP_LOGI(TAG, "adv count:%" PRIu32 " scan_res count %" PRIu32, scan_count.adv_count, scan_count.scan_res_count);
+                    ESP_LOGI(TAG, "adv count:%d scan_res count %d\n", scan_count.adv_count, scan_count.scan_res_count);
                 }
             }
 

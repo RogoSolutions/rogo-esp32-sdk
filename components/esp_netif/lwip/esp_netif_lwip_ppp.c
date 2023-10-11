@@ -1,11 +1,21 @@
-/*
- * SPDX-FileCopyrightText: 2019-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 
 #include "esp_netif.h"
+
+#ifdef CONFIG_ESP_NETIF_TCPIP_LWIP
 
 #include "lwip/dns.h"
 #include "netif/ppp/pppapi.h"
@@ -34,46 +44,81 @@ typedef struct lwip_peer2peer_ctx {
     ppp_pcb *ppp;
 } lwip_peer2peer_ctx_t;
 
-#if PPP_SUPPORT && PPP_AUTH_SUPPORT
-typedef struct {
-    struct tcpip_api_call_data call;
-    ppp_pcb *ppp;
-    u8_t authtype;
-    const char *user;
-    const char *passwd;
-} set_auth_msg_t;
-
-static err_t pppapi_do_ppp_set_auth(struct tcpip_api_call_data *m)
-{
-    set_auth_msg_t *msg = (set_auth_msg_t *)m;
-    ppp_set_auth(msg->ppp, msg->authtype, msg->user, msg->passwd);
-    return ERR_OK;
-}
-
-static void pppapi_set_auth(ppp_pcb *pcb, u8_t authtype, const char *user, const char *passwd)
-{
-    set_auth_msg_t msg = { .ppp = pcb, .authtype = authtype, .user = user, .passwd = passwd};
-    tcpip_api_call(pppapi_do_ppp_set_auth, &msg.call);
-}
-#endif // PPP_SUPPORT && PPP_AUTH_SUPPORT
-
 /**
  * @brief lwip callback from PPP client used here to produce PPP error related events,
  * as well as some IP events
  */
 static void on_ppp_status_changed(ppp_pcb *pcb, int err_code, void *ctx)
 {
+    struct netif *pppif = ppp_netif(pcb);
+    const ip_addr_t *dest_ip = NULL;
     esp_netif_t *netif = ctx;
     ip_event_got_ip_t evt = {
             .esp_netif = netif,
+            .if_index = -1,
     };
     esp_err_t err;
     struct lwip_peer2peer_ctx *obj =  (struct lwip_peer2peer_ctx*)netif->related_data;
     assert(obj->base.netif_type == PPP_LWIP_NETIF);
+    esp_ip4_addr_t ns1;
+    esp_ip4_addr_t ns2;
     switch (err_code) {
-        case PPPERR_NONE:
+        case PPPERR_NONE: /* Connected */
             ESP_LOGI(TAG, "Connected");
-            break;
+            if (pcb->if4_up && !ip_addr_isany(&pppif->ip_addr)) {
+                esp_netif_ip_info_t *ip_info = netif->ip_info;
+                ip4_addr_set(&ip_info->ip, ip_2_ip4(&pppif->ip_addr));
+                ip4_addr_set(&ip_info->netmask, ip_2_ip4(&pppif->netmask));
+                ip4_addr_set(&ip_info->gw, ip_2_ip4(&pppif->gw));
+
+                ip4_addr_set(&evt.ip_info.ip, ip_2_ip4(&pppif->ip_addr));
+                ip4_addr_set(&evt.ip_info.gw, ip_2_ip4(&pppif->gw));
+                ip4_addr_set(&evt.ip_info.netmask, ip_2_ip4(&pppif->netmask));
+
+                dest_ip = dns_getserver(0);
+                if(dest_ip != NULL){
+                    ip4_addr_set(&ns1, ip_2_ip4(dest_ip));
+                }
+                dest_ip = dns_getserver(1);
+                if(dest_ip != NULL){
+                    ip4_addr_set(&ns2, ip_2_ip4(dest_ip));
+                }
+                ESP_LOGI(TAG, "Name Server1: " IPSTR, IP2STR(&ns1));
+                ESP_LOGI(TAG, "Name Server2: " IPSTR, IP2STR(&ns2));
+
+
+                err = esp_event_post(IP_EVENT, netif->get_ip_event, &evt, sizeof(evt), 0);
+                if (ESP_OK != err) {
+                    ESP_LOGE(TAG, "esp_event_post failed with code %d", err);
+                }
+                return;
+#if PPP_IPV6_SUPPORT
+            } else if (pcb->if6_up && !ip_addr_isany(&pppif->ip6_addr[0])) {
+                esp_netif_ip6_info_t ip6_info;
+                ip6_addr_t lwip_ip6_info;
+                ip_event_got_ip6_t ip6_event = { .esp_netif = pppif->state, .if_index = -1 };
+
+                ip6_addr_set(&lwip_ip6_info, ip_2_ip6(&pppif->ip6_addr[0]));
+#if LWIP_IPV6_SCOPES
+                memcpy(&ip6_info.ip, &lwip_ip6_info, sizeof(esp_ip6_addr_t));
+#else
+                memcpy(&ip6_info.ip, &lwip_ip6_info, sizeof(ip6_addr_t));
+                ip6_info.ip.zone = 0;   // zero out zone, as not used in lwip
+#endif /* LWIP_IPV6_SCOPES */
+                memcpy(&ip6_event.ip6_info, &ip6_info, sizeof(esp_netif_ip6_info_t));
+
+                ESP_LOGI(TAG, "Got IPv6 address " IPV6STR, IPV62STR(pppif->ip6_addr[0].u_addr.ip6));
+                err = esp_event_post(IP_EVENT, IP_EVENT_GOT_IP6, &ip6_event, sizeof(ip6_event), 0);
+                if (ESP_OK != err) {
+                    ESP_LOGE(TAG, "esp_event_post failed with code %d", err);
+                }
+                return;
+#endif /* PPP_IPV6_SUPPORT */
+            } else {
+                ESP_LOGE(TAG, "Unexpected connected event");
+                return;
+            }
+
         case PPPERR_PARAM:
             ESP_LOGE(TAG, "Invalid parameter");
             break;
@@ -94,7 +139,7 @@ static void on_ppp_status_changed(ppp_pcb *pcb, int err_code, void *ctx)
             err = esp_event_post(IP_EVENT, netif->lost_ip_event, &evt, sizeof(evt), 0);
 
             if (ESP_OK != err) {
-                ESP_LOGE(TAG, "esp_event_post failed with code %d", err);
+                ESP_LOGE(TAG, "esp_event_send_internal failed with code %d", err);
             }
             return;
 
@@ -201,7 +246,7 @@ static uint32_t pppos_low_level_output(ppp_pcb *pcb, uint8_t *data, uint32_t len
 
 esp_err_t esp_netif_ppp_set_auth(esp_netif_t *netif, esp_netif_auth_type_t authtype, const char *user, const char *passwd)
 {
-    if (!ESP_NETIF_IS_POINT2POINT_TYPE(netif, PPP_LWIP_NETIF)) {
+    if (!_IS_NETIF_POINT2POINT_TYPE(netif, PPP_LWIP_NETIF)) {
         return ESP_ERR_ESP_NETIF_INVALID_PARAMS;
     }
 #if PPP_AUTH_SUPPORT
@@ -269,15 +314,13 @@ esp_err_t esp_netif_start_ppp(esp_netif_t *esp_netif)
     return ESP_OK;
 }
 
-esp_netif_recv_ret_t esp_netif_lwip_ppp_input(void *ppp_ctx, void *buffer, size_t len, void *eb)
+void esp_netif_lwip_ppp_input(void *ppp_ctx, void *buffer, size_t len, void *eb)
 {
     struct lwip_peer2peer_ctx * obj = ppp_ctx;
     err_t ret = pppos_input_tcpip(obj->ppp, buffer, len);
     if (ret != ERR_OK) {
         ESP_LOGE(TAG, "pppos_input_tcpip failed with %d", ret);
-        return ESP_NETIF_OPTIONAL_RETURN_CODE(ESP_FAIL);
     }
-    return ESP_NETIF_OPTIONAL_RETURN_CODE(ESP_OK);
 }
 
 esp_err_t esp_netif_stop_ppp(netif_related_data_t *netif_related)
@@ -325,3 +368,5 @@ esp_err_t esp_netif_ppp_get_params(esp_netif_t *netif, esp_netif_ppp_config_t *c
     config->ppp_error_event_enabled = obj->ppp_error_event_enabled;
     return ESP_OK;
 }
+
+#endif /* CONFIG_ESP_NETIF_TCPIP_LWIP */

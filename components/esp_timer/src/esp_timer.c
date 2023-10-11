@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2017-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2017-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -15,7 +15,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-#include "esp_ipc.h"
+#include "soc/spinlock.h"
 #include "esp_timer.h"
 #include "esp_timer_impl.h"
 
@@ -31,10 +31,6 @@
 #include "esp32s3/rtc.h"
 #elif CONFIG_IDF_TARGET_ESP32C3
 #include "esp32c3/rtc.h"
-#elif CONFIG_IDF_TARGET_ESP32C2
-#include "esp32c2/rtc.h"
-#elif CONFIG_IDF_TARGET_ESP32C6
-#include "esp32c6/rtc.h"
 #elif CONFIG_IDF_TARGET_ESP32H2
 #include "esp32h2/rtc.h"
 #endif
@@ -125,7 +121,7 @@ esp_err_t esp_timer_create(const esp_timer_create_args_t* args,
         args->dispatch_method < 0 || args->dispatch_method >= ESP_TIMER_MAX) {
         return ESP_ERR_INVALID_ARG;
     }
-    esp_timer_handle_t result = (esp_timer_handle_t) heap_caps_calloc(1, sizeof(*result), MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+    esp_timer_handle_t result = (esp_timer_handle_t) calloc(1, sizeof(*result));
     if (result == NULL) {
         return ESP_ERR_NO_MEM;
     }
@@ -144,86 +140,23 @@ esp_err_t esp_timer_create(const esp_timer_create_args_t* args,
     return ESP_OK;
 }
 
-/*
- * We have placed this function in IRAM to ensure consistency with the esp_timer API.
- * esp_timer_start_once, esp_timer_start_periodic and esp_timer_stop are in IRAM.
- * But actually in IDF esp_timer_restart is used only in one place, which requires keeping
- * in IRAM when PM_SLP_IRAM_OPT = y and ESP_TASK_WDT USE ESP_TIMER = y.
-*/
-esp_err_t IRAM_ATTR esp_timer_restart(esp_timer_handle_t timer, uint64_t timeout_us)
-{
-    esp_err_t ret = ESP_OK;
-
-    if (timer == NULL) {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    if (!is_initialized() || !timer_armed(timer)) {
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    esp_timer_dispatch_t dispatch_method = timer->flags & FL_ISR_DISPATCH_METHOD;
-    timer_list_lock(dispatch_method);
-
-    const int64_t now = esp_timer_impl_get_time();
-    const uint64_t period = timer->period;
-
-    /* We need to remove the timer to the list of timers and reinsert it at
-     * the right position. In fact, the timers are sorted by their alarm value
-     * (earliest first) */
-    ret = timer_remove(timer);
-
-    if (ret == ESP_OK) {
-        /* Two cases here:
-         * - if the alarm was a periodic one, i.e. `period` is not 0, the given timeout_us becomes the new period
-         * - if the alarm was a one-shot one, i.e. `period` is 0, it remains non-periodic. */
-        if (period != 0) {
-            /* Remove function got rid of the alarm and period fields, restore them */
-            const uint64_t new_period = MAX(timeout_us, esp_timer_impl_get_min_period_us());
-            timer->alarm = now + new_period;
-            timer->period = new_period;
-        } else {
-            /* The new one-shot alarm shall be triggered timeout_us after the current time */
-            timer->alarm = now + timeout_us;
-            timer->period = 0;
-        }
-        ret = timer_insert(timer, false);
-    }
-
-    timer_list_unlock(dispatch_method);
-
-    return ret;
-}
-
 esp_err_t IRAM_ATTR esp_timer_start_once(esp_timer_handle_t timer, uint64_t timeout_us)
 {
     if (timer == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
-    if (!is_initialized()) {
+    if (!is_initialized() || timer_armed(timer)) {
         return ESP_ERR_INVALID_STATE;
     }
     int64_t alarm = esp_timer_get_time() + timeout_us;
     esp_timer_dispatch_t dispatch_method = timer->flags & FL_ISR_DISPATCH_METHOD;
-    esp_err_t err;
-
     timer_list_lock(dispatch_method);
-
-    /* Check if the timer is armed once the list is locked.
-     * Otherwise another task may arm the timer inbetween the check
-     * and us locking the list, resulting in us inserting the
-     * timer to s_timers a second time. This will create a loop
-     * in s_timers. */
-    if (timer_armed(timer)) {
-        err = ESP_ERR_INVALID_STATE;
-    } else {
-        timer->alarm = alarm;
-        timer->period = 0;
+    timer->alarm = alarm;
+    timer->period = 0;
 #if WITH_PROFILING
-        timer->times_armed++;
+    timer->times_armed++;
 #endif
-        err = timer_insert(timer, false);
-    }
+    esp_err_t err = timer_insert(timer, false);
     timer_list_unlock(dispatch_method);
     return err;
 }
@@ -233,27 +166,20 @@ esp_err_t IRAM_ATTR esp_timer_start_periodic(esp_timer_handle_t timer, uint64_t 
     if (timer == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
-    if (!is_initialized()) {
+    if (!is_initialized() || timer_armed(timer)) {
         return ESP_ERR_INVALID_STATE;
     }
     period_us = MAX(period_us, esp_timer_impl_get_min_period_us());
     int64_t alarm = esp_timer_get_time() + period_us;
     esp_timer_dispatch_t dispatch_method = timer->flags & FL_ISR_DISPATCH_METHOD;
-    esp_err_t err;
     timer_list_lock(dispatch_method);
-
-    /* Check if the timer is armed once the list is locked to avoid a data race */
-    if (timer_armed(timer)) {
-        err = ESP_ERR_INVALID_STATE;
-    } else {
-        timer->alarm = alarm;
-        timer->period = period_us;
+    timer->alarm = alarm;
+    timer->period = period_us;
 #if WITH_PROFILING
-        timer->times_armed++;
-        timer->times_skipped = 0;
+    timer->times_armed++;
+    timer->times_skipped = 0;
 #endif
-        err = timer_insert(timer, false);
-    }
+    esp_err_t err = timer_insert(timer, false);
     timer_list_unlock(dispatch_method);
     return err;
 }
@@ -263,22 +189,10 @@ esp_err_t IRAM_ATTR esp_timer_stop(esp_timer_handle_t timer)
     if (timer == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
-    if (!is_initialized()) {
+    if (!is_initialized() || !timer_armed(timer)) {
         return ESP_ERR_INVALID_STATE;
     }
-    esp_timer_dispatch_t dispatch_method = timer->flags & FL_ISR_DISPATCH_METHOD;
-    esp_err_t err;
-
-    timer_list_lock(dispatch_method);
-
-    /* Check if the timer is armed once the list is locked to avoid a data race */
-    if (!timer_armed(timer)) {
-        err = ESP_ERR_INVALID_STATE;
-    } else {
-        err = timer_remove(timer);
-    }
-    timer_list_unlock(dispatch_method);
-    return err;
+    return timer_remove(timer);
 }
 
 esp_err_t esp_timer_delete(esp_timer_handle_t timer)
@@ -286,27 +200,22 @@ esp_err_t esp_timer_delete(esp_timer_handle_t timer)
     if (timer == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
-
-    int64_t alarm = esp_timer_get_time();
-    esp_err_t err;
-    timer_list_lock(ESP_TIMER_TASK);
-
-    /* Check if the timer is armed once the list is locked to avoid a data race */
     if (timer_armed(timer)) {
-        err = ESP_ERR_INVALID_STATE;
-    } else {
-        // A case for the timer with ESP_TIMER_ISR:
-        // This ISR timer was removed from the ISR list in esp_timer_stop() or in timer_process_alarm() -> LIST_REMOVE(it, list_entry)
-        // and here this timer will be added to another the TASK list, see below.
-        // We do this because we want to free memory of the timer in a task context instead of an isr context.
-        timer->flags &= ~FL_ISR_DISPATCH_METHOD;
-        timer->event_id = EVENT_ID_DELETE_TIMER;
-        timer->alarm = alarm;
-        timer->period = 0;
-        err = timer_insert(timer, false);
+        return ESP_ERR_INVALID_STATE;
     }
+    // A case for the timer with ESP_TIMER_ISR:
+    // This ISR timer was removed from the ISR list in esp_timer_stop() or in timer_process_alarm() -> LIST_REMOVE(it, list_entry)
+    // and here this timer will be added to another the TASK list, see below.
+    // We do this because we want to free memory of the timer in a task context instead of an isr context.
+    int64_t alarm = esp_timer_get_time();
+    timer_list_lock(ESP_TIMER_TASK);
+    timer->flags &= ~FL_ISR_DISPATCH_METHOD;
+    timer->event_id = EVENT_ID_DELETE_TIMER;
+    timer->alarm = alarm;
+    timer->period = 0;
+    timer_insert(timer, false);
     timer_list_unlock(ESP_TIMER_TASK);
-    return err;
+    return ESP_OK;
 }
 
 static IRAM_ATTR esp_err_t timer_insert(esp_timer_handle_t timer, bool without_update_alarm)
@@ -492,7 +401,6 @@ static void IRAM_ATTR timer_alarm_handler(void* arg)
     bool isr_timers_processed = false;
 
 #ifdef CONFIG_ESP_TIMER_SUPPORTS_ISR_DISPATCH_METHOD
-    esp_timer_impl_try_to_set_next_alarm();
     // process timers with ISR dispatch method
     isr_timers_processed = timer_process_alarm(ESP_TIMER_ISR);
     xHigherPriorityTaskWoken = s_isr_dispatch_need_yield;
@@ -521,60 +429,34 @@ esp_err_t esp_timer_early_init(void)
     return ESP_OK;
 }
 
-static esp_err_t init_timer_task(void)
+esp_err_t esp_timer_init(void)
 {
-    esp_err_t err = ESP_OK;
+    esp_err_t err;
     if (is_initialized()) {
-        ESP_EARLY_LOGE(TAG, "Task is already initialized");
-        err = ESP_ERR_INVALID_STATE;
-    } else {
-        int ret = xTaskCreatePinnedToCore(
-                    &timer_task, "esp_timer",
-                    ESP_TASK_TIMER_STACK, NULL, ESP_TASK_TIMER_PRIO,
-                    &s_timer_task, CONFIG_ESP_TIMER_TASK_AFFINITY);
-        if (ret != pdPASS) {
-            ESP_EARLY_LOGE(TAG, "Not enough memory to create timer task");
-            err = ESP_ERR_NO_MEM;
-        }
+        return ESP_ERR_INVALID_STATE;
     }
-    return err;
-}
 
-static void deinit_timer_task(void)
-{
+    int ret = xTaskCreatePinnedToCore(&timer_task, "esp_timer",
+            ESP_TASK_TIMER_STACK, NULL, ESP_TASK_TIMER_PRIO, &s_timer_task, PRO_CPU_NUM);
+    if (ret != pdPASS) {
+        err = ESP_ERR_NO_MEM;
+        goto out;
+    }
+
+    err = esp_timer_impl_init(&timer_alarm_handler);
+    if (err != ESP_OK) {
+        goto out;
+    }
+
+    return ESP_OK;
+
+out:
     if (s_timer_task) {
         vTaskDelete(s_timer_task);
         s_timer_task = NULL;
     }
-}
 
-esp_err_t esp_timer_init(void)
-{
-    esp_err_t err = ESP_OK;
-#ifndef CONFIG_ESP_TIMER_ISR_AFFINITY_NO_AFFINITY
-    err = init_timer_task();
-#else
-    /* This function will be run on all cores if CONFIG_ESP_TIMER_ISR_AFFINITY_NO_AFFINITY is enabled,
-     * We do it that way because we need to allocate the timer ISR on MULTIPLE cores.
-     * timer task will be created by CPU0.
-     */
-    if (xPortGetCoreID() == 0) {
-        err = init_timer_task();
-    }
-#endif // CONFIG_ESP_TIMER_ISR_AFFINITY_NO_AFFINITY
-    if (err == ESP_OK) {
-        err = esp_timer_impl_init(&timer_alarm_handler);
-        if (err != ESP_OK) {
-            ESP_EARLY_LOGE(TAG, "ISR init failed");
-            deinit_timer_task();
-        }
-    }
-    return err;
-}
-
-ESP_SYSTEM_INIT_FN(esp_timer_startup_init, CONFIG_ESP_TIMER_ISR_AFFINITY, 100)
-{
-    return esp_timer_init();
+    return ESP_ERR_NO_MEM;
 }
 
 esp_err_t esp_timer_deinit(void)
@@ -602,7 +484,9 @@ esp_err_t esp_timer_deinit(void)
 #endif
 
     esp_timer_impl_deinit();
-    deinit_timer_task();
+
+    vTaskDelete(s_timer_task);
+    s_timer_task = NULL;
     return ESP_OK;
 }
 
@@ -719,8 +603,11 @@ int64_t IRAM_ATTR esp_timer_get_next_alarm_for_wake_up(void)
     int64_t next_alarm = INT64_MAX;
     for (esp_timer_dispatch_t dispatch_method = ESP_TIMER_TASK; dispatch_method < ESP_TIMER_MAX; ++dispatch_method) {
         timer_list_lock(dispatch_method);
-        esp_timer_handle_t it = NULL;
+        esp_timer_handle_t it;
         LIST_FOREACH(it, &s_timers[dispatch_method], list_entry) {
+            if (it == NULL) {
+                break;
+            }
             // timers with the SKIP_UNHANDLED_EVENTS flag do not want to wake up CPU from a sleep mode.
             if ((it->flags & FL_SKIP_UNHANDLED_EVENTS) == 0) {
                 if (next_alarm > it->alarm) {
@@ -734,45 +621,7 @@ int64_t IRAM_ATTR esp_timer_get_next_alarm_for_wake_up(void)
     return next_alarm;
 }
 
-esp_err_t IRAM_ATTR esp_timer_get_period(esp_timer_handle_t timer, uint64_t *period)
+bool esp_timer_is_active(esp_timer_handle_t timer)
 {
-    if (timer == NULL || period == NULL) {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    esp_timer_dispatch_t dispatch_method = timer->flags & FL_ISR_DISPATCH_METHOD;
-
-    timer_list_lock(dispatch_method);
-    *period = timer->period;
-    timer_list_unlock(dispatch_method);
-
-    return ESP_OK;
-}
-
-esp_err_t IRAM_ATTR esp_timer_get_expiry_time(esp_timer_handle_t timer, uint64_t *expiry)
-{
-    if (timer == NULL || expiry == NULL) {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    if (timer->period > 0) {
-        /* Return error for periodic timers */
-        return ESP_ERR_NOT_SUPPORTED;
-    }
-
-    esp_timer_dispatch_t dispatch_method = timer->flags & FL_ISR_DISPATCH_METHOD;
-
-    timer_list_lock(dispatch_method);
-    *expiry = timer->alarm;
-    timer_list_unlock(dispatch_method);
-
-    return ESP_OK;
-}
-
-bool IRAM_ATTR esp_timer_is_active(esp_timer_handle_t timer)
-{
-    if (timer == NULL) {
-        return false;
-    }
     return timer_armed(timer);
 }

@@ -1,15 +1,5 @@
 idf_build_get_property(target IDF_TARGET)
 
-# On Linux, we only support a few features, hence this simple component registration
-if(${target} STREQUAL "linux")
-    idf_component_register(SRCS "esp_system.c"
-                        "port/soc/linux/reset_reason.c"
-                        "port/soc/linux/system_internal.c"
-                        "port/esp_system_linux.c"
-                        INCLUDE_DIRS "include")
-    return()
-endif()
-
 set(srcs "esp_err.c")
 
 if(CONFIG_IDF_ENV_FPGA)
@@ -22,7 +12,6 @@ if(BOOTLOADER_BUILD)
         idf_component_register(SRCS "${srcs}" REQUIRES spi_flash)
 else()
     list(APPEND srcs "crosscore_int.c"
-            "esp_ipc.c"
             "esp_err.c"
             "freertos_hooks.c"
             "int_wdt.c"
@@ -31,39 +20,23 @@ else()
             "startup.c"
             "system_time.c"
             "stack_check.c"
+            "task_wdt.c"
             "ubsan.c"
             "xt_wdt.c"
             "debug_stubs.c")
-
-    if(CONFIG_ESP_TASK_WDT_EN)
-        list(APPEND srcs "task_wdt/task_wdt.c")
-
-        if(CONFIG_ESP_TASK_WDT_USE_ESP_TIMER)
-            list(APPEND srcs "task_wdt/task_wdt_impl_esp_timer.c")
-        else()
-            list(APPEND srcs "task_wdt/task_wdt_impl_timergroup.c")
-        endif()
-    endif()
 
     if(CONFIG_ESP_SYSTEM_USE_EH_FRAME)
         list(APPEND srcs "eh_frame_parser.c")
     endif()
 
-    if(CONFIG_SOC_SYSTIMER_SUPPORT_ETM)
-        list(APPEND srcs "systick_etm.c")
-    endif()
-
     idf_component_register(SRCS "${srcs}"
                         INCLUDE_DIRS include
-                        PRIV_REQUIRES spi_flash esp_timer esp_mm
+                        PRIV_REQUIRES spi_flash
                                     # [refactor-todo] requirements due to init code,
                                     # should be removable once using component init functions
                                     # link-time registration is used.
-                                    # [refactor-todo] requires "driver" for headers:
-                                    # - spi_common_internal.h
-                                    # [refactor-todo] esp_partition required for virtual efuse
-                                    # init code. Move to esp_efuse component.
-                                    pthread bootloader_support efuse driver esp_partition
+                                    esp_pm app_update nvs_flash pthread app_trace esp_gdbstub
+                                    espcoredump esp_phy efuse esp_ipc
                         LDFRAGMENTS "linker.lf" "app.lf")
     add_subdirectory(port)
 
@@ -94,38 +67,3 @@ endif()
 # Force linking UBSAN hooks. If UBSAN is not enabled, the hooks will ultimately be removed
 # due to -ffunction-sections -Wl,--gc-sections options.
 target_link_libraries(${COMPONENT_LIB} INTERFACE "-u __ubsan_include")
-
-
-# [refactor-todo] requirements due to init code, should be removable
-# once link-time registration of component init functions is used.
-if(CONFIG_APPTRACE_ENABLE)
-    idf_component_optional_requires(PRIVATE app_trace)
-endif()
-
-if(CONFIG_ESP_COREDUMP_ENABLE)
-    idf_component_optional_requires(PRIVATE espcoredump)
-endif()
-
-# [refactor-todo] requirement from the panic handler,
-# need to introduce panic "event" concept to remove this dependency (IDF-2194)
-idf_component_optional_requires(PRIVATE esp_gdbstub)
-
-idf_component_optional_requires(PRIVATE esp_app_format)
-
-if(CONFIG_PM_ENABLE)
-    idf_component_optional_requires(PRIVATE pm)
-endif()
-
-if(CONFIG_VFS_SUPPORT_IO)
-    idf_component_optional_requires(PRIVATE vfs)
-endif()
-
-if(CONFIG_SW_COEXIST_ENABLE OR CONFIG_EXTERNAL_COEX_ENABLE)
-    idf_component_optional_requires(PRIVATE esp_coex)
-endif()
-
-if(NOT BOOTLOADER_BUILD)
-    if(CONFIG_SPIRAM)
-        idf_component_optional_requires(PRIVATE esp_psram)
-    endif()
-endif()

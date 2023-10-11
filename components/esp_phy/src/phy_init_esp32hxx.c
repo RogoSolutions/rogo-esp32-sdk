@@ -1,28 +1,33 @@
-/*
- * SPDX-FileCopyrightText: 2015-2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "esp_attr.h"
 #include "freertos/portmacro.h"
 #include "esp_phy_init.h"
-#include "esp_private/phy.h"
-
-#if SOC_MODEM_CLOCK_IS_INDEPENDENT
-#include "esp_private/esp_modem_clock.h"
-#endif
+#include "phy.h"
 
 #define PHY_ENABLE_VERSION_PRINT 1
 
 static DRAM_ATTR portMUX_TYPE s_phy_int_mux = portMUX_INITIALIZER_UNLOCKED;
-
 extern void phy_version_print(void);
+
 static _lock_t s_phy_access_lock;
 
 /* Reference count of enabling PHY */
 static uint8_t s_phy_access_ref = 0;
-static bool s_phy_is_enabled = false;
+
+extern void bt_bb_v2_init_cmplx(int print_version);
 
 uint32_t IRAM_ATTR phy_enter_critical(void)
 {
@@ -50,40 +55,18 @@ void esp_phy_enable(void)
 {
     _lock_acquire(&s_phy_access_lock);
     if (s_phy_access_ref == 0) {
-#if SOC_MODEM_CLOCK_IS_INDEPENDENT
-        modem_clock_module_enable(PERIPH_PHY_MODULE);
-#endif
-        if (!s_phy_is_enabled) {
-            register_chipv7_phy(NULL, NULL, PHY_RF_CAL_FULL);
-            phy_version_print();
-            s_phy_is_enabled = true;
-        } else {
-            phy_wakeup_init();
-        }
-        phy_track_pll_init();
+        register_chipv7_phy(NULL, NULL, PHY_RF_CAL_FULL);
+        bt_bb_v2_init_cmplx(PHY_ENABLE_VERSION_PRINT);
+        phy_version_print();
     }
 
     s_phy_access_ref++;
 
     _lock_release(&s_phy_access_lock);
+    // ESP32H2-TODO: enable common clk.
 }
 
 void esp_phy_disable(void)
 {
-    _lock_acquire(&s_phy_access_lock);
-
-    if (s_phy_access_ref) {
-        s_phy_access_ref--;
-    }
-
-    if (s_phy_access_ref == 0) {
-        phy_track_pll_deinit();
-        phy_close_rf();
-        phy_xpd_tsens();
-#if SOC_MODEM_CLOCK_IS_INDEPENDENT
-        modem_clock_module_disable(PERIPH_PHY_MODULE);
-#endif
-    }
-
-    _lock_release(&s_phy_access_lock);
+    // ESP32H2-TODO: close rf and disable clk for modem sleep and light sleep
 }

@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2010-2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2010-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef _ROM_UART_H_
 #define _ROM_UART_H_
@@ -243,7 +251,7 @@ void uart_buff_switch(uint8_t uart_no);
   *
   * @return OK.
   */
-ETS_STATUS uart_tx_one_char(uint8_t TxChar);
+STATUS uart_tx_one_char(uint8_t TxChar);
 
 /**
   * @brief Output a char to message exchange channel, wait until fifo not full.
@@ -253,7 +261,7 @@ ETS_STATUS uart_tx_one_char(uint8_t TxChar);
   *
   * @return OK.
   */
-ETS_STATUS uart_tx_one_char2(uint8_t TxChar);
+STATUS uart_tx_one_char2(uint8_t TxChar);
 
 /**
   * @brief Wait until uart tx full empty.
@@ -283,7 +291,7 @@ void uart_tx_wait_idle(uint8_t uart_no);
   * @return OK for successful.
   *         FAIL for failed.
   */
-ETS_STATUS uart_rx_one_char(uint8_t *pRxChar);
+STATUS uart_rx_one_char(uint8_t *pRxChar);
 
 /**
   * @brief Get an input char from message channel, wait until successful.
@@ -305,7 +313,7 @@ char uart_rx_one_char_block(void);
   *
   * @return OK.
   */
-ETS_STATUS UartRxString(uint8_t *pString, uint8_t MaxStrlen);
+STATUS UartRxString(uint8_t *pString, uint8_t MaxStrlen);
 
 /**
   * @brief Process uart recevied information in the interrupt handler.
@@ -328,7 +336,7 @@ void uart_rx_intr_handler(void *para);
   * @return OK for successful.
   *         FAIL for failed.
   */
-ETS_STATUS uart_rx_readbuff( RcvMsgBuff *pRxBuff, uint8_t *pRxByte);
+STATUS uart_rx_readbuff( RcvMsgBuff *pRxBuff, uint8_t *pRxByte);
 
 /**
   * @brief Get all chars from receive buffer.
@@ -339,7 +347,7 @@ ETS_STATUS uart_rx_readbuff( RcvMsgBuff *pRxBuff, uint8_t *pRxByte);
   * @return OK for successful.
   *         FAIL for failed.
   */
-ETS_STATUS UartGetCmdLn(uint8_t *pCmdLn);
+STATUS UartGetCmdLn(uint8_t *pCmdLn);
 
 /**
   * @brief Get uart configuration struct.
@@ -389,7 +397,7 @@ int recv_packet(uint8_t *p, int len, uint8_t is_sync);
   * @return OK for successful.
   *         FAIL for failed.
   */
-ETS_STATUS SendMsg(uint8_t *pData, uint16_t DataLen);
+STATUS SendMsg(uint8_t *pData, uint16_t DataLen);
 
 /**
   * @brief Receive an packet from download tool, with SLIP escaping.
@@ -405,7 +413,7 @@ ETS_STATUS SendMsg(uint8_t *pData, uint16_t DataLen);
   * @return OK for successful.
   *         FAIL for failed.
   */
-ETS_STATUS RcvMsg(uint8_t *pData, uint16_t MaxDataLen, uint8_t is_sync);
+STATUS RcvMsg(uint8_t *pData, uint16_t MaxDataLen, uint8_t is_sync);
 
 /**
   * @brief Check if this UART is in download connection.

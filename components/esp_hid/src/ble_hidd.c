@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2017-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2017-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -137,7 +137,7 @@ typedef struct {
 
 struct esp_ble_hidd_dev_s {
     esp_hidd_dev_t             *dev;
-    SemaphoreHandle_t            sem;
+    xSemaphoreHandle            sem;
     esp_event_loop_handle_t     event_loop_handle;
     esp_hid_device_config_t     config;
     uint16_t                    appearance;
@@ -832,14 +832,12 @@ static esp_err_t esp_ble_hidd_dev_battery_set(void *devp, uint8_t level)
         return ESP_OK;
     }
 
-    if (dev->bat_ccc.notify_enable) {
-        ret = esp_ble_gatts_send_indicate(dev->bat_svc.gatt_if, dev->conn_id, dev->bat_level_handle, 1, &dev->bat_level, false);
-        if (ret) {
-            ESP_LOGE(TAG, "esp_ble_gatts_send_notify failed: %d", ret);
-            return ESP_FAIL;
-        }
+    ret = esp_ble_gatts_send_indicate(dev->bat_svc.gatt_if, dev->conn_id, dev->bat_level_handle, 1, &dev->bat_level, dev->bat_ccc.indicate_enable);
+    if (ret) {
+        ESP_LOGE(TAG, "esp_ble_gatts_send_indicate failed: %d", ret);
+        return ESP_FAIL;
     }
-
+    WAIT_CB(dev);
     return ESP_OK;
 }
 

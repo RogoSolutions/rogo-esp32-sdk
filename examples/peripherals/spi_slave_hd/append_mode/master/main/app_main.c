@@ -8,27 +8,16 @@
 */
 #include "esp_log.h"
 #include "esp_err.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "driver/spi_common.h"
 #include "driver/spi_master.h"
 #include "esp_serial_slave_link/essl.h"
 #include "esp_serial_slave_link/essl_spi.h"
 
-#ifdef CONFIG_IDF_TARGET_ESP32H2
-#define GPIO_MOSI          5
-#define GPIO_MISO          0
-#define GPIO_SCLK          4
-#define GPIO_CS            1
-
-#else
 #define GPIO_MOSI          11
 #define GPIO_MISO          13
 #define GPIO_SCLK          12
 #define GPIO_CS            10
-#endif
-
-#define HOST_ID            SPI2_HOST
+#define HOST_ID            1
 #define TRANSACTION_LEN    16
 //The SPI transaction cycles in this example. You may change the cycle. e.g., use the ``sender`` and change it to a infinite loop
 #define EXAMPLE_CYCLES     10
@@ -163,7 +152,6 @@ void app_main(void)
 
     ESP_ERROR_CHECK(receiver(essl));
     ESP_ERROR_CHECK(sender(essl));
-    ESP_LOGI("Append", "Example done.");
 
     ESP_ERROR_CHECK(essl_spi_deinit_dev(essl));
     ESP_ERROR_CHECK(spi_bus_remove_device(spi));

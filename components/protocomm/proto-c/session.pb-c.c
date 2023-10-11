@@ -52,7 +52,7 @@ void   session_data__free_unpacked
   assert(message->base.descriptor == &session_data__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
-static const ProtobufCFieldDescriptor session_data__field_descriptors[4] =
+static const ProtobufCFieldDescriptor session_data__field_descriptors[3] =
 {
   {
     "sec_ver",
@@ -90,30 +90,17 @@ static const ProtobufCFieldDescriptor session_data__field_descriptors[4] =
     0 | PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
-  {
-    "sec2",
-    12,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_MESSAGE,
-    offsetof(SessionData, proto_case),
-    offsetof(SessionData, sec2),
-    &sec2_payload__descriptor,
-    NULL,
-    0 | PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
 };
 static const unsigned session_data__field_indices_by_name[] = {
   1,   /* field[1] = sec0 */
   2,   /* field[2] = sec1 */
-  3,   /* field[3] = sec2 */
   0,   /* field[0] = sec_ver */
 };
 static const ProtobufCIntRange session_data__number_ranges[2 + 1] =
 {
   { 2, 0 },
   { 10, 1 },
-  { 0, 4 }
+  { 0, 3 }
 };
 const ProtobufCMessageDescriptor session_data__descriptor =
 {
@@ -123,27 +110,25 @@ const ProtobufCMessageDescriptor session_data__descriptor =
   "SessionData",
   "",
   sizeof(SessionData),
-  4,
+  3,
   session_data__field_descriptors,
   session_data__field_indices_by_name,
   2,  session_data__number_ranges,
   (ProtobufCMessageInit) session_data__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCEnumValue sec_scheme_version__enum_values_by_number[3] =
+static const ProtobufCEnumValue sec_scheme_version__enum_values_by_number[2] =
 {
   { "SecScheme0", "SEC_SCHEME_VERSION__SecScheme0", 0 },
   { "SecScheme1", "SEC_SCHEME_VERSION__SecScheme1", 1 },
-  { "SecScheme2", "SEC_SCHEME_VERSION__SecScheme2", 2 },
 };
 static const ProtobufCIntRange sec_scheme_version__value_ranges[] = {
-{0, 0},{0, 3}
+{0, 0},{0, 2}
 };
-static const ProtobufCEnumValueIndex sec_scheme_version__enum_values_by_name[3] =
+static const ProtobufCEnumValueIndex sec_scheme_version__enum_values_by_name[2] =
 {
   { "SecScheme0", 0 },
   { "SecScheme1", 1 },
-  { "SecScheme2", 2 },
 };
 const ProtobufCEnumDescriptor sec_scheme_version__descriptor =
 {
@@ -152,9 +137,9 @@ const ProtobufCEnumDescriptor sec_scheme_version__descriptor =
   "SecSchemeVersion",
   "SecSchemeVersion",
   "",
-  3,
+  2,
   sec_scheme_version__enum_values_by_number,
-  3,
+  2,
   sec_scheme_version__enum_values_by_name,
   1,
   sec_scheme_version__value_ranges,

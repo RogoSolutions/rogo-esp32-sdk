@@ -11,6 +11,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
+#include "soc/cpu.h"
 #include "soc/timer_periph.h"
 #include "esp_app_trace.h"
 #include "esp_freertos_hooks.h"
@@ -76,8 +77,7 @@ gcov_exit:
 void gcov_create_task(void *arg)
 {
     ESP_EARLY_LOGV(TAG, "%s", __FUNCTION__);
-    xTaskCreatePinnedToCore(&gcov_dump_task, "gcov_dump_task", CONFIG_APPTRACE_GCOV_DUMP_TASK_STACK_SIZE,
-		(void *)&s_gcov_task_running, configMAX_PRIORITIES - 1, NULL, 0);
+    xTaskCreatePinnedToCore(&gcov_dump_task, "gcov_dump_task", 2048, (void *)&s_gcov_task_running, configMAX_PRIORITIES - 1, NULL, 0);
 }
 
 void gcov_create_task_tick_hook(void)
@@ -104,7 +104,7 @@ static int esp_dbg_stub_gcov_entry(void)
     return ESP_OK;
 }
 
-void gcov_rtio_init(void)
+int gcov_rtio_atexit(void (*function)(void) __attribute__ ((unused)))
 {
     uint32_t capabilities = 0;
     ESP_EARLY_LOGV(TAG, "%s", __FUNCTION__);
@@ -113,6 +113,7 @@ void gcov_rtio_init(void)
         esp_dbg_stub_entry_set(ESP_DBG_STUB_ENTRY_CAPABILITIES, capabilities | ESP_DBG_STUB_CAP_GCOV_TASK);
     }
     esp_register_freertos_tick_hook(gcov_create_task_tick_hook);
+    return ESP_OK;
 }
 
 void esp_gcov_dump(void)
@@ -172,19 +173,4 @@ long gcov_rtio_ftell(void *stream)
     ESP_EARLY_LOGV(TAG, "%s(%p) = %ld", __FUNCTION__, stream, ret);
     return ret;
 }
-
-void gcov_rtio_setbuf(void *arg1 __attribute__ ((unused)), void *arg2 __attribute__ ((unused)))
-{
-    return;
-}
-
-/* Wrappers for Gcov functions */
-
-extern void __real___gcov_init(void *info);
-void __wrap___gcov_init(void *info)
-{
-    __real___gcov_init(info);
-    gcov_rtio_init();
-}
-
 #endif

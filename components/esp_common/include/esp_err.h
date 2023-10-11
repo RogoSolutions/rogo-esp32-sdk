@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
-#include <stdlib.h>
 #include "esp_compiler.h"
 
 #ifdef __cplusplus
@@ -76,7 +75,7 @@ const char *esp_err_to_name(esp_err_t code);
 const char *esp_err_to_name_r(esp_err_t code, char *buf, size_t buflen);
 
 /** @cond */
-void _esp_error_check_failed(esp_err_t rc, const char *file, int line, const char *function, const char *expression) __attribute__((__noreturn__));
+void _esp_error_check_failed(esp_err_t rc, const char *file, int line, const char *function, const char *expression) __attribute__((noreturn));
 
 /** @cond */
 void _esp_error_check_failed_without_abort(esp_err_t rc, const char *file, int line, const char *function, const char *expression);

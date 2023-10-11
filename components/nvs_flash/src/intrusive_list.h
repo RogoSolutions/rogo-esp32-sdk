@@ -30,14 +30,9 @@ class intrusive_list
 
 public:
 
-    class iterator
+    class iterator : public std::iterator<std::forward_iterator_tag, T>
     {
     public:
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = T;
-        using difference_type = ptrdiff_t;
-        using pointer = T*;
-        using reference = T&;
 
         iterator() : mPos(nullptr) {}
 

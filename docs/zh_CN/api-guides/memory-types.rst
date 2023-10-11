@@ -3,8 +3,6 @@
 存储器类型
 ------------------
 
-:link_to_translation:`en:[English]`
-
 {IDF_TARGET_NAME} 芯片具有不同类型的存储器和灵活的存储器映射特性，本小节将介绍 ESP-IDF 默认如何使用这些功能。
 
 ESP-IDF 区分了指令总线（IRAM、IROM、RTC FAST memory）和数据总线 (DRAM、DROM)。指令存储器是可执行的，只能通过 4 字节对齐字读取或写入。数据存储器不可执行，可以通过单独的字节操作访问。有关总线的更多信息，请参阅 *{IDF_TARGET_NAME} 技术参考手册* > *系统和存储器* [`PDF <{IDF_TARGET_TRM_CN_URL}#sysmem>`__]。
@@ -16,17 +14,13 @@ DRAM（数据 RAM）
 
 非常量静态数据（.data 段）和零初始化数据（.bss 段）由链接器放入内部 SRAM 作为数据存储。此区域中的剩余空间可在程序运行时用作堆。
 
-.. only:: SOC_SPIRAM_SUPPORTED
+.. only:: esp32 or esp32s2
 
-   通过应用 ``EXT_RAM_BSS_ATTR`` 宏，零初始化数据也可以放入外部 RAM。使用这个宏需要启用 :ref:`CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY`。详情请见 :ref:`external_ram_config_bss`。
+   通过应用 ``EXT_RAM_ATTR`` 宏，零初始化数据也可以放入外部 RAM。使用这个宏需要启用 :ref:`CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY`。详情请见 :ref:`external_ram_config_bss`。
 
 .. only:: esp32
 
    如果使用蓝牙堆栈，内部 DRAM 区域的可用大小将减少 64 KB（由于起始地址移动到 ``0x3FFC0000``）。如果使用内存跟踪功能，该区域的长度还会减少 16 KB 或 32 KB。由于 ROM 引起的一些内存碎片问题，不可能将所有可用的 DRAM 用于静态分配，但是剩余的 DRAM 在运行时仍可用作堆。
-
-   .. note::
-
-    ESP32 上有 520 KB 的可用 SRAM（320 KB 的 DRAM 和 200 KB 的 IRAM）。 但是，由于技术限制，用于静态分配的 DRAM 最多可为 160 KB。 剩余的 160 KB（DRAM 总共 320 KB）只能在运行时分配为堆。
 
 .. only:: not esp32
 
@@ -35,7 +29,6 @@ DRAM（数据 RAM）
     静态分配的 DRAM 的最大值也会因编译应用程序的 :ref:`iram` 大小而减小。运行时可用的堆内存会因应用程序的总静态 IRAM 和 DRAM 使用而减少。
 
 常量数据也可能被放入 DRAM，例如当它被用于 non-flash-safe ISR 时（具体请参考 :ref:`how-to-place-code-in-iram`）。
-
 
 "noinit" DRAM
 =============
@@ -50,27 +43,23 @@ DRAM（数据 RAM）
 
     __NOINIT_ATTR uint32_t noinit_data;
 
-
 .. _iram:
 
 IRAM（指令 RAM）
-^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~
 
 .. only:: esp32
 
-   ESP-IDF 将内部 SRAM0 的部分区域分配为指令 RAM。可在 *{IDF_TARGET_NAME} 技术参考手册* > *系统和存储器* > *内部存储器* [`PDF <{IDF_TARGET_TRM_CN_URL}#sysmem>`__] 中查看 IRAM 区域的定义。该内存中第一个 64 KB 块用于 PRO 和 APP MMU 缓存，其余部分（即从 ``0x40080000`` 到 ``0x400A0000``）用于存储需要从 RAM 运行的应用程序部分。
+    ESP-IDF 将内部 SRAM0 的部分区域分配为指令 RAM。可在 *{IDF_TARGET_NAME} 技术参考手册* > *系统和存储器* > *内部存储器* [`PDF <{IDF_TARGET_TRM_CN_URL}#sysmem>`__] 中查看 IRAM 区域的定义。该内存中第一个 64 KB 块用于 PRO 和 APP MMU 缓存，其余部分（即从 ``0x40080000`` 到 ``0x400A0000``）用于存储需要从 RAM 运行的应用程序部分。
 
 .. only:: esp32s2
 
-   ESP-IDF 将内部 SRAM 的部分区域分配为指令 RAM。可在 *{IDF_TARGET_NAME} 技术参考手册* > *系统和存储器* > *内部存储器* [`PDF <{IDF_TARGET_TRM_CN_URL}#sysmem>`__] 中查看 IRAM 区域的定义。该内存中第一个块（最多 32 KB）用于 MMU 缓存，其余部分用于存储需要从 RAM 运行的应用程序部分。
+    ESP-IDF 将内部 SRAM 的部分区域分配为指令 RAM。可在 *{IDF_TARGET_NAME} 技术参考手册* > *系统和存储器* > *内部存储器* [`PDF <{IDF_TARGET_TRM_CN_URL}#sysmem>`__] 中查看 IRAM 区域的定义。该内存中第一个块（最多 32 KB）用于 MMU 缓存，其余部分用于存储需要从 RAM 运行的应用程序部分。一些 ESP-IDF 的组件和 WiFi 协议栈的部分代码通过链接脚本文件被存放到了这块内存区域。
 
 .. only:: not esp32
 
-    .. note::
-
-         内部 SRAM 中不用于指令 RAM 的部分都会作为 :ref:`dram` 供静态数据和动态分配（堆）使用。
-
-
+    .. note:: 内部 SRAM 中不用于指令 RAM 的部分都会作为 :ref:`dram` 供静态数据和动态分配（堆）使用。
+    
 何时需要将代码放入 IRAM
 ======================================
 
@@ -79,7 +68,6 @@ IRAM（指令 RAM）
 - 如果在注册中断处理程序时使用了 ``ESP_INTR_FLAG_IRAM``，则中断处理程序必须要放入 IRAM。更多信息可参考 :ref:`iram-safe-interrupt-handlers`。
 
 - 可将一些时序关键代码放入 IRAM，以减少从 flash 中加载代码造成的相关损失。{IDF_TARGET_NAME} 通过 MMU 缓存从 flash 中读取代码和数据。在某些情况下，将函数放入 IRAM 可以减少由缓存未命中造成的延迟，从而显著提高函数的性能。
-
 
 .. _how-to-place-code-in-iram:
 
@@ -113,6 +101,7 @@ IRAM（指令 RAM）
 
 注意，具体哪些数据需要被标记为 ``DRAM_ATTR`` 可能很难确定。如果没有被标记为 ``DRAM_ATTR``，某些变量或表达式有时会被编译器别为常量（即使它们没有被标记为 ``const``）并将其放入 flash 中。
 
+
 * GCC 的优化会自动生成跳转表或 switch/case 查找表，并将这些表放在 flash 中。IDF 默认在编译所有文件时使用 ``-fno-jump-tables -fno-tree-switch-conversion`` 标志来避免这种情况。
 
 可以为不需要放置在 IRAM 中的单个源文件重新启用跳转表优化。关于如何在编译单个源文件时添加 ``-fno-jump-tables -fno-tree-switch-conversion`` 选项，请参考 :ref:`component_build_control`。
@@ -120,17 +109,27 @@ IRAM（指令 RAM）
 
 .. _irom:
 
-IROM（代码从 flash 中运行）
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+IROM（代码从 Flash 中运行）
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-如果一个函数没有被显式地声明放在 IRAM 或者 RTC 存储器中，则它会放在 flash 中。由于 IRAM 空间有限，应用程序的大部分二进制代码都需要放入 IROM 中。
-
-.. only:: esp32
-
-    允许从 flash 中执行代码的 Flash MMU 机制可参考 {IDF_TARGET_NAME} 技术参考手册* > *存储器管理和保护单元 (MMU, MPU)* [`PDF <{IDF_TARGET_TRM_CN_URL}#mpummu>`__]。
+如果一个函数没有被显式地声明放在 IRAM 或者 RTC 存储器中，则它会放在 flash 中。允许从 flash 中执行代码的 Flash MMU 机制可参考 {IDF_TARGET_NAME} 技术参考手册* > *存储器管理和保护单元 (MMU, MPU)* [`PDF <{IDF_TARGET_TRM_CN_URL}#mpummu>`__]。由于 IRAM 空间有限，应用程序的大部分二进制代码都需要放入 IROM 中。
 
 在 :doc:`启动 <startup>` 过程中，从 IRAM 中运行的引导加载程序配置 MMU flash 缓存，将应用程序的指令代码区域映射到指令空间。通过 MMU 访问的 flash 使用一些内部 SRAM 进行缓存，访问缓存的 flash 数据与访问其他类型的内部存储器一样快。
 
+RTC FAST memory（RTC 快速存储器）
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+RTC FAST memory 的同一区域既可以作为指令存储器也可以作为数据存储器进行访问。从深度睡眠模式唤醒后必须要运行的代码要放在 RTC 存储器中，更多信息请查阅文档 :doc:`深度睡眠 <deep-sleep-stub>`。
+
+.. only:: esp32
+
+     RTC FAST memory 只可以被 PRO CPU 访问。
+
+     在单核模式下，除非禁用 :ref:`CONFIG_ESP_SYSTEM_ALLOW_RTC_FAST_MEM_AS_HEAP` 选项，否则剩余的 RTC FAST memory 会被添加到堆中。该部分内存可以和 :ref:`DRAM` 互换使用，但是访问速度稍慢，且不具备 DMA 功能。
+
+.. only:: not esp32s2
+
+     除非禁用 :ref:`CONFIG_ESP_SYSTEM_ALLOW_RTC_FAST_MEM_AS_HEAP` 选项，否则剩余的 RTC FAST memory 会被添加到堆中。该部分内存可以和 :ref:`DRAM` 互换使用，但是访问速度稍慢一点。
 
 .. _drom:
 
@@ -150,40 +149,14 @@ DROM（数据存储在 flash 中）
     RTC Slow memory（RTC 慢速存储器）
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    从 RTC 存储器运行的代码中使用的全局和静态变量必须放入 RTC Slow memory 中。例如 :doc:`深度睡眠 <deep-sleep-stub>` 变量可以放在 RTC Slow memory 中，而不是 RTC FAST memory，或者也可以放入由 :doc:`/api-reference/system/ulp` 访问的代码和变量。
+    从 RTC 存储器运行的代码中使用的全局和静态变量必须放入 RTC Slow memory 中。例如 :doc:`深度睡眠 <deep-sleep-stub>` 变量可以放在 RTC Slow memory 中，而不是 RTC FAST memory，或者也可以放入由 :doc:`/api-guides/ulp` 访问的代码和变量。
 
     ``RTC_NOINIT_ATTR`` 属性宏可以用来将数据放入 RTC Slow memory。放入此类型存储器的值从深度睡眠模式中醒来后会保持值不变。
-
-    示例::
-
-            RTC_NOINIT_ATTR uint32_t rtc_noinit_data;
-
-
-.. only:: SOC_RTC_FAST_MEM_SUPPORTED
-
-    RTC FAST memory（RTC 快速存储器）
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-    .. only:: esp32c6 or esp32h2
-
-        .. note::
-
-            对于 {IDF_TARGET_NAME}， RTC 存储器已被重新重命名为 LP（低功耗）存储器。在与 {IDF_TARGET_NAME} 相关的 IDF 代码、文档以及技术参考手册中，可能会出现这两个术语混用的情况。
-
-
-    RTC FAST memory 的同一区域既可以作为指令存储器也可以作为数据存储器进行访问。从深度睡眠模式唤醒后必须要运行的代码要放在 RTC 存储器中，更多信息请查阅文档 :doc:`深度睡眠 <deep-sleep-stub>`。
-
-    .. only:: esp32
-
-        RTC FAST memory 只可以被 PRO CPU 访问。
-
-        在单核模式下，除非禁用 :ref:`CONFIG_ESP_SYSTEM_ALLOW_RTC_FAST_MEM_AS_HEAP` 选项，否则剩余的 RTC FAST memory 会被添加到堆中。该部分内存可以和 :ref:`DRAM` 互换使用，但是访问速度稍慢，且不具备 DMA 功能。
-
-    .. only:: not esp32
-
-        除非禁用 :ref:`CONFIG_ESP_SYSTEM_ALLOW_RTC_FAST_MEM_AS_HEAP` 选项，否则剩余的 RTC FAST memory 会被添加到堆中。该部分内存可以和 :ref:`DRAM` 互换使用，但是访问速度稍慢一点。
-
-
+    
+    示例::    
+    
+            RTC_NOINIT_ATTR uint32_t rtc_noinit_data;    
+    
 具备 DMA 功能
 ^^^^^^^^^^^^^^^^^^^
 
@@ -230,15 +203,15 @@ DROM（数据存储在 flash 中）
     :SOC_SPIRAM_SUPPORTED: - 如果堆栈在 PSRAM 中，则不建议将 DRAM 缓冲区放在堆栈上。如果任务堆栈在 PSRAM 中，则必须执行 :doc:`external-ram` 中描述的几个步骤。
     - 在函数中使用 ``WORD_ALIGNED_ATTR`` 宏来修饰变量，将其放在适当的位置上，比如::
 
-        void app_main()
-        {
+         void app_main()
+         {
             uint8_t stuff;
-            WORD_ALIGNED_ATTR uint8_t buffer[] = "I want to send something";   //否则 buffer 会被存储在 stuff 变量后面
-            // 初始化代码
+            WORD_ALIGNED_ATTR uint8_t buffer[]="I want to send something";   //否则buffer数组会被存储在stuff变量的后面
+            // 初始化代码...
             spi_transaction_t temp = {
-                .tx_buffer = buffer,
-                .length = 8 * sizeof(buffer),
+               .tx_buffer = buffer,
+               .length = 8*sizeof(buffer),
             };
-            spi_device_transmit(spi, &temp);
-            // 其它程序
-        }
+            spi_device_transmit( spi, &temp );
+            // 其他程序
+         }

@@ -21,7 +21,7 @@ ESP-NOW 使用各个供应商的动作帧传输数据，默认比特率为 1 Mbp
     -----------------------------------------------------------------------------------------
     |   MAC 报头   |  分类代码  |  组织标识符  |  随机值  |  供应商特定内容  |   FCS   |
     -----------------------------------------------------------------------------------------
-       24 字节        1 字节        3 字节      4 字节      7~257 字节       4 字节
+       24 字节        1 字节        3 字节      4 字节      7~255 字节       4 字节
 
 - 分类代码：分类代码字段可用于指示各个供应商的类别（比如 127）。
 - 组织标识符：组织标识符包含一个唯一标识符 (比如 0x18fe34)，为乐鑫指定的 MAC 地址的前三个字节。
@@ -66,22 +66,23 @@ ESP-NOW 采用 CCMP 方法保护供应商特定动作帧的安全，具体可参
 
 在将数据发送到其他设备之前，请先调用  :cpp:func:`esp_now_add_peer()` 将其添加到配对设备列表中。如果启用了加密，则必须设置 LMK。ESP-NOW 数据可以从 Station 或 Softap 接口发送。确保在发送 ESP-NOW 数据之前已启用该接口。
 
-.. only:: esp32c2
+.. only:: esp32c3
 
-    配对设备的最大数量是 20，其中加密设备的数量不超过 4，默认值是 2。如果想要修改加密设备的数量，在 Wi-Fi menuconfig 设置 :ref:`CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM`。
+    配对设备的最大数量是 20，其中加密设备的数量不超过 10，默认值是 6。
 
-.. only:: esp32 or esp32s2 or esp32s3 or esp32c3 or esp32c6
+.. only:: esp32 or esp32s2 or esp32s3
 
-    配对设备的最大数量是 20，其中加密设备的数量不超过 17，默认值是 7。如果想要修改加密设备的数量，在 Wi-Fi menuconfig 设置 :ref:`CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM`。
+    配对设备的最大数量是 20，其中加密设备的数量不超过 16，默认值是 6。
 
 在发送广播数据之前必须添加具有广播 MAC 地址的设备。配对设备的信道范围是从 0 ～14。如果信道设置为 0，数据将在当前信道上发送。否则，必须使用本地设备所在的通道。
 
 发送 ESP-NOW 数据
 -----------------
 
-调用 :cpp:func:`esp_now_send()` 发送 ESP-NOW 数据，调用  :cpp:func:`esp_now_register_send_cb` 注册发送回调函数。如果 MAC 层成功接收到数据，则该函数将返回 `ESP_NOW_SEND_SUCCESS` 事件。否则，它将返回 `ESP_NOW_SEND_FAIL`。ESP-NOW 数据发送失败可能有几种原因，比如目标设备不存在、设备的信道不相同、动作帧在传输过程中丢失等。应用层并不一定可以总能接收到数据。如果需要，应用层可在接收 ESP-NOW 数据时发回一个应答 (ACK) 数据。如果接收 ACK 数据超时，则将重新传输 ESP-NOW 数据。可以为 ESP-NOW 数据设置序列号，从而删除重复的数据。
+调用 :cpp:func:`esp_now_send()` 发送 ESP-NOW 数据，调用  :cpp:func:`esp_now_register_send_cb` 注册发送回调函数。如果 MAC 层成功接收到数据，则该函数将返回 `ESP_NOW_SEND_SUCCESS` 事件。否则，它将返回  `ESP_NOW_SEND_FAIL`。ESP-NOW 数据发送失败可能有几种原因，比如目标设备不存在、设备的信道不相同、动作帧在传输过程中丢失等。应用层并不一定可以总能接收到数据。如果需要，应用层可在接收 ESP-NOW 数据时发回一个应答 (ACK) 数据。如果接收 ACK 数据超时，则将重新传输 ESP-NOW 数据。可以为 ESP-NOW 数据设置序列号，从而删除重复的数据。
 
-如果有大量 ESP-NOW 数据要发送，调用 ``esp_now_send()`` 时需注意单次发送的数据不能超过 250 字节。请注意，两个 ESP-NOW 数据包的发送间隔太短可能导致回调函数返回混乱。因此，建议在等到上一次回调函数返回 ACK 后再发送下一个 ESP-NOW 数据。发送回调函数从高优先级的 Wi-Fi 任务中运行。因此，不要在回调函数中执行冗长的操作。相反，将必要的数据发布到队列，并交给优先级较低的任务处理。
+如果有大量 ESP-NOW 数据要发送，则调用 :cpp:func:`esp_now_send()` 一次性发送不大于 250 字节的数据。
+请注意，两个 ESP-NOW 数据包的发送间隔太短可能导致回调函数返回混乱。因此，建议在等到上一次回调函数返回 ACK 后再发送下一个 ESP-NOW 数据。发送回调函数从高优先级的 Wi-Fi 任务中运行。因此，不要在回调函数中执行冗长的操作。相反，将必要的数据发布到队列，并交给优先级较低的任务处理。
 
 接收 ESP-NOW 数据
 ----------------------
@@ -92,30 +93,7 @@ ESP-NOW 采用 CCMP 方法保护供应商特定动作帧的安全，具体可参
 配置 ESP-NOW 速率
 ----------------------
 
-.. only:: esp32 or esp32s2 or esp32s3 or esp32c2 or esp32c3
-
-    调用 :cpp:func:`esp_wifi_config_espnow_rate()` 配置指定接口的 ESPNOW 速率。确保在配置速率之前使能接口。这个 API 应该在 :cpp:func:`esp_wifi_start()` 之后调用。
-
-.. only:: esp32c6
-    
-    调用 :cpp:func:`esp_now_set_peer_rate_config()` 配置指定peer的 ESPNOW 速率。确保在配置速率之前添加peer。这个 API 应该在 :cpp:func:`esp_wifi_start()` 和 :cpp:func:`esp_now_add_peer()` 之后调用。
-
-    .. note::
-
-        :cpp:func:`esp_wifi_config_espnow_rate()` 已经被废弃了，请用 :cpp:func:`esp_now_set_peer_rate_config()`
-
-配置 ESP-NOW 功耗参数
-----------------------
-
-当且仅当 {IDF_TARGET_NAME} 配置为 STA 模式时，允许其进行休眠。
-
-进行休眠时，调用 :cpp:func:`esp_now_set_wake_window()` 为 ESP-NOW 收包配置 Window。默认情况下 Window 为最大值，将允许一直收包。
-
-如果对 ESP-NOW 进功耗管理，也需要调用 :cpp:func:`esp_wifi_connectionless_module_set_wake_interval()`。
-
-.. only:: SOC_WIFI_SUPPORTED
-
-    请参考 :ref:`非连接模块功耗管理 <connectionless-module-power-save-cn>` 获取更多信息。
+调用 :cpp:func:`esp_wifi_config_espnow_rate()` 配置指定接口的 ESPNOW 速率。确保在配置速率之前使能接口。这个 API 应该在 :cpp:func:`esp_wifi_start()` 之后调用。
 
 应用示例
 ----------
@@ -128,3 +106,4 @@ API 参考
 -------------
 
 .. include-build-file:: inc/esp_now.inc
+

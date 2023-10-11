@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2017-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2017-2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <stdio.h>
 #include <string.h>
@@ -71,87 +79,87 @@ static example_fast_prov_server_t *get_fast_prov_srv_user_data(void)
 }
 
 /* Timeout handler for send_self_prov_node_addr_timer */
-void example_send_self_prov_node_addr(struct k_work *work)
-{
-    example_fast_prov_server_t *fast_prov_srv = NULL;
-    esp_ble_mesh_model_t *model = NULL;
-    int i, j, err;
+// void example_send_self_prov_node_addr(struct k_work *work)
+// {
+//     example_fast_prov_server_t *fast_prov_srv = NULL;
+//     esp_ble_mesh_model_t *model = NULL;
+//     int i, j, err;
 
-    bt_mesh_atomic_test_and_clear_bit(&fast_prov_cli_flags, SEND_SELF_PROV_NODE_ADDR_START);
+//     bt_mesh_atomic_test_and_clear_bit(&fast_prov_cli_flags, SEND_SELF_PROV_NODE_ADDR_START);
 
-    fast_prov_srv = get_fast_prov_srv_user_data();
-    if (!fast_prov_srv) {
-        ESP_LOGE(TAG, "%s: Failed to get fast prov server model user_data", __func__);
-        return;
-    }
+//     fast_prov_srv = get_fast_prov_srv_user_data();
+//     if (!fast_prov_srv) {
+//         ESP_LOGE(TAG, "%s: Failed to get fast prov server model user_data", __func__);
+//         return;
+//     }
 
-    model = example_find_model(esp_ble_mesh_get_primary_element_address(),
-                               ESP_BLE_MESH_VND_MODEL_ID_FAST_PROV_CLI, CID_ESP);
-    if (!model) {
-        ESP_LOGE(TAG, "%s: Failed to get fast prov client model", __func__);
-        return;
-    }
+//     model = example_find_model(esp_ble_mesh_get_primary_element_address(),
+//                                ESP_BLE_MESH_VND_MODEL_ID_FAST_PROV_CLI, CID_ESP);
+//     if (!model) {
+//         ESP_LOGE(TAG, "%s: Failed to get fast prov client model", __func__);
+//         return;
+//     }
 
-    if (node_addr_send.send_succeed == true && node_addr_send.ack_received == false) {
-        ESP_LOGW(TAG, "%s: Previous node address message is being sent", __func__);
-        return;
-    }
+//     if (node_addr_send.send_succeed == true && node_addr_send.ack_received == false) {
+//         ESP_LOGW(TAG, "%s: Previous node address message is being sent", __func__);
+//         return;
+//     }
 
-    if (node_addr_send.send_succeed == true) {
-        /* If the previous node address message has been sent successfully, and when
-         * timeout event comes, we will update the send buffer (node_addr_send).
-         */
-        net_buf_simple_reset(node_addr_send.addr);
-        for (i = 0; i < CONFIG_BLE_MESH_MAX_PROV_NODES; i++) {
-            uint16_t addr = example_get_node_address(i);
-            if (!ESP_BLE_MESH_ADDR_IS_UNICAST(addr)) {
-                continue;
-            }
-            for (j = 0; j < ARRAY_SIZE(addr_already_sent); j++) {
-                if (addr == addr_already_sent[j]) {
-                    ESP_LOGW(TAG, "%s: node addr 0x%04x has already been sent", __func__, addr);
-                    break;
-                }
-            }
-            if (j != ARRAY_SIZE(addr_already_sent)) {
-                continue;
-            }
-            net_buf_simple_add_le16(node_addr_send.addr, addr);
-            if (node_addr_send.addr->len == NODE_ADDR_SEND_MAX_LEN) {
-                break;
-            }
-        }
-    }
+//     if (node_addr_send.send_succeed == true) {
+//         /* If the previous node address message has been sent successfully, and when
+//          * timeout event comes, we will update the send buffer (node_addr_send).
+//          */
+//         net_buf_simple_reset(node_addr_send.addr);
+//         for (i = 0; i < CONFIG_BLE_MESH_MAX_PROV_NODES; i++) {
+//             uint16_t addr = example_get_node_address(i);
+//             if (!ESP_BLE_MESH_ADDR_IS_UNICAST(addr)) {
+//                 continue;
+//             }
+//             for (j = 0; j < ARRAY_SIZE(addr_already_sent); j++) {
+//                 if (addr == addr_already_sent[j]) {
+//                     ESP_LOGW(TAG, "%s: node addr 0x%04x has already been sent", __func__, addr);
+//                     break;
+//                 }
+//             }
+//             if (j != ARRAY_SIZE(addr_already_sent)) {
+//                 continue;
+//             }
+//             net_buf_simple_add_le16(node_addr_send.addr, addr);
+//             if (node_addr_send.addr->len == NODE_ADDR_SEND_MAX_LEN) {
+//                 break;
+//             }
+//         }
+//     }
 
-    if (node_addr_send.addr->len) {
-        example_msg_common_info_t info = {
-            .net_idx = fast_prov_srv->net_idx,
-            .app_idx = fast_prov_srv->app_idx,
-            .dst = fast_prov_srv->prim_prov_addr,
-            .timeout = 0,
-            .role = ROLE_FAST_PROV,
-        };
-        err = example_send_fast_prov_self_prov_node_addr(model, &info, node_addr_send.addr);
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "%s: Failed to send node address", __func__);
-            node_addr_send.send_succeed = false;
-        } else {
-            node_addr_send.send_succeed = true;
-        }
-        node_addr_send.ack_received = false;
-    }
+//     if (node_addr_send.addr->len) {
+//         example_msg_common_info_t info = {
+//             .net_idx = fast_prov_srv->net_idx,
+//             .app_idx = fast_prov_srv->app_idx,
+//             .dst = fast_prov_srv->prim_prov_addr,
+//             .timeout = 0,
+//             .role = ROLE_FAST_PROV,
+//         };
+//         err = example_send_fast_prov_self_prov_node_addr(model, &info, node_addr_send.addr);
+//         if (err != ESP_OK) {
+//             ESP_LOGE(TAG, "%s: Failed to send node address", __func__);
+//             node_addr_send.send_succeed = false;
+//         } else {
+//             node_addr_send.send_succeed = true;
+//         }
+//         node_addr_send.ack_received = false;
+//     }
 
-    /* If sending node addresses failed, the Provisioner will start the timer in case
-     * no other devices will be provisioned and the timer will never start.
-     */
-    if (node_addr_send.send_succeed == false && node_addr_send.ack_received == false) {
-        if (!bt_mesh_atomic_test_and_set_bit(&fast_prov_cli_flags, SEND_SELF_PROV_NODE_ADDR_START)) {
-            k_delayed_work_submit(&send_self_prov_node_addr_timer, SEND_SELF_PROV_NODE_ADDR_TIMEOUT);
-        }
-    }
+//     /* If sending node addresses failed, the Provisioner will start the timer in case
+//      * no other devices will be provisioned and the timer will never start.
+//      */
+//     if (node_addr_send.send_succeed == false && node_addr_send.ack_received == false) {
+//         if (!bt_mesh_atomic_test_and_set_bit(&fast_prov_cli_flags, SEND_SELF_PROV_NODE_ADDR_START)) {
+//             k_delayed_work_submit(&send_self_prov_node_addr_timer, SEND_SELF_PROV_NODE_ADDR_TIMEOUT);
+//         }
+//     }
 
-    return;
-}
+//     return;
+// }
 
 #if !defined(CONFIG_BLE_MESH_FAST_PROV)
 /* Timeout handler for get_all_node_addr_timer */

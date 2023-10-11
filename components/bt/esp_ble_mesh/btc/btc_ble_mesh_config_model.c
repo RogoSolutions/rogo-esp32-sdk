@@ -83,8 +83,7 @@ void btc_ble_mesh_config_client_arg_deep_copy(btc_msg_t *msg, void *p_dest, void
     }
 }
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+// Ninh.D.H 21.06.2023
 void btc_ble_mesh_config_client_rogo_arg_deep_copy(btc_msg_t *msg, void *p_dest, void *p_src)
 {
     btc_ble_mesh_config_client_args_t *dst = (btc_ble_mesh_config_client_args_t *)p_dest;
@@ -141,13 +140,12 @@ void btc_ble_mesh_config_client_rogo_arg_deep_copy(btc_msg_t *msg, void *p_dest,
         break;
     }
 }
-/* Rogo API *************************************************************************************/
 
-void btc_ble_mesh_config_client_arg_deep_free(btc_msg_t *msg)
+static void btc_ble_mesh_config_client_arg_deep_free(btc_msg_t *msg)
 {
     btc_ble_mesh_config_client_args_t *arg = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -292,7 +290,7 @@ static void btc_ble_mesh_config_client_free_req_data(btc_msg_t *msg)
 {
     esp_ble_mesh_cfg_client_cb_param_t *arg = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -358,8 +356,8 @@ static void btc_ble_mesh_config_client_callback(esp_ble_mesh_cfg_client_cb_param
     msg.pid = BTC_PID_CONFIG_CLIENT;
     msg.act = act;
 
-    btc_transfer_context(&msg, cb_params, cb_params == NULL ? 0 : sizeof(esp_ble_mesh_cfg_client_cb_param_t),
-                         btc_ble_mesh_config_client_copy_req_data, btc_ble_mesh_config_client_free_req_data);
+    btc_transfer_context(&msg, cb_params, sizeof(esp_ble_mesh_cfg_client_cb_param_t),
+                         btc_ble_mesh_config_client_copy_req_data);
 }
 
 void bt_mesh_config_client_cb_evt_to_btc(uint32_t opcode, uint8_t evt_type,
@@ -525,8 +523,7 @@ static int btc_ble_mesh_config_client_get_state(esp_ble_mesh_client_common_param
     return 0;
 }
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+/* Ninh.D.H 20.06.2023 */
 static int btc_ble_mesh_rogo_config_client_set_state(esp_ble_mesh_client_rogo_param_t *params,
                                                      esp_ble_mesh_cfg_client_set_state_t *set)
 {
@@ -677,7 +674,7 @@ static int btc_ble_mesh_rogo_config_client_set_state(esp_ble_mesh_client_rogo_pa
 
     return 0;
 }
-/* Rogo API *************************************************************************************/
+/*************************************************/
 
 static int btc_ble_mesh_config_client_set_state(esp_ble_mesh_client_common_param_t *params,
                                                 esp_ble_mesh_cfg_client_set_state_t *set)
@@ -832,7 +829,7 @@ void btc_ble_mesh_config_client_call_handler(btc_msg_t *msg)
     btc_ble_mesh_config_client_args_t *arg = NULL;
     esp_ble_mesh_cfg_client_cb_param_t cb = {0};
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -851,18 +848,11 @@ void btc_ble_mesh_config_client_call_handler(btc_msg_t *msg)
     }
     case BTC_BLE_MESH_ACT_CONFIG_CLIENT_SET_STATE: {
         cb.params = arg->cfg_client_set_state.params;
-        /* Rogo API *************************************************************************************/
-        /* Ninh.D.H 05.10.2023 */
+        // Ninh.D.H 20.06.2023
         cb.error_code = btc_ble_mesh_rogo_config_client_set_state(arg->cfg_client_rogo_set_state.params,
                                                                   arg->cfg_client_rogo_set_state.set_state);
-        
-        
-        /* Rogo API *************************************************************************************/
-        /*
-        cb.error_code = btc_ble_mesh_config_client_set_state(arg->cfg_client_set_state.params,
-                                                             arg->cfg_client_set_state.set_state);
-        */
-        /* Rogo API *************************************************************************************/
+        // cb.error_code = btc_ble_mesh_config_client_set_state(arg->cfg_client_set_state.params,
+        //                                                      arg->cfg_client_set_state.set_state);
         if (cb.error_code) {
             btc_ble_mesh_config_client_callback(&cb, ESP_BLE_MESH_CFG_CLIENT_SET_STATE_EVT);
         }
@@ -880,7 +870,7 @@ void btc_ble_mesh_config_client_cb_handler(btc_msg_t *msg)
 {
     esp_ble_mesh_cfg_client_cb_param_t *param = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -926,7 +916,7 @@ static void btc_ble_mesh_config_server_callback(esp_ble_mesh_cfg_server_cb_param
     msg.pid = BTC_PID_CONFIG_SERVER;
     msg.act = act;
 
-    btc_transfer_context(&msg, cb_params, cb_params == NULL ? 0 : sizeof(esp_ble_mesh_cfg_server_cb_param_t), NULL, NULL);
+    btc_transfer_context(&msg, cb_params, sizeof(esp_ble_mesh_cfg_server_cb_param_t), NULL);
 }
 
 void bt_mesh_config_server_cb_evt_to_btc(uint8_t evt_type, struct bt_mesh_model *model,
@@ -972,7 +962,7 @@ void btc_ble_mesh_config_server_cb_handler(btc_msg_t *msg)
 {
     esp_ble_mesh_cfg_server_cb_param_t *param = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }

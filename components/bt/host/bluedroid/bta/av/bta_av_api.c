@@ -117,8 +117,9 @@ void BTA_AvRegister(tBTA_AV_CHNL chnl, const char *p_service_name, UINT8 app_id,
         p_buf->hdr.event = BTA_AV_API_REGISTER_EVT;
         if (p_service_name) {
             BCM_STRNCPY_S(p_buf->p_service_name, p_service_name, BTA_SERVICE_NAME_LEN);
+            p_buf->p_service_name[BTA_SERVICE_NAME_LEN - 1] = 0;
         } else {
-            p_buf->p_service_name[0] = '\0';
+            p_buf->p_service_name[0] = 0;
         }
         p_buf->app_id = app_id;
         p_buf->p_app_data_cback = p_data_cback;
@@ -306,10 +307,9 @@ void BTA_AvReconfig(tBTA_AV_HNDL hndl, BOOLEAN suspend, UINT8 sep_info_idx,
         p_buf->num_protect  = num_protect;
         p_buf->suspend      = suspend;
         p_buf->sep_info_idx = sep_info_idx;
+        p_buf->p_protect_info = (UINT8 *)(p_buf + 1);
         memcpy(p_buf->codec_info, p_codec_info, AVDT_CODEC_SIZE);
-        if (p_protect_info && num_protect) {
-            memcpy(p_buf->p_protect_info, p_protect_info, num_protect);
-        }
+        memcpy(p_buf->p_protect_info, p_protect_info, num_protect);
         bta_sys_sendmsg(p_buf);
     }
 }
@@ -369,45 +369,6 @@ void BTA_AvProtectRsp(tBTA_AV_HNDL hndl, UINT8 error_code, UINT8 *p_data, UINT16
             p_buf->p_data = (UINT8 *) (p_buf + 1);
             memcpy(p_buf->p_data, p_data, len);
         }
-        bta_sys_sendmsg(p_buf);
-    }
-}
-
-/*******************************************************************************
-**
-** Function         BTA_SetDelayValue
-**
-** Description      Set delay report value
-**
-** Returns          void
-**
-*******************************************************************************/
-void BTA_SetDelayValue(UINT16 delay_value)
-{
-    tBTA_AV_API_SET_DELAY_VALUE  *p_buf;
-
-    if ((p_buf = (tBTA_AV_API_SET_DELAY_VALUE *) osi_malloc(sizeof(tBTA_AV_API_SET_DELAY_VALUE))) != NULL) {
-        p_buf->hdr.event = BTA_AV_API_SET_DELAY_VALUE_EVT;
-        p_buf->delay_value = delay_value;
-        bta_sys_sendmsg(p_buf);
-    }
-}
-
-/*******************************************************************************
-**
-** Function         BTA_GetDelayValue
-**
-** Description      Get delay report value
-**
-** Returns          void
-**
-*******************************************************************************/
-void BTA_GetDelayValue(void)
-{
-    tBTA_AV_API_GET_DELAY_VALUE  *p_buf;
-
-    if ((p_buf = (tBTA_AV_API_GET_DELAY_VALUE *) osi_malloc(sizeof(tBTA_AV_API_GET_DELAY_VALUE))) != NULL) {
-        p_buf->hdr.event = BTA_AV_API_GET_DELAY_VALUE_EVT;
         bta_sys_sendmsg(p_buf);
     }
 }

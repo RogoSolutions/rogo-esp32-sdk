@@ -1,10 +1,11 @@
-/*
- * ESP BLE Mesh Example
- *
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
+/* ESP BLE Mesh Example
+
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
 
 #ifndef __SYNC_H__
 #define __SYNC_H__
@@ -86,7 +87,7 @@ typedef struct {
     uint8_t  case_id;
     const uint16_t excpet_param_bit;
 } auto_tc;
-extern auto_tc auto_tb[6];
+auto_tc auto_tb[6];
 
 
 typedef enum {
@@ -113,7 +114,7 @@ struct sync_t {
     esp_timer_handle_t sync_timer;
     sync_recv     cmd_recv;
 };
-extern struct sync_t sync_obj;
+struct sync_t sync_obj;
 
 extern SemaphoreHandle_t client_mutex;
 void sync_init(void);

@@ -2,59 +2,44 @@ set(srcs
     "src/bootloader_common.c"
     "src/bootloader_common_loader.c"
     "src/bootloader_clock_init.c"
+    "src/bootloader_flash.c"
     "src/bootloader_mem.c"
     "src/bootloader_random.c"
     "src/bootloader_random_${IDF_TARGET}.c"
-    "src/bootloader_efuse.c"
+    "src/bootloader_utility.c"
+    "src/esp_image_format.c"
     "src/flash_encrypt.c"
     "src/secure_boot.c"
+    "src/flash_partitions.c"
+    "src/flash_qio_mode.c"
+    "src/bootloader_flash_config_${IDF_TARGET}.c"
+    "src/bootloader_efuse_${IDF_TARGET}.c"
     )
 
-if(NOT CONFIG_APP_BUILD_TYPE_PURE_RAM_APP)
-    list(APPEND srcs
-        "bootloader_flash/src/bootloader_flash.c"
-        "bootloader_flash/src/flash_qio_mode.c"
-        "bootloader_flash/src/bootloader_flash_config_${IDF_TARGET}.c"
-        )
-endif()
-
-if(CONFIG_APP_BUILD_TYPE_APP_2NDBOOT)
-    list(APPEND srcs
-        "src/bootloader_utility.c"
-        "src/flash_partitions.c"
-        "src/esp_image_format.c"
-        )
-endif()
-
-if(BOOTLOADER_BUILD OR CONFIG_APP_BUILD_TYPE_RAM)
-    set(include_dirs "include" "bootloader_flash/include"
-        "private_include")
-    set(priv_requires micro-ecc spi_flash efuse esp_app_format)
+if(BOOTLOADER_BUILD)
+    set(include_dirs "include" "include_bootloader")
+    set(priv_requires micro-ecc spi_flash efuse)
     list(APPEND srcs
     "src/bootloader_init.c"
     "src/bootloader_clock_loader.c"
     "src/bootloader_console.c"
     "src/bootloader_console_loader.c"
+    "src/bootloader_panic.c"
     "src/${IDF_TARGET}/bootloader_sha.c"
     "src/${IDF_TARGET}/bootloader_soc.c"
     "src/${IDF_TARGET}/bootloader_${IDF_TARGET}.c"
     )
     list(APPEND priv_requires hal)
-    if(CONFIG_ESP_ROM_REV0_HAS_NO_ECDSA_INTERFACE)
-        list(APPEND srcs
-            "src/${IDF_TARGET}/bootloader_ecdsa.c")
-    endif()
 else()
     list(APPEND srcs
         "src/idf/bootloader_sha.c")
-    set(include_dirs "include" "bootloader_flash/include")
-    set(priv_include_dirs "private_include")
+    set(include_dirs "include")
+    set(priv_include_dirs "include_bootloader")
     # heap is required for `heap_memory_layout.h` header
-    set(priv_requires spi_flash mbedtls efuse heap esp_app_format)
+    set(priv_requires spi_flash mbedtls efuse app_update heap)
 endif()
 
 if(BOOTLOADER_BUILD)
-    list(APPEND srcs "src/bootloader_panic.c")
     if(CONFIG_SECURE_FLASH_ENC_ENABLED)
         list(APPEND srcs "src/flash_encryption/flash_encrypt.c"
                          "src/${IDF_TARGET}/flash_encryption_secure_features.c")
@@ -69,9 +54,11 @@ if(BOOTLOADER_BUILD)
                              "src/${IDF_TARGET}/secure_boot_secure_features.c")
         endif()
 
+        if(CONFIG_SECURE_SIGNED_APPS_RSA_SCHEME)
+            list(APPEND srcs "src/secure_boot_v2/secure_boot_signatures_bootloader.c")
+        endif()
         if(CONFIG_SECURE_BOOT_V2_ENABLED)
-            list(APPEND srcs "src/secure_boot_v2/secure_boot_signatures_bootloader.c"
-                             "src/secure_boot_v2/secure_boot.c"
+            list(APPEND srcs "src/secure_boot_v2/secure_boot.c"
                              "src/${IDF_TARGET}/secure_boot_secure_features.c")
         endif()
     endif()
@@ -83,11 +70,6 @@ else()
 
         if(CONFIG_SECURE_SIGNED_APPS_RSA_SCHEME)
             list(APPEND srcs "src/secure_boot_v2/secure_boot_signatures_app.c")
-            list(APPEND srcs "src/secure_boot_v2/secure_boot_rsa_signature.c")
-        endif()
-        if(CONFIG_SECURE_SIGNED_APPS_ECDSA_V2_SCHEME)
-            list(APPEND srcs "src/secure_boot_v2/secure_boot_signatures_app.c")
-            list(APPEND srcs "src/secure_boot_v2/secure_boot_ecdsa_signature.c")
         endif()
     endif()
 endif()
@@ -99,15 +81,6 @@ idf_component_register(SRCS "${srcs}"
                     PRIV_INCLUDE_DIRS "${priv_include_dirs}"
                     REQUIRES "${requires}"
                     PRIV_REQUIRES "${priv_requires}")
-
-if(NOT BOOTLOADER_BUILD)
-    if(CONFIG_SECURE_SIGNED_ON_UPDATE)
-        if(CONFIG_SECURE_SIGNED_APPS_ECDSA_SCHEME OR CONFIG_SECURE_SIGNED_APPS_RSA_SCHEME OR
-           CONFIG_SECURE_SIGNED_APPS_ECDSA_V2_SCHEME)
-            target_link_libraries(${COMPONENT_LIB} PRIVATE idf::app_update)
-        endif()
-    endif()
-endif()
 
 if(CONFIG_SECURE_SIGNED_APPS AND (CONFIG_SECURE_BOOT_V1_ENABLED OR CONFIG_SECURE_SIGNED_APPS_ECDSA_SCHEME))
     if(BOOTLOADER_BUILD)
@@ -164,7 +137,7 @@ if(CONFIG_SECURE_SIGNED_APPS AND (CONFIG_SECURE_BOOT_V1_ENABLED OR CONFIG_SECURE
     target_add_binary_data(${COMPONENT_LIB} "${secure_boot_verification_key}" "BINARY"
         RENAME_TO signature_verification_key_bin)
     set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        APPEND PROPERTY ADDITIONAL_CLEAN_FILES
+        APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
         "${secure_boot_verification_key}")
 endif()
 

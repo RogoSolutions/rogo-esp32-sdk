@@ -8,15 +8,13 @@
 #include <string.h>
 #include "esp_sleep.h"
 #include "unity.h"
-#include "unity_test_utils.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/uart.h"
-#include "freertos/FreeRTOS.h"
 #include "soc/soc_caps.h"
 #include "driver/ledc.h"
 #include "soc/rtc.h"
-#include "esp_private/esp_sleep_internal.h"
 
 static const char TAG[] = "rtc_power";
 
@@ -31,7 +29,8 @@ TEST_CASE("Power Test: Deepsleep (with ADC/TSEN in monitor)", "[pm]")
 {
     rtc_dig_clk8m_disable();    //This is workaround for bootloader not disable 8M as digital clock source
 
-    esp_sleep_enable_adc_tsens_monitor(true);
+    extern void rtc_sleep_enable_adc_tesn_monitor(bool);
+    rtc_sleep_enable_adc_tesn_monitor(true);
     test_deepsleep();
 }
 
@@ -98,7 +97,7 @@ TEST_CASE("Power Test: Lightsleep (8M by digital)", "[pm]")
         .duty_resolution = LEDC_TIMER_12_BIT,
         .timer_num = 0,
         .freq_hz = 2 * 1000,
-        .clk_cfg = LEDC_USE_RC_FAST_CLK,
+        .clk_cfg = LEDC_USE_RTC8M_CLK,
     };
     ledc_timer_config(&config);
     test_lightsleep();
@@ -108,8 +107,8 @@ TEST_CASE("Power Test: Lightsleep (with ADC/TSEN in monitor)", "[pm]")
 {
     rtc_dig_clk8m_disable();    //This is workaround for bootloader not disable 8M as digital clock source
 
-    extern void esp_sleep_enable_adc_tsens_monitor(bool);
-    esp_sleep_enable_adc_tsens_monitor(true);
+    extern void rtc_sleep_enable_adc_tesn_monitor(bool);
+    rtc_sleep_enable_adc_tesn_monitor(true);
     test_lightsleep();
 }
 
@@ -117,4 +116,9 @@ TEST_CASE("Power Test: Lightsleep (default)", "[pm]")
 {
     rtc_dig_clk8m_disable();    //This is workaround for bootloader not disable 8M as digital clock source
     test_lightsleep();
+}
+
+void app_main(void)
+{
+    unity_run_menu();
 }

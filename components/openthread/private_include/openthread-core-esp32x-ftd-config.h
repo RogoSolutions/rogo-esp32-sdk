@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -32,7 +32,7 @@
  * When defined to 1, the platform MUST implement the otPlatFlash* APIs instead of the otPlatSettings* APIs.
  *
  */
-#define OPENTHREAD_CONFIG_PLATFORM_FLASH_API_ENABLE 0
+#define OPENTHREAD_CONFIG_PLATFORM_FLASH_API_ENABLE 1
 
 /**
  * @def OPENTHREAD_CONFIG_LOG_OUTPUT
@@ -42,27 +42,37 @@
 #define OPENTHREAD_CONFIG_LOG_OUTPUT OPENTHREAD_CONFIG_LOG_OUTPUT_PLATFORM_DEFINED
 
 /**
- * @def OPENTHREAD_CONFIG_LOG_LEVEL_DYNAMIC_ENABLE
- *
- * Configuration option to enable dynamic log level control.
- *
- */
-#define OPENTHREAD_CONFIG_LOG_LEVEL_DYNAMIC_ENABLE CONFIG_OPENTHREAD_LOG_LEVEL_DYNAMIC
-
-/**
  * @def OPENTHREAD_CONFIG_LOG_LEVEL
  *
  * The log level (used at compile time). If `OPENTHREAD_CONFIG_LOG_LEVEL_DYNAMIC_ENABLE` is set, this defines the most
  * verbose log level possible. See `OPENTHREAD_CONFIG_LOG_LEVEL_INIT` to set the initial log level.
  *
  */
-#if OPENTHREAD_CONFIG_LOG_LEVEL_DYNAMIC_ENABLE
 #define OPENTHREAD_CONFIG_LOG_LEVEL OT_LOG_LEVEL_DEBG
-#else
-#define OPENTHREAD_CONFIG_LOG_LEVEL CONFIG_OPENTHREAD_LOG_LEVEL
-#endif
 
+/**
+ * @def OPENTHREAD_CONFIG_LOG_LEVEL_DYNAMIC_ENABLE
+ *
+ * Define as 1 to enable dynamic log level control.
+ *
+ */
+#define OPENTHREAD_CONFIG_LOG_LEVEL_DYNAMIC_ENABLE 1
+
+#define OPENTHREAD_CONFIG_LOG_API 1
+#define OPENTHREAD_CONFIG_LOG_ARP 1
+#define OPENTHREAD_CONFIG_LOG_BBR 1
 #define OPENTHREAD_CONFIG_LOG_CLI 1
+#define OPENTHREAD_CONFIG_LOG_COAP 1
+#define OPENTHREAD_CONFIG_LOG_DUA 1
+#define OPENTHREAD_CONFIG_LOG_ICMP 1
+#define OPENTHREAD_CONFIG_LOG_IP6 1
+#define OPENTHREAD_CONFIG_LOG_MAC 1
+#define OPENTHREAD_CONFIG_LOG_MEM 1
+#define OPENTHREAD_CONFIG_LOG_MESHCOP 1
+#define OPENTHREAD_CONFIG_LOG_MLE 1
+#define OPENTHREAD_CONFIG_LOG_MLR 1
+#define OPENTHREAD_CONFIG_LOG_NETDATA 1
+#define OPENTHREAD_CONFIG_LOG_NETDIAG 1
 #define OPENTHREAD_CONFIG_LOG_PKT_DUMP 1
 #define OPENTHREAD_CONFIG_LOG_PLATFORM 1
 
@@ -80,6 +90,7 @@
  *
  */
 #define OPENTHREAD_CONFIG_COAP_API_ENABLE 1
+
 
 /**
  * @def OPENTHREAD_CONFIG_PLATFORM_NETIF_ENABLE
@@ -124,16 +135,6 @@
 #endif
 
 /**
- * @def OPENTHREAD_CONFIG_BORDER_AGENT_ID_ENABLE
- *
- * Define to 1 to enable Border Agent ID support.
- *
- */
-#ifndef OPENTHREAD_CONFIG_BORDER_AGENT_ID_ENABLE
-#define OPENTHREAD_CONFIG_BORDER_AGENT_ID_ENABLE 1
-#endif
-
-/**
  * @def OPENTHREAD_CONFIG_BORDER_ROUTER_ENABLE
  *
  * Define to 1 to enable Border Router support.
@@ -161,16 +162,6 @@
  */
 #ifndef OPENTHREAD_CONFIG_PLATFORM_UDP_ENABLE
 #define OPENTHREAD_CONFIG_PLATFORM_UDP_ENABLE 1
-#endif
-
-/**
- * @def OPENTHREAD_CONFIG_NAT64_BORDER_ROUTING_ENABLE
- *
- * Define to 1 to enable Border Routing NAT64 support.
- *
- */
-#ifndef OPENTHREAD_CONFIG_NAT64_BORDER_ROUTING_ENABLE
-#define OPENTHREAD_CONFIG_NAT64_BORDER_ROUTING_ENABLE 1
 #endif
 
 /**
@@ -203,53 +194,7 @@
 #define OPENTHREAD_CONFIG_DNSSD_SERVER_ENABLE 1
 #endif
 
-/**
- * @def OPENTHREAD_CONFIG_RADIO_LINK_TREL_ENABLE
- *
- * Set to 1 to enable support for Thread Radio Encapsulation Link (TREL).
- *
- */
-#ifndef OPENTHREAD_CONFIG_RADIO_LINK_TREL_ENABLE
-#define OPENTHREAD_CONFIG_RADIO_LINK_TREL_ENABLE 0
-#endif
-
-/**
- * @def OPENTHREAD_CONFIG_BACKBONE_ROUTER_ENABLE
- *
- * Define to 1 to enable Backbone Router support.
- *
- */
-#ifndef OPENTHREAD_CONFIG_BACKBONE_ROUTER_ENABLE
-#define OPENTHREAD_CONFIG_BACKBONE_ROUTER_ENABLE 1
-#endif
-
 #endif // CONFIG_OPENTHREAD_BORDER_ROUTER
-
-#if !CONFIG_OPENTHREAD_RADIO_NATIVE
-/**
- * @def OPENTHREAD_SPINEL_CONFIG_RCP_RESTORATION_MAX_COUNT
- *
- * Defines the max count of RCP failures allowed to be recovered.
- * 0 means to disable RCP failure recovering.
- *
- */
-#ifndef OPENTHREAD_SPINEL_CONFIG_RCP_RESTORATION_MAX_COUNT
-#define OPENTHREAD_SPINEL_CONFIG_RCP_RESTORATION_MAX_COUNT 3
-#endif
-
-/**
- * @def OPENTHREAD_POSIX_CONFIG_RCP_TIME_SYNC_INTERVAL
- *
- * This setting configures the interval (in units of microseconds) for host-rcp
- * time sync. The host will recalculate the time offset between host and RCP
- * every interval.
- *
- */
-#ifndef OPENTHREAD_POSIX_CONFIG_RCP_TIME_SYNC_INTERVAL
-#define OPENTHREAD_POSIX_CONFIG_RCP_TIME_SYNC_INTERVAL (60 * 1000 * 1000)
-#endif
-
-#endif
 
 /**
  * @def OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE
@@ -258,6 +203,16 @@
  *
  */
 #define OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE 1
+
+/**
+ * @def OPENTHREAD_CONFIG_CHILD_SUPERVISION_ENABLE
+ *
+ * Define to 1 to enable Child Supervision support.
+ *
+ */
+#ifndef OPENTHREAD_CONFIG_CHILD_SUPERVISION_ENABLE
+#define OPENTHREAD_CONFIG_CHILD_SUPERVISION_ENABLE 1
+#endif
 
 /**
  * @def OPENTHREAD_CONFIG_DHCP6_CLIENT_ENABLE
@@ -277,6 +232,16 @@
  */
 #ifndef OPENTHREAD_CONFIG_DHCP6_SERVER_ENABLE
 #define OPENTHREAD_CONFIG_DHCP6_SERVER_ENABLE 1
+#endif
+
+/**
+ * @def OPENTHREAD_CONFIG_DNS_CLIENT_ENABLE
+ *
+ * Define to 1 to enable DNS Client support.
+ *
+ */
+#ifndef OPENTHREAD_CONFIG_DNS_CLIENT_ENABLE
+#define OPENTHREAD_CONFIG_DNS_CLIENT_ENABLE 1
 #endif
 
 /**
@@ -381,28 +346,6 @@
  */
 #define OPENTHREAD_CONFIG_PING_SENDER_ENABLE 1
 
-#if CONFIG_OPENTHREAD_DUA_ENABLE
-/**
- * @def OPENTHREAD_CONFIG_DUA_ENABLE
- *
- * Define as 1 to support Thread 1.2 Domain Unicast Address feature.
- *
- */
-#ifndef OPENTHREAD_CONFIG_DUA_ENABLE
-#define OPENTHREAD_CONFIG_DUA_ENABLE 1
-#endif
-#endif //CONFIG_OPENTHREAD_DUA_ENABLE
-
-/**
- * @def OPENTHREAD_CONFIG_MLR_ENABLE
- *
- * Define as 1 to support Thread 1.2 Multicast Listener Registration feature.
- *
- */
-#ifndef OPENTHREAD_CONFIG_MLR_ENABLE
-#define OPENTHREAD_CONFIG_MLR_ENABLE 1
-#endif
-
 /**
  * @def OPENTHREAD_CONFIG_DTLS_MAX_CONTENT_LEN
  *
@@ -418,10 +361,6 @@
  */
 #if CONFIG_OPENTHREAD_COMMISSIONER
 #define OPENTHREAD_CONFIG_COMMISSIONER_ENABLE 1
-#endif
-
-#if CONFIG_OPENTHREAD_MACFILTER_ENABLE
-#define OPENTHREAD_CONFIG_MAC_FILTER_ENABLE 1
 #endif
 
 #if CONFIG_OPENTHREAD_JOINER
@@ -442,98 +381,10 @@
 #endif
 #endif
 
-/**
- * @def OPENTHREAD_CONFIG_DNS_CLIENT_ENABLE
- *
- * Define to 1 to enable DNS Client support.
- *
- */
-#define OPENTHREAD_CONFIG_DNS_CLIENT_ENABLE CONFIG_OPENTHREAD_DNS_CLIENT
-
-#if CONFIG_OPENTHREAD_CSL_ENABLE
-
-/**
- * @def OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
- *
- * Define as 1 to support Thread 1.2 CSL feature.
- *
- */
-#ifndef OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-#define OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE 1
-#endif
-
-/**
- * @def OPENTHREAD_CONFIG_MAC_CSL_DEBUG_ENABLE
- *
- * Define as 1 to enable support Thread 1.2 CSL debug.
- *
- */
-#ifndef OPENTHREAD_CONFIG_MAC_CSL_DEBUG_ENABLE
-#define OPENTHREAD_CONFIG_MAC_CSL_DEBUG_ENABLE CONFIG_OPENTHREAD_CSL_DEBUG_ENABLE
-#endif
-
-#endif // CONFIG_OPENTHREAD_CSL_ENABLE
-
-/**
- * @def OPENTHREAD_CONFIG_MAC_CSL_REQUEST_AHEAD_US
- *
- * Define as 1 to set the ahead time for CSL transmit timing.
- *
- */
-#ifndef OPENTHREAD_CONFIG_MAC_CSL_REQUEST_AHEAD_US
-#define OPENTHREAD_CONFIG_MAC_CSL_REQUEST_AHEAD_US 20000
-#endif
-
-#if CONFIG_OPENTHREAD_LINK_METRICS
-
-/**
- * @def OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
- *
- * Define as 1 to support Thread 1.2 Link Metrics Subject feature.
- *
- */
-#ifndef OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
-#define OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE 1
-#endif
-
-/**
- * @def OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE
- *
- * Define as 1 to support Thread 1.2 Link Metrics feature.
- *
- */
-#ifndef OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE
-#define OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE 1
-#endif
-#endif //CONFIG_OPENTHREAD_LINK_METRICS
-
-/**
- * @def OPENTHREAD_CONFIG_OPERATIONAL_DATASET_AUTO_INIT
- *
- * Define as 1 to enable support for locally initializing an Active Operational Dataset.
- *
- */
-#ifndef OPENTHREAD_CONFIG_OPERATIONAL_DATASET_AUTO_INIT
-#define OPENTHREAD_CONFIG_OPERATIONAL_DATASET_AUTO_INIT 1
-#endif
-
-
-/**
- *
- * Define as 1 to enable support for allocating message pool buffer in PSRAM
- *
- */
-#if CONFIG_OPENTHREAD_PLATFORM_MSGPOOL_MANAGEMENT
-
-/**
- * @def OPENTHREAD_CONFIG_PLATFORM_MESSAGE_MANAGEMENT
- *
- * The message pool is managed by platform defined logic when this flag is set.
- * This feature would typically be used when operating in a multi-threaded system
- * and multiple threads need to access the message pool.
- *
- */
-#define OPENTHREAD_CONFIG_PLATFORM_MESSAGE_MANAGEMENT 1
-#endif
-
+#if CONFIG_OPENTHREAD_FTD
 #define OPENTHREAD_FTD 1
+#elif CONFIG_OPENTHREAD_MTD
+#define OPENTHREAD_MTD 1
+#elif CONFIG_OPENTHREAD_RADIO
+#define OPENTHREAD_RADIO 1
+#endif

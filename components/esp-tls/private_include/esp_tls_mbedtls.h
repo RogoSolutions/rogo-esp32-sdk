@@ -6,7 +6,6 @@
 
 #pragma once
 #include "esp_tls.h"
-#include "esp_tls_private.h"
 
 /**
  * Internal Callback API for mbedtls_ssl_read
@@ -55,11 +54,6 @@ static inline void esp_mbedtls_net_init(esp_tls_t *tls)
 {
     mbedtls_net_init(&tls->server_fd);
 }
-
-/**
- * Return ssl context for mbedTLS stack
- */
-void *esp_mbedtls_get_ssl_context(esp_tls_t *tls);
 
 #ifdef CONFIG_ESP_TLS_SERVER
 /**

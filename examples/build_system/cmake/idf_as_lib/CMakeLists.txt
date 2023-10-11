@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.5)
 
 project(idf_as_lib C)
 
-set(targets "esp32" "esp32s2" "esp32s3" "esp32c3" "esp32c2" "esp32c6" "esp32h2")
+set(targets "esp32" "esp32s2" "esp32s3" "esp32c3" "esp32h2")
 
 if("${TARGET}" IN_LIST targets)
     # Include for ESP-IDF build system functions
@@ -15,7 +15,7 @@ if("${TARGET}" IN_LIST targets)
                     # although esptool_py does not generate static library,
                     # processing the component is needed for flashing related
                     # targets and file generation
-                    COMPONENTS freertos esptool_py
+                    COMPONENTS "${TARGET}" freertos esptool_py
                     SDKCONFIG ${CMAKE_CURRENT_LIST_DIR}/sdkconfig
                     BUILD_DIR ${CMAKE_BINARY_DIR})
 else()
@@ -33,7 +33,7 @@ add_executable(${elf_file} main.c)
 
 # Link the static libraries to the executable
 if("${TARGET}" IN_LIST targets)
-    target_link_libraries(${elf_file} idf::freertos idf::spi_flash)
+    target_link_libraries(${elf_file} "idf::${TARGET}" idf::freertos idf::spi_flash)
     # Attach additional targets to the executable file for flashing,
     # linker script generation, partition_table generation, etc.
     idf_build_executable(${elf_file})

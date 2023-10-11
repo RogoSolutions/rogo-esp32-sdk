@@ -7,6 +7,7 @@
 #include "compressed_enum_table.hpp"
 #include <cstring>
 
+
 TEST_CASE("test if CompressedEnumTable works as expected", "[enumtable]")
 {
 
@@ -45,4 +46,5 @@ TEST_CASE("test if CompressedEnumTable works as expected", "[enumtable]")
     // h   9   3   9   0   9   2   4   9
 
     CHECK(table.data()[0] == 0x93909249);
+
 }

@@ -11,7 +11,6 @@
 
 #include <esp_http_server.h>
 #include "esp_httpd_priv.h"
-#include <netinet/tcp.h>
 
 static const char *TAG = "httpd_txrx";
 
@@ -97,14 +96,14 @@ static size_t httpd_recv_pending(httpd_req_t *r, char *buf, size_t buf_len)
 
 int httpd_recv_with_opt(httpd_req_t *r, char *buf, size_t buf_len, bool halt_after_pending)
 {
-    ESP_LOGD(TAG, LOG_FMT("requested length = %"NEWLIB_NANO_COMPAT_FORMAT), NEWLIB_NANO_COMPAT_CAST(buf_len));
+    ESP_LOGD(TAG, LOG_FMT("requested length = %d"), buf_len);
 
     size_t pending_len = 0;
     struct httpd_req_aux *ra = r->aux;
 
     /* First fetch pending data from local buffer */
     if (ra->sd->pending_len > 0) {
-        ESP_LOGD(TAG, LOG_FMT("pending length = %"NEWLIB_NANO_COMPAT_FORMAT), NEWLIB_NANO_COMPAT_CAST(ra->sd->pending_len));
+        ESP_LOGD(TAG, LOG_FMT("pending length = %d"), ra->sd->pending_len);
         pending_len = httpd_recv_pending(r, buf, buf_len);
         buf     += pending_len;
         buf_len -= pending_len;
@@ -133,7 +132,7 @@ int httpd_recv_with_opt(httpd_req_t *r, char *buf, size_t buf_len, bool halt_aft
         return ret;
     }
 
-    ESP_LOGD(TAG, LOG_FMT("received length = %"NEWLIB_NANO_COMPAT_FORMAT), NEWLIB_NANO_COMPAT_CAST((ret + pending_len)));
+    ESP_LOGD(TAG, LOG_FMT("received length = %d"), ret + pending_len);
     return ret + pending_len;
 }
 
@@ -152,7 +151,7 @@ size_t httpd_unrecv(struct httpd_req *r, const char *buf, size_t buf_len)
      * such that it is right aligned inside the buffer */
     size_t offset = sizeof(ra->sd->pending_data) - ra->sd->pending_len;
     memcpy(ra->sd->pending_data + offset, buf, ra->sd->pending_len);
-    ESP_LOGD(TAG, LOG_FMT("length = %"NEWLIB_NANO_COMPAT_FORMAT), NEWLIB_NANO_COMPAT_CAST(ra->sd->pending_len));
+    ESP_LOGD(TAG, LOG_FMT("length = %d"), ra->sd->pending_len);
     return ra->sd->pending_len;
 }
 
@@ -282,7 +281,6 @@ esp_err_t httpd_resp_send(httpd_req_t *r, const char *buf, ssize_t buf_len)
     if (httpd_send_all(r, cr_lf_seperator, strlen(cr_lf_seperator)) != ESP_OK) {
         return ESP_ERR_HTTPD_RESP_SEND;
     }
-    esp_http_server_dispatch_event(HTTP_SERVER_EVENT_HEADERS_SENT, &(ra->sd->fd), sizeof(int));
 
     /* Sending content */
     if (buf && buf_len) {
@@ -290,11 +288,6 @@ esp_err_t httpd_resp_send(httpd_req_t *r, const char *buf, ssize_t buf_len)
             return ESP_ERR_HTTPD_RESP_SEND;
         }
     }
-    esp_http_server_event_data evt_data = {
-        .fd = ra->sd->fd,
-        .data_len = buf_len,
-    };
-    esp_http_server_dispatch_event(HTTP_SERVER_EVENT_SENT_DATA, &evt_data, sizeof(esp_http_server_event_data));
     return ESP_OK;
 }
 
@@ -361,7 +354,7 @@ esp_err_t httpd_resp_send_chunk(httpd_req_t *r, const char *buf, ssize_t buf_len
 
     /* Sending chunked content */
     char len_str[10];
-    snprintf(len_str, sizeof(len_str), "%lx\r\n", (long)buf_len);
+    snprintf(len_str, sizeof(len_str), "%x\r\n", buf_len);
     if (httpd_send_all(r, len_str, strlen(len_str)) != ESP_OK) {
         return ESP_ERR_HTTPD_RESP_SEND;
     }
@@ -376,12 +369,6 @@ esp_err_t httpd_resp_send_chunk(httpd_req_t *r, const char *buf, ssize_t buf_len
     if (httpd_send_all(r, "\r\n", strlen("\r\n")) != ESP_OK) {
         return ESP_ERR_HTTPD_RESP_SEND;
     }
-    esp_http_server_event_data evt_data = {
-        .fd = ra->sd->fd,
-        .data_len = buf_len,
-    };
-    esp_http_server_dispatch_event(HTTP_SERVER_EVENT_SENT_DATA, &evt_data, sizeof(esp_http_server_event_data));
-
     return ESP_OK;
 }
 
@@ -394,7 +381,7 @@ esp_err_t httpd_resp_send_err(httpd_req_t *req, httpd_err_code_t error, const ch
     switch (error) {
         case HTTPD_501_METHOD_NOT_IMPLEMENTED:
             status = "501 Method Not Implemented";
-            msg    = "Server does not support this method";
+            msg    = "Request method is not supported by server";
             break;
         case HTTPD_505_VERSION_NOT_SUPPORTED:
             status = "505 Version Not Supported";
@@ -402,23 +389,23 @@ esp_err_t httpd_resp_send_err(httpd_req_t *req, httpd_err_code_t error, const ch
             break;
         case HTTPD_400_BAD_REQUEST:
             status = "400 Bad Request";
-            msg    = "Bad request syntax";
+            msg    = "Server unable to understand request due to invalid syntax";
             break;
         case HTTPD_401_UNAUTHORIZED:
             status = "401 Unauthorized";
-            msg    = "No permission -- see authorization schemes";
+            msg    = "Server known the client's identify and it must authenticate itself to get he requested response";
             break;
         case HTTPD_403_FORBIDDEN:
             status = "403 Forbidden";
-            msg    = "Request forbidden -- authorization will not help";
+            msg    = "Server is refusing to give the requested resource to the client";
             break;
         case HTTPD_404_NOT_FOUND:
             status = "404 Not Found";
-            msg    = "Nothing matches the given URI";
+            msg    = "This URI does not exist";
             break;
         case HTTPD_405_METHOD_NOT_ALLOWED:
             status = "405 Method Not Allowed";
-            msg    = "Specified method is invalid for this resource";
+            msg    = "Request method for this URI is not handled by server";
             break;
         case HTTPD_408_REQ_TIMEOUT:
             status = "408 Request Timeout";
@@ -426,15 +413,15 @@ esp_err_t httpd_resp_send_err(httpd_req_t *req, httpd_err_code_t error, const ch
             break;
         case HTTPD_414_URI_TOO_LONG:
             status = "414 URI Too Long";
-            msg    = "URI is too long";
+            msg    = "URI is too long for server to interpret";
             break;
         case HTTPD_411_LENGTH_REQUIRED:
             status = "411 Length Required";
-            msg    = "Client must specify Content-Length";
+            msg    = "Chunked encoding not supported by server";
             break;
         case HTTPD_431_REQ_HDR_FIELDS_TOO_LARGE:
             status = "431 Request Header Fields Too Large";
-            msg    = "Header fields are too long";
+            msg    = "Header fields are too long for server to interpret";
             break;
         case HTTPD_500_INTERNAL_SERVER_ERROR:
         default:
@@ -478,7 +465,6 @@ esp_err_t httpd_resp_send_err(httpd_req_t *req, httpd_err_code_t error, const ch
         }
     }
 #endif
-    esp_http_server_dispatch_event(HTTP_SERVER_EVENT_ERROR, &error, sizeof(httpd_err_code_t));
 
     return ret;
 }
@@ -530,7 +516,7 @@ int httpd_req_recv(httpd_req_t *r, char *buf, size_t buf_len)
     }
 
     struct httpd_req_aux *ra = r->aux;
-    ESP_LOGD(TAG, LOG_FMT("remaining length = %"NEWLIB_NANO_COMPAT_FORMAT), NEWLIB_NANO_COMPAT_CAST(ra->remaining_len));
+    ESP_LOGD(TAG, LOG_FMT("remaining length = %d"), ra->remaining_len);
 
     if (buf_len > ra->remaining_len) {
         buf_len = ra->remaining_len;
@@ -546,11 +532,6 @@ int httpd_req_recv(httpd_req_t *r, char *buf, size_t buf_len)
     }
     ra->remaining_len -= ret;
     ESP_LOGD(TAG, LOG_FMT("received length = %d"), ret);
-    esp_http_server_event_data evt_data = {
-        .fd = ra->sd->fd,
-        .data_len = ret,
-    };
-    esp_http_server_dispatch_event(HTTP_SERVER_EVENT_ON_DATA, &evt_data, sizeof(esp_http_server_event_data));
     return ret;
 }
 
@@ -623,10 +604,10 @@ int httpd_socket_send(httpd_handle_t hd, int sockfd, const char *buf, size_t buf
 {
     struct sock_db *sess = httpd_sess_get(hd, sockfd);
     if (!sess) {
-        return HTTPD_SOCK_ERR_INVALID;
+        return ESP_ERR_INVALID_ARG;
     }
     if (!sess->send_fn) {
-        return HTTPD_SOCK_ERR_INVALID;
+        return ESP_ERR_INVALID_STATE;
     }
     return sess->send_fn(hd, sockfd, buf, buf_len, flags);
 }
@@ -635,10 +616,10 @@ int httpd_socket_recv(httpd_handle_t hd, int sockfd, char *buf, size_t buf_len, 
 {
     struct sock_db *sess = httpd_sess_get(hd, sockfd);
     if (!sess) {
-        return HTTPD_SOCK_ERR_INVALID;
+        return ESP_ERR_INVALID_ARG;
     }
     if (!sess->recv_fn) {
-        return HTTPD_SOCK_ERR_INVALID;
+        return ESP_ERR_INVALID_STATE;
     }
     return sess->recv_fn(hd, sockfd, buf, buf_len, flags);
 }

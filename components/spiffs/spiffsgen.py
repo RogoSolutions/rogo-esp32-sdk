@@ -2,8 +2,19 @@
 #
 # spiffsgen is a tool used to generate a spiffs image from a directory
 #
-# SPDX-FileCopyrightText: 2019-2022 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2019 Espressif Systems (Shanghai) PTE LTD
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from __future__ import division, print_function
 
@@ -167,7 +178,7 @@ class SpiffsObjLuPage(SpiffsPage):
             img += struct.pack(SpiffsPage._endianness_dict[self.build_config.endianness] +
                                SpiffsPage._len_dict[self.build_config.obj_id_len], obj_id)
 
-        assert len(img) <= self.build_config.page_size
+        assert(len(img) <= self.build_config.page_size)
 
         img += b'\xFF' * (self.build_config.page_size - len(img))
 
@@ -249,7 +260,7 @@ class SpiffsObjIndexPage(SpiffsObjPageWithIdx):
             img += struct.pack(SpiffsPage._endianness_dict[self.build_config.endianness] +
                                SpiffsPage._len_dict[self.build_config.page_ix_len], page)
 
-        assert len(img) <= self.build_config.page_size
+        assert(len(img) <= self.build_config.page_size)
 
         img += b'\xFF' * (self.build_config.page_size - len(img))
 
@@ -275,7 +286,7 @@ class SpiffsObjDataPage(SpiffsObjPageWithIdx):
 
         img += self.contents
 
-        assert len(img) <= self.build_config.page_size
+        assert(len(img) <= self.build_config.page_size)
 
         img += b'\xFF' * (self.build_config.page_size - len(img))
 
@@ -374,7 +385,7 @@ class SpiffsBlock(object):
             for page in self.pages:
                 img += page.to_binary()
 
-        assert len(img) <= self.build_config.block_size
+        assert(len(img) <= self.build_config.block_size)
 
         img += b'\xFF' * (self.build_config.block_size - len(img))
         return img

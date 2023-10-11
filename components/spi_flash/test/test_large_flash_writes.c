@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2010-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2010-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Test for spi_flash_write() with large buffers (in RAM or on flash)
 
@@ -15,12 +23,11 @@
 
 #include <unity.h>
 #include <test_utils.h>
-#include <spi_flash_mmap.h>
+#include <esp_spi_flash.h>
 #include <esp_log.h>
-#include "esp_rom_spiflash.h"
-#include "esp_private/cache_utils.h"
+#include <esp32/rom/spi_flash.h>
+#include "../cache_utils.h"
 #include "soc/timer_periph.h"
-#include "esp_flash.h"
 
 static const uint8_t large_const_buffer[16400] = {
     203, // first byte
@@ -35,13 +42,13 @@ static const uint8_t large_const_buffer[16400] = {
 
 static void test_write_large_buffer(const uint8_t *source, size_t length);
 
-TEST_CASE("Test flash write large const buffer", "[spi_flash][esp_flash]")
+TEST_CASE("Test spi_flash_write large const buffer", "[spi_flash][esp_flash]")
 {
     // buffer in flash
     test_write_large_buffer(large_const_buffer, sizeof(large_const_buffer));
 }
 
-TEST_CASE("Test flash write large RAM buffer", "[spi_flash][esp_flash]")
+TEST_CASE("Test spi_flash_write large RAM buffer", "[spi_flash][esp_flash]")
 {
     // buffer in RAM
     uint8_t *source_buf = malloc(sizeof(large_const_buffer));
@@ -61,12 +68,12 @@ static void test_write_large_buffer(const uint8_t *source, size_t length)
     uint8_t *buf = malloc(length);
     TEST_ASSERT_NOT_NULL(buf);
 
-    TEST_ESP_OK( esp_flash_erase_region(NULL, part->address, (length + SPI_FLASH_SEC_SIZE) & ~(SPI_FLASH_SEC_SIZE-1)) );
+    ESP_ERROR_CHECK( spi_flash_erase_range(part->address, (length + SPI_FLASH_SEC_SIZE) & ~(SPI_FLASH_SEC_SIZE-1)) );
 
     // note writing to unaligned address
-    TEST_ESP_OK( esp_flash_write(NULL, source, part->address + 1, length) );
+    ESP_ERROR_CHECK( spi_flash_write(part->address + 1, source, length) );
 
-    TEST_ESP_OK( esp_flash_read(NULL, buf, part->address + 1, length) );
+    ESP_ERROR_CHECK( spi_flash_read(part->address + 1, buf, length) );
 
     TEST_ASSERT_EQUAL_HEX8_ARRAY(source, buf, length);
 
@@ -75,11 +82,12 @@ static void test_write_large_buffer(const uint8_t *source, size_t length)
     // check nothing was written at beginning or end
     uint8_t ends[8];
 
-    TEST_ESP_OK( esp_flash_read(NULL, ends, part->address, sizeof(ends)) );
+    ESP_ERROR_CHECK( spi_flash_read(part->address, ends, sizeof(ends)) );
     TEST_ASSERT_EQUAL_HEX8(0xFF, ends[0]);
     TEST_ASSERT_EQUAL_HEX8(source[0] , ends[1]);
 
-    TEST_ESP_OK( esp_flash_read(NULL, ends, part->address + length, sizeof(ends)) );
+    ESP_ERROR_CHECK( spi_flash_read(part->address + length, ends, sizeof(ends)) );
+
     TEST_ASSERT_EQUAL_HEX8(source[length-1], ends[0]);
     TEST_ASSERT_EQUAL_HEX8(0xFF, ends[1]);
     TEST_ASSERT_EQUAL_HEX8(0xFF, ends[2]);

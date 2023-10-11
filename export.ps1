@@ -1,18 +1,15 @@
 #!/usr/bin/env pwsh
 $S = [IO.Path]::PathSeparator # path separator. WIN:';', UNIX:":"
 
-$IDF_PATH = "$PSScriptRoot"
+$IDF_PATH = $PSScriptRoot
 
 Write-Output "Setting IDF_PATH: $IDF_PATH"
-$env:IDF_PATH = "$IDF_PATH"
-
-Write-Output "Checking Python compatibility"
-python "$IDF_PATH/tools/python_version_checker.py"
+$env:IDF_PATH = $IDF_PATH
 
 Write-Output "Adding ESP-IDF tools to PATH..."
 $OLD_PATH = $env:PATH.split($S) | Select-Object -Unique # array without duplicates
 # using idf_tools.py to get $envars_array to set
-$envars_raw = python "$IDF_PATH/tools/idf_tools.py" export --format key-value
+$envars_raw = python $IDF_PATH/tools/idf_tools.py export --format key-value
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } # if error
 
 $envars_array = @() # will be filled like:
@@ -51,11 +48,12 @@ foreach ($pair  in $envars_array) {
 }
 
 # Allow calling some IDF python tools without specifying the full path
-function idf.py { &python "$IDF_PATH\tools\idf.py" $args }
-function espefuse.py { &python "$IDF_PATH\components\esptool_py\esptool\espefuse.py" $args }
-function espsecure.py { &python "$IDF_PATH\components\esptool_py\esptool\espsecure.py" $args }
-function otatool.py { &python "$IDF_PATH\components\app_update\otatool.py" $args }
-function parttool.py { &python "$IDF_PATH\components\partition_table\parttool.py" $args }
+# ${IDF_PATH}/tools is already added by 'idf_tools.py export'
+$IDF_ADD_PATHS_EXTRAS = [IO.Path]::Combine(${IDF_PATH}, "components", "esptool_py", "esptool")
+$IDF_ADD_PATHS_EXTRAS += ${S} + [IO.Path]::Combine(${IDF_PATH}, "components", "app_update")
+$IDF_ADD_PATHS_EXTRAS += ${S} + [IO.Path]::Combine(${IDF_PATH}, "components", "espcoredump")
+$IDF_ADD_PATHS_EXTRAS += ${S} + [IO.Path]::Combine(${IDF_PATH}, "components", "partition_table")
+$env:PATH = $IDF_ADD_PATHS_EXTRAS + $S + $env:PATH
 
 #Compare Path's OLD vs. NEW
 $NEW_PATH = $env:PATH.split($S) | Select-Object -Unique # array without duplicates
@@ -71,18 +69,8 @@ if ($dif_Path -ne $null) {
 
 Write-Output "Checking if Python packages are up to date..."
 
-Start-Process -Wait -NoNewWindow -FilePath "python" -Args "`"$IDF_PATH/tools/idf_tools.py`" check-python-dependencies"
+Start-Process -Wait -NoNewWindow -FilePath "python" -Args "`"$IDF_PATH/tools/check_python_dependencies.py`""
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } # if error
-
-$uninstall = python "$IDF_PATH/tools/idf_tools.py" uninstall --dry-run
-
-if (![string]::IsNullOrEmpty($uninstall)){
-    Write-Output ""
-    Write-Output "Detected installed tools that are not currently used by active ESP-IDF version."
-    Write-Output "$uninstall"
-    Write-Output "For free up even more space, remove installation packages of those tools. Use option 'python.exe $IDF_PATH\tools\idf_tools.py uninstall --remove-archives'."
-    Write-Output ""
-}
 
 Write-Output "
 Done! You can now compile ESP-IDF projects.

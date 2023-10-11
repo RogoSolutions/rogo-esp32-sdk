@@ -55,7 +55,6 @@
 #if PING_USE_SOCKETS
 #include "lwip/sockets.h"
 #include "lwip/inet.h"
-#include "esp_task.h"
 #include "ping/ping_sock.h"
 #endif /* PING_USE_SOCKETS */
 

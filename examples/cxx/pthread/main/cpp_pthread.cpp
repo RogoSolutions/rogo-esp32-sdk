@@ -34,7 +34,7 @@ void print_thread_info(const char *extra = nullptr)
     ss << "Core id: " << xPortGetCoreID()
        << ", prio: " << uxTaskPriorityGet(nullptr)
        << ", minimum free stack: " << uxTaskGetStackHighWaterMark(nullptr) << " bytes.";
-    ESP_LOGI(pcTaskGetName(nullptr), "%s", ss.str().c_str());
+    ESP_LOGI(pcTaskGetTaskName(nullptr), "%s", ss.str().c_str());
 }
 
 void thread_func_inherited()
@@ -84,7 +84,7 @@ esp_pthread_cfg_t create_config(const char *name, int core_id, int stack, int pr
 
 extern "C" void app_main(void)
 {
-    // Create a thread using default values that can run on any core
+    // Create a thread using deafult values that can run on any core
     auto cfg = esp_pthread_get_default_config();
     esp_pthread_set_cfg(&cfg);
     std::thread any_core(thread_func_any_core);
@@ -106,7 +106,7 @@ extern "C" void app_main(void)
         ss << "core id: " << xPortGetCoreID()
            << ", prio: " << uxTaskPriorityGet(nullptr)
            << ", minimum free stack: " << uxTaskGetStackHighWaterMark(nullptr) << " bytes.";
-        ESP_LOGI(pcTaskGetName(nullptr), "%s", ss.str().c_str());
+        ESP_LOGI(pcTaskGetTaskName(nullptr), "%s", ss.str().c_str());
         std::this_thread::sleep_for(sleep_time);
     }
 }

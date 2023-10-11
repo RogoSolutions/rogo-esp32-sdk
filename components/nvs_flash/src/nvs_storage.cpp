@@ -4,10 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "nvs_storage.hpp"
-#if __has_include(<bsd/string.h>)
-// for strlcpy
-#include <bsd/string.h>
-#endif
 
 #ifndef ESP_PLATFORM
 // We need NO_DEBUG_STORAGE here since the integration tests on the host add some debug code.
@@ -116,14 +112,12 @@ esp_err_t Storage::init(uint32_t baseSector, uint32_t sectorCount)
             item.getKey(entry->mName, sizeof(entry->mName));
             err = item.getValue(entry->mIndex);
             if (err != ESP_OK) {
-                delete entry;
                 return err;
             }
+            mNamespaces.push_back(entry);
             if (mNamespaceUsage.set(entry->mIndex, true) != ESP_OK) {
-                delete entry;
                 return ESP_FAIL;
             }
-            mNamespaces.push_back(entry);
             itemIndex += item.span;
         }
     }
@@ -311,10 +305,7 @@ esp_err_t Storage::writeItem(uint8_t nsIndex, ItemType datatype, const char* key
 
             if (findPage->state() == Page::PageState::UNINITIALIZED ||
                     findPage->state() == Page::PageState::INVALID) {
-                err = findItem(nsIndex, datatype, key, findPage, item);
-                if (err != ESP_OK) {
-                    return err;
-                }
+                ESP_ERROR_CHECK(findItem(nsIndex, datatype, key, findPage, item));
             }
             /* Get the version of the previous index with same <ns,key> */
             prevStart = item.blobIndex.chunkStart;
@@ -392,10 +383,7 @@ esp_err_t Storage::writeItem(uint8_t nsIndex, ItemType datatype, const char* key
     if (findPage) {
         if (findPage->state() == Page::PageState::UNINITIALIZED ||
                 findPage->state() == Page::PageState::INVALID) {
-            err = findItem(nsIndex, datatype, key, findPage, item);
-            if (err != ESP_OK) {
-                return err;
-            }
+            ESP_ERROR_CHECK(findItem(nsIndex, datatype, key, findPage, item));
         }
         err = findPage->eraseItem(nsIndex, datatype, key);
         if (err == ESP_ERR_FLASH_OP_FAIL) {
@@ -761,7 +749,8 @@ void Storage::fillEntryInfo(Item &item, nvs_entry_info_t &info)
 
     for (auto &name : mNamespaces) {
         if(item.nsIndex == name.mIndex) {
-            strlcpy(info.namespace_name, name.mName, sizeof(info.namespace_name));
+            strncpy(info.namespace_name, name.mName, sizeof(info.namespace_name) - 1);
+            info.namespace_name[sizeof(info.namespace_name) -1] = '\0';
             break;
         }
     }
@@ -818,8 +807,6 @@ bool Storage::nextEntry(nvs_opaque_iterator_t* it)
     return false;
 }
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
 esp_err_t Storage::eraseFullNamespace(uint8_t nsIndex, const char *nsName)
 {
     if (mState != StorageState::ACTIVE) {
@@ -867,7 +854,6 @@ esp_err_t Storage::checkNamespace(const char* nsName, uint8_t& nsIndex)
     // }
     return ESP_OK;
 }
-/************************************************************************************************/
 
 
 }

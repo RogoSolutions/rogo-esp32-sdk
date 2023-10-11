@@ -17,7 +17,7 @@ In certain situations, execution of the program can not be continued in a well d
      - :doc:`Interrupt watchdog <../api-reference/system/wdts>` timeout
      - :doc:`Task watchdog <../api-reference/system/wdts>` timeout (only fatal if :ref:`CONFIG_ESP_TASK_WDT_PANIC` is set)
      - Cache access error
-     :SOC_MEMPROT_SUPPORTED: - Memory protection fault
+     :CONFIG_ESP_SYSTEM_MEMPROT_FEATURE: - Memory protection fault
      - Brownout detection event
      - Stack overflow
      - Stack smashing protection check
@@ -69,17 +69,15 @@ Subsequent behavior of the panic handler can be set using :ref:`CONFIG_ESP_SYSTE
 
   Start GDB server which can communicate with GDB over console UART port. This option allows the user to debug a program at run time and set break points, alter the execution, etc. See `GDB Stub`_ for more details.
 
-The behavior of the panic handler is affected by three other configuration options.
+The behavior of the panic handler is affected by two other configuration options.
 
-- If :ref:`CONFIG_ESP_DEBUG_OCDAWARE` is enabled (which is the default), the panic handler will detect whether a JTAG debugger is connected. If it is, execution will be halted and control will be passed to the debugger. In this case, registers and backtrace are not dumped to the console, and GDBStub / Core Dump functions are not used.
+- If :ref:`CONFIG_{IDF_TARGET_CFG_PREFIX}_DEBUG_OCDAWARE` is enabled (which is the default), the panic handler will detect whether a JTAG debugger is connected. If it is, execution will be halted and control will be passed to the debugger. In this case, registers and backtrace are not dumped to the console, and GDBStub / Core Dump functions are not used.
 
 - If the :doc:`Core Dump <core_dump>` feature is enabled, then the system state (task stacks and registers) will be dumped to either Flash or UART, for later analysis.
 
 - If :ref:`CONFIG_ESP_PANIC_HANDLER_IRAM` is disabled (disabled by default), the panic handler code is placed in flash memory, not IRAM. This means that if ESP-IDF crashes while flash cache is disabled, the panic handler will automatically re-enable flash cache before running GDB Stub or Core Dump. This adds some minor risk, if the flash cache status is also corrupted during the crash.
 
   If this option is enabled, the panic handler code (including required UART functions) is placed in IRAM, and hence will decrease the usable memory space in SRAM. But this may be necessary to debug some complex issues with crashes while flash cache is disabled (for example, when writing to SPI flash) or when flash cache is corrupted when an exception is triggered.
-
-- If :ref:`CONFIG_ESP_SYSTEM_PANIC_REBOOT_DELAY_SECONDS` is enabled (disabled by default) and set to a number higher than 0, the panic handler will delay the reboot for that amount of time in seconds. This can help if the tool used to monitor serial output does not provide a possibility to stop and examine the serial output. In that case, delaying the reboot will allow users to examine and debug the panic handler output (backtrace, etc.) for the duration of the delay. After the delay, the device will reboot. The reset reason is preserved.
 
 The following diagram illustrates the panic handler behavior:
 
@@ -166,7 +164,7 @@ The register values printed are the register values in the exception frame, i.e.
 A Register dump is not printed if the panic handler has been executed as a result of an ``abort()`` call.
 
 .. only:: CONFIG_IDF_TARGET_ARCH_XTENSA
-
+    
     In some cases, such as interrupt watchdog timeout, the panic handler may print additional CPU registers (EPC1-EPC4) and the registers/backtrace of the code running on the other CPU.
 
     The backtrace line contains PC:SP pairs, where PC is the Program Counter and SP is Stack Pointer, for each stack frame of the current task. If a fatal error happens inside an ISR, the backtrace may include PC:SP pairs both from the task which was interrupted, and from the ISR.
@@ -216,7 +214,7 @@ If :doc:`IDF Monitor <tools/idf-monitor>` is used, Program Counter values will b
         MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000007  MTVAL   : 0x00000000
         MHARTID : 0x00000000
 
-    Moreover, the :doc:`IDF Monitor <tools/idf-monitor>` is also capable of generating and printing a backtrace thanks to the stack dump provided by the board in the panic handler.
+    Moreover, the :doc:`IDF Monitor <tools/idf-monitor>` is also capable of generating and printing a backtrace thanks to the stack dump provided by the board in the panic handler. 
     The output looks like this:
 
     ::
@@ -236,16 +234,16 @@ If :doc:`IDF Monitor <tools/idf-monitor>` is used, Program Counter values will b
     While the backtrace above is very handy, it requires the user to use :doc:`IDF Monitor <tools/idf-monitor>`. Thus, in order to generate and print a backtrace while using another monitor program, it is possible to activate :ref:`CONFIG_ESP_SYSTEM_USE_EH_FRAME` option from the menuconfig.
 
     This option will let the compiler generate DWARF information for each function of the project. Then, when a CPU exception occurs, the panic handler will parse these data and determine the backtrace of the task that failed. The output looks like this:
-
+    
     ::
 
-        Backtrace: 0x42009e9a:0x3fc92120 0x42009ea6:0x3fc92120 0x42009ec2:0x3fc92130 0x42024620:0x3fc92150 0x40387d7c:0x3fc92160 0xfffffffe:0x3fc92170
-
+        Backtrace: 0x42009e9a:0x3fc92120 0x42009ea6:0x3fc92120 0x42009ec2:0x3fc92130 0x42024620:0x3fc92150 0x40387d7c:0x3fc92160 0xfffffffe:0x3fc92170    
+    
     These ``PC:SP`` pairs represent the PC (Program Counter) and SP (Stack Pointer) for each stack frame of the current task.
 
 
     The main benefit of the :ref:`CONFIG_ESP_SYSTEM_USE_EH_FRAME` option is that the backtrace is generated by the board itself (without the need for :doc:`IDF Monitor <tools/idf-monitor>`). However, the option's drawback is that it results in an increase of the compiled binary's size (ranging from 20% to 100% increase in size). Furthermore, this option causes debug information to be included within the compiled binary. Therefore, users are strongly advised not to enable this option in mass/final production builds.
-
+    
 To find the location where a fatal error has happened, look at the lines which follow the "Backtrace" line. Fatal error location is the top line, and subsequent lines show the call stack.
 
 .. _GDB-Stub:
@@ -281,21 +279,6 @@ If :doc:`IDF Monitor <tools/idf-monitor>` is used, GDB is started automatically 
 
 The GDB prompt can be used to inspect CPU registers, local and static variables, and arbitrary locations in memory. It is not possible to set breakpoints, change the PC, or continue execution. To reset the program, exit GDB and perform an external reset: Ctrl-T Ctrl-R in IDF Monitor, or using the external reset button on the development board.
 
-.. _RTC-Watchdog-Timeout:
-
-RTC Watchdog Timeout
---------------------
-{IDF_TARGET_RTCWDT_RTC_RESET:default="Not updated", esp32="RTCWDT_RTC_RESET", esp32s2="RTCWDT_RTC_RST", esp32s3="RTCWDT_RTC_RST", esp32c3="RTCWDT_RTC_RST", esp32c2="RTCWDT_RTC_RST", esp32c6="LP_WDT_SYS", esp32h2="LP_WDT_SYS"}
-
-The RTC watchdog is used in the startup code to keep track of execution time and it also helps to prevent a lock-up caused by an unstable power source. It is enabled by default (see :ref:`CONFIG_BOOTLOADER_WDT_ENABLE`). If the execution time is exceeded, the RTC watchdog will restart the system. In this case, the ROM bootloader will print a message with the ``RTC Watchdog Timeout`` reason for the reboot.
-
-::
-
-    rst:0x10 ({IDF_TARGET_RTCWDT_RTC_RESET})
-
-
-The RTC watchdog covers the execution time from the first stage bootloader (ROM bootloader) to application startup. It is initially set in the ROM bootloader, then configured in the bootloader with the :ref:`CONFIG_BOOTLOADER_WDT_TIME_MS` option (9000 ms by default). During the application initialization stage, it is reconfigured because the source of the slow clock may have changed, and finally disabled right before the ``app_main()`` call. There is an option :ref:`CONFIG_BOOTLOADER_WDT_DISABLE_IN_USER_CODE` which prevents the RTC watchdog from being disabled before ``app_main``. Instead, the RTC watchdog remains active and must be fed periodically in your application's code.
-
 .. _Guru-Meditation-Errors:
 
 Guru Meditation Errors
@@ -322,8 +305,6 @@ This CPU exception indicates that the instruction which was executed was not a v
   - Application has reconfigured the SPI flash pins as some other function (GPIO, UART, etc.). Consult the Hardware Design Guidelines and the datasheet for the chip or module for details about the SPI flash pins.
 
   - Some external device has accidentally been connected to the SPI flash pins, and has interfered with communication between {IDF_TARGET_NAME} and SPI flash.
-
-- In C++ code, exiting from a non-void function without returning a value is considered to be an undefined behavior. When optimizations are enabled, the compiler will often omit the epilogue in such functions. This most often results in an |ILLEGAL_INSTR_MSG| exception. By default, ESP-IDF build system enables ``-Werror=return-type`` which means that missing return statements are treated as compile time errors. However if the application project disables compiler warnings, this issue might go undetected and the |ILLEGAL_INSTR_MSG| exception will occur at run time.
 
 .. only:: CONFIG_IDF_TARGET_ARCH_XTENSA
 
@@ -368,7 +349,7 @@ This CPU exception indicates that the instruction which was executed was not a v
     This error indicates that the application has written past the end of the stack of the task with name ``task_name``. Note that not every stack overflow is guaranteed to trigger this error. It is possible that the task writes to memory beyond the stack canary location, in which case the watchpoint will not be triggered.
 
 .. only:: CONFIG_IDF_TARGET_ARCH_RISCV
-
+    
     Instruction address misaligned
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -389,8 +370,8 @@ This CPU exception indicates that the instruction which was executed was not a v
 
     Application has attempted to read or write memory location, and address alignment did not match load/store size. For example, 32-bit load can only be done from 4-byte aligned address, and 16-bit load can only be done from a 2-byte aligned address.
 
-Interrupt Watchdog Timeout on CPU0/CPU1
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Interrupt wdt timeout on CPU0 / CPU1
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Indicates that an interrupt watchdog timeout has occurred. See :doc:`Watchdogs <../api-reference/system/wdts>` for more information.
 
@@ -399,7 +380,7 @@ Indicates that an interrupt watchdog timeout has occurred. See :doc:`Watchdogs <
 
 In some situations, ESP-IDF will temporarily disable access to external SPI Flash and SPI RAM via caches. For example, this happens when spi_flash APIs are used to read/write/erase/mmap regions of SPI Flash. In these situations, tasks are suspended, and interrupt handlers not registered with ``ESP_INTR_FLAG_IRAM`` are disabled. Make sure that any interrupt handlers registered with this flag have all the code and data in IRAM/DRAM. Refer to the :ref:`SPI flash API documentation <iram-safe-interrupt-handlers>` for more details.
 
-.. only:: SOC_MEMPROT_SUPPORTED
+.. only:: CONFIG_ESP_SYSTEM_MEMPROT_FEATURE
 
     Memory protection fault
     ^^^^^^^^^^^^^^^^^^^^^^^
@@ -419,7 +400,7 @@ Other Fatal Errors
 Brownout
 ^^^^^^^^
 
-{IDF_TARGET_NAME} has a built-in brownout detector, which is enabled by default. The brownout detector can trigger a system reset if the supply voltage goes below a safe level. The brownout detector can be configured using :ref:`CONFIG_ESP_BROWNOUT_DET` and :ref:`CONFIG_ESP_BROWNOUT_DET_LVL_SEL` options.
+{IDF_TARGET_NAME} has a built-in brownout detector, which is enabled by default. The brownout detector can trigger a system reset if the supply voltage goes below a safe level. The brownout detector can be configured using :ref:`CONFIG_{IDF_TARGET_CFG_PREFIX}_BROWNOUT_DET` and :ref:`CONFIG_{IDF_TARGET_CFG_PREFIX}_BROWNOUT_DET_LVL_SEL` options.
 
 When the brownout detector triggers, the following message is printed::
 
@@ -466,7 +447,7 @@ The backtrace should point to the function where stack smashing has occurred. Ch
     .. |ILLEGAL_INSTR_MSG| replace:: Illegal instruction
     .. |CACHE_ERR_MSG| replace:: Cache error
 
-Undefined Behavior Sanitizer (UBSAN) Checks
+Undefined behavior sanitizer (UBSAN) checks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Undefined behavior sanitizer (UBSAN) is a compiler feature which adds run-time checks for potentially incorrect operations, such as:
@@ -482,7 +463,7 @@ Enabling UBSAN
 
 UBSAN is disabled by default. It can be enabled at file, component, or project level by adding the ``-fsanitize=undefined`` compiler option in the build system.
 
-When enabling UBSAN for code which uses the SOC hardware register header files (``soc/xxx_reg.h``), it is recommended to disable shift-base sanitizer using ``-fno-sanitize=shift-base`` option. This is due to the fact that ESP-IDF register header files currently contain patterns which cause false positives for this specific sanitizer option.
+When enabling UBSAN for code which uses the SoC hardware register header files (``soc/xxx_reg.h``), it is recommended to disable shift-base sanitizer using ``-fno-sanitize=shift-base`` option. This is due to the fact that ESP-IDF register header files currently contain patterns which cause false positives for this specific sanitizer option.
 
 To enable UBSAN at project level, add the following code at the end of the project's ``CMakeLists.txt`` file::
 
@@ -503,7 +484,7 @@ To enable UBSAN for a specific component (``component_name``) from ``CMakeLists.
 
     target_compile_options(${COMPONENT_LIB} PRIVATE "-fsanitize=undefined" "-fno-sanitize=shift-base")
 
-UBSAN Output
+UBSAN output
 """"""""""""
 
 When UBSAN detects an error, a message and the backtrace are printed, for example::
@@ -527,7 +508,6 @@ When using :doc:`IDF Monitor <tools/idf-monitor>`, the backtrace will be decoded
     0x400db99c: app_main at main.c:56 (discriminator 1)
 
 The types of errors reported by UBSAN can be as follows:
-
 
 .. list-table::
   :widths: 40 60

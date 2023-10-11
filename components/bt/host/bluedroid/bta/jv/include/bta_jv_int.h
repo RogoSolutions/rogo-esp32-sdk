@@ -56,8 +56,6 @@ enum {
     BTA_JV_API_L2CAP_READ_EVT,
     BTA_JV_API_L2CAP_WRITE_EVT,
 #endif /* BTA_JV_L2CAP_INCLUDED */
-#if BTA_JV_RFCOMM_INCLUDED
-    BTA_JV_API_RFCOMM_CONFIG_EVT,
     BTA_JV_API_RFCOMM_CONNECT_EVT,
     BTA_JV_API_RFCOMM_CLOSE_EVT,
     BTA_JV_API_RFCOMM_START_SERVER_EVT,
@@ -65,7 +63,6 @@ enum {
     BTA_JV_API_RFCOMM_READ_EVT,
     BTA_JV_API_RFCOMM_WRITE_EVT,
     BTA_JV_API_RFCOMM_FLOW_CONTROL_EVT,
-#endif /* BTA_JV_RFCOMM_INCLUDED */
     BTA_JV_API_SET_PM_PROFILE_EVT,
     BTA_JV_API_PM_STATE_CHANGE_EVT,
 #if BTA_JV_L2CAP_INCLUDED
@@ -84,7 +81,7 @@ enum {
 
 /* data type for BTA_JV_API_ENABLE_EVT */
 typedef struct {
-    BT_HDR              hdr;
+    BT_HDR          hdr;
     tBTA_JV_DM_CBACK   *p_cback;
 } tBTA_JV_API_ENABLE;
 
@@ -162,7 +159,6 @@ typedef struct {
     tBTA_JV_PM_CB       *p_pm_cb;   /* ptr to pm control block, NULL: unused */
 } tBTA_JV_PCB;
 
-#if BTA_JV_RFCOMM_INCLUDED
 /* JV RFCOMM control block */
 typedef struct {
     tBTA_JV_RFCOMM_CBACK *p_cback;  /* the callback function */
@@ -173,7 +169,6 @@ typedef struct {
     UINT8               max_sess;   /* max sessions */
     int                 curr_sess;   /* current sessions count*/
 } tBTA_JV_RFC_CB;
-#endif /* BTA_JV_RFCOMM_INCLUDED */
 
 #if BTA_JV_L2CAP_INCLUDED
 /* data type for BTA_JV_API_L2CAP_CONNECT_EVT & BTA_JV_API_L2CAP_CONNECT_LE_EVT */
@@ -218,8 +213,6 @@ typedef struct {
     BT_HDR          hdr;
     UINT32          handle;
     tBTA_JV_L2C_CB  *p_cb;
-    tBTA_JV_L2CAP_CBACK *p_cback;
-    void            *user_data;
 } tBTA_JV_API_L2CAP_CLOSE;
 
 /* data type for BTA_JV_API_L2CAP_READ_EVT */
@@ -257,13 +250,6 @@ typedef struct {
 } tBTA_JV_API_L2CAP_WRITE_FIXED;
 #endif /* BTA_JV_L2CAP_INCLUDED */
 
-#if BTA_JV_RFCOMM_INCLUDED
-/* data type for BTA_JV_API_RFCOMM_CONFIG_EVT */
-typedef struct {
-    BT_HDR          hdr;
-    BOOLEAN         enable_l2cap_ertm;
-} tBTA_JV_API_RFCOMM_CONFIG;
-
 /* data type for BTA_JV_API_RFCOMM_CONNECT_EVT */
 typedef struct {
     BT_HDR          hdr;
@@ -297,7 +283,6 @@ typedef struct {
     tBTA_JV_RFC_CB  *p_cb;
     tBTA_JV_PCB     *p_pcb;
 } tBTA_JV_API_RFCOMM_READ;
-#endif /* BTA_JV_RFCOMM_INCLUDED */
 
 /* data type for BTA_JV_API_SET_PM_PROFILE_EVT */
 typedef struct {
@@ -314,7 +299,6 @@ typedef struct {
     tBTA_JV_CONN_STATE  state;
 } tBTA_JV_API_PM_STATE_CHANGE;
 
-#if BTA_JV_RFCOMM_INCLUDED
 /* data type for BTA_JV_API_RFCOMM_WRITE_EVT */
 typedef struct {
     BT_HDR          hdr;
@@ -343,7 +327,6 @@ typedef struct {
     tBTA_JV_RFCOMM_CBACK *p_cback;
     void            *user_data;
 } tBTA_JV_API_RFCOMM_CLOSE;
-#endif /* BTA_JV_RFCOMM_INCLUDED */
 
 /* data type for BTA_JV_API_CREATE_RECORD_EVT */
 typedef struct {
@@ -398,17 +381,14 @@ typedef union {
     tBTA_JV_API_L2CAP_SERVER        l2cap_server;
     tBTA_JV_API_L2CAP_WRITE_FIXED   l2cap_write_fixed;
 #endif /* BTA_JV_L2CAP_INCLUDED */
-#if BTA_JV_RFCOMM_INCLUDED
-    tBTA_JV_API_RFCOMM_CONFIG       rfcomm_config;
     tBTA_JV_API_RFCOMM_CONNECT      rfcomm_connect;
     tBTA_JV_API_RFCOMM_READ         rfcomm_read;
     tBTA_JV_API_RFCOMM_WRITE        rfcomm_write;
     tBTA_JV_API_RFCOMM_FLOW_CONTROL rfcomm_fc;
-    tBTA_JV_API_RFCOMM_CLOSE        rfcomm_close;
-    tBTA_JV_API_RFCOMM_SERVER       rfcomm_server;
-#endif /* BTA_JV_RFCOMM_INCLUDED */
     tBTA_JV_API_SET_PM_PROFILE      set_pm;
     tBTA_JV_API_PM_STATE_CHANGE     change_pm_state;
+    tBTA_JV_API_RFCOMM_CLOSE        rfcomm_close;
+    tBTA_JV_API_RFCOMM_SERVER       rfcomm_server;
 } tBTA_JV_MSG;
 
 /* JV control block */
@@ -422,9 +402,7 @@ typedef struct {
 #if BTA_JV_L2CAP_INCLUDED
     tBTA_JV_L2C_CB          l2c_cb[BTA_JV_MAX_L2C_CONN];    /* index is GAP handle (index) */
 #endif /* BTA_JV_L2CAP_INCLUDED */
-#if BTA_JV_RFCOMM_INCLUDED
     tBTA_JV_RFC_CB          rfc_cb[BTA_JV_MAX_RFC_CONN];
-#endif /* BTA_JV_RFCOMM_INCLUDED */
     tBTA_JV_PCB             port_cb[MAX_RFC_PORTS];         /* index of this array is
                                                                the port_handle, */
     UINT8                   sec_id[BTA_JV_NUM_SERVICE_ID];  /* service ID */
@@ -470,8 +448,6 @@ extern void bta_jv_l2cap_stop_server (tBTA_JV_MSG *p_data);
 extern void bta_jv_l2cap_read (tBTA_JV_MSG *p_data);
 extern void bta_jv_l2cap_write (tBTA_JV_MSG *p_data);
 #endif /* BTA_JV_L2CAP_INCLUDED */
-#if BTA_JV_RFCOMM_INCLUDED
-extern void bta_jv_rfcomm_config (tBTA_JV_MSG *p_data);
 extern void bta_jv_rfcomm_connect (tBTA_JV_MSG *p_data);
 extern void bta_jv_rfcomm_close (tBTA_JV_MSG *p_data);
 extern void bta_jv_rfcomm_start_server (tBTA_JV_MSG *p_data);
@@ -479,7 +455,6 @@ extern void bta_jv_rfcomm_stop_server (tBTA_JV_MSG *p_data);
 extern void bta_jv_rfcomm_read (tBTA_JV_MSG *p_data);
 extern void bta_jv_rfcomm_write (tBTA_JV_MSG *p_data);
 extern void bta_jv_rfcomm_flow_control(tBTA_JV_MSG *p_data);
-#endif /* BTA_JV_RFCOMM_INCLUDED */
 extern void bta_jv_set_pm_profile (tBTA_JV_MSG *p_data);
 extern void bta_jv_change_pm_state(tBTA_JV_MSG *p_data);
 #if BTA_JV_L2CAP_INCLUDED

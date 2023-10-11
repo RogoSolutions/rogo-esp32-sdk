@@ -699,7 +699,7 @@ void bta_gatts_indicate_handle (tBTA_GATTS_CB *p_cb, tBTA_GATTS_DATA *p_msg)
             cb_data.req_data.data_len = 0;
             cb_data.req_data.handle = p_msg->api_indicate.attr_id;
 
-            if (p_msg->api_indicate.len > 0) {
+            if (p_msg->api_indicate.value && (p_msg->api_indicate.len > 0)) {
                 cb_data.req_data.value = (uint8_t *) osi_malloc(p_msg->api_indicate.len);
                 if (cb_data.req_data.value != NULL) {
                     memset(cb_data.req_data.value, 0, p_msg->api_indicate.len);
@@ -709,7 +709,9 @@ void bta_gatts_indicate_handle (tBTA_GATTS_CB *p_cb, tBTA_GATTS_DATA *p_msg)
                     APPL_TRACE_ERROR("%s, malloc failed", __func__);
                 }
             } else {
-                APPL_TRACE_ERROR("%s, incorrect length", __func__);
+                if (p_msg->api_indicate.value) {
+                    APPL_TRACE_ERROR("%s, incorrect length", __func__);
+                }
             }
             (*p_rcb->p_cback)(BTA_GATTS_CONF_EVT, &cb_data);
             if (cb_data.req_data.value != NULL) {
@@ -906,22 +908,6 @@ void bta_gatts_listen(tBTA_GATTS_CB *p_cb, tBTA_GATTS_DATA *p_msg)
 
 /*******************************************************************************
 **
-** Function         bta_gatts_show_local_database
-**
-** Description      print loacl service database
-**
-** Returns          none.
-**
-*******************************************************************************/
-void bta_gatts_show_local_database (void)
-{
-    if (GATTS_ShowLocalDatabase()) {
-        APPL_TRACE_ERROR("%s failed", __func__);
-    }
-}
-
-/*******************************************************************************
-**
 ** Function         bta_gatts_request_cback
 **
 ** Description      GATTS attribute request callback.
@@ -1010,21 +996,18 @@ static void bta_gatts_conn_cback (tGATT_IF gatt_if, BD_ADDR bda, UINT16 conn_id,
                 bta_sys_conn_close( BTA_ID_GATTS , BTA_ALL_APP_ID, bda);
             }
         }
+
         if(evt == BTA_GATTS_CONNECT_EVT) {
             tL2C_LCB *p_lcb = l2cu_find_lcb_by_bd_addr(bda, BT_TRANSPORT_LE);
             if(p_lcb != NULL) {
                 cb_data.conn.conn_params.interval = p_lcb->current_used_conn_interval;
                 cb_data.conn.conn_params.latency = p_lcb->current_used_conn_latency;
                 cb_data.conn.conn_params.timeout = p_lcb->current_used_conn_timeout;
-                cb_data.conn.link_role = p_lcb->link_role;
-                #if (BLE_INCLUDED == TRUE)
-                cb_data.conn.ble_addr_type = p_lcb->ble_addr_type;
-                #endif
-                cb_data.conn.conn_handle = p_lcb->handle;
             }else {
                 APPL_TRACE_WARNING("%s not found connection parameters of the device ", __func__);
             }
         }
+        cb_data.conn.link_role = l2cu_find_link_role_by_bd_addr(bda, BT_TRANSPORT_LE);
         cb_data.conn.conn_id = conn_id;
         cb_data.conn.server_if = gatt_if;
         cb_data.conn.reason = reason;

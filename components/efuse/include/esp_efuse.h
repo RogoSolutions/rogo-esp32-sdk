@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2017-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2017-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -13,7 +13,19 @@
 #include "esp_log.h"
 #include "soc/soc_caps.h"
 #include "sdkconfig.h"
-#include "esp_efuse_chip.h"
+#include_next "esp_efuse.h"
+
+#if CONFIG_IDF_TARGET_ESP32
+#include "esp32/rom/secure_boot.h"
+#elif CONFIG_IDF_TARGET_ESP32S2
+#include "esp32s2/rom/secure_boot.h"
+#elif CONFIG_IDF_TARGET_ESP32C3
+#include "esp32c3/rom/secure_boot.h"
+#elif CONFIG_IDF_TARGET_ESP32S3
+#include "esp32s3/rom/secure_boot.h"
+#elif CONFIG_IDF_TARGET_ESP32H2
+#include "esp32h2/rom/secure_boot.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,17 +57,6 @@ typedef enum {
     ESP_EFUSE_ROM_LOG_ON_GPIO_HIGH, /**< ROM logging is enabled when specific GPIO level is high during start up */
     ESP_EFUSE_ROM_LOG_ALWAYS_OFF    /**< Disable ROM logging permanently */
 } esp_efuse_rom_log_scheme_t;
-
-#if CONFIG_ESP32_REV_MIN_FULL >= 300 || !CONFIG_IDF_TARGET_ESP32
-/**
- * @brief Pointers to the trusted key digests.
- *
- * The number of digests depends on the SOC's capabilities.
- */
-typedef struct {
-    const void *key_digests[SOC_EFUSE_SECURE_BOOT_KEY_DIGESTS]; /**< Pointers to the key digests */
-} esp_secure_boot_key_digests_t;
-#endif
 
 /**
  * @brief   Reads bits from EFUSE field and writes it into an array.
@@ -274,6 +275,13 @@ esp_err_t esp_efuse_read_block(esp_efuse_block_t blk, void* dst_key, size_t offs
  *    - ESP_ERR_EFUSE_REPEATED_PROG: Error repeated programming of programmed bits
  */
 esp_err_t esp_efuse_write_block(esp_efuse_block_t blk, const void* src_key, size_t offset_in_bits, size_t size_bits);
+
+/**
+ * @brief   Returns chip version from efuse
+ *
+ * @return chip version
+ */
+uint8_t esp_efuse_get_chip_ver(void);
 
 /**
  * @brief   Returns chip package from efuse
@@ -589,7 +597,8 @@ bool esp_efuse_get_keypurpose_dis_write(esp_efuse_block_t block);
  */
 esp_efuse_purpose_t esp_efuse_get_key_purpose(esp_efuse_block_t block);
 
-#if SOC_EFUSE_KEY_PURPOSE_FIELD
+
+#ifndef CONFIG_IDF_TARGET_ESP32
 /**
  * @brief Returns a pointer to a key purpose for an efuse key block.
  *
@@ -651,9 +660,6 @@ esp_efuse_block_t esp_efuse_find_unused_key_block(void);
  */
 unsigned esp_efuse_count_unused_key_blocks(void);
 
-#endif // SOC_EFUSE_KEY_PURPOSE_FIELD
-
-#if SOC_SUPPORT_SECURE_BOOT_REVOKE_KEY
 /**
  * @brief Returns the status of the Secure Boot public key digest revocation bit.
  *
@@ -701,7 +707,7 @@ bool esp_efuse_get_write_protect_of_digest_revoke(unsigned num_digest);
  */
 esp_err_t esp_efuse_set_write_protect_of_digest_revoke(unsigned num_digest);
 
-#endif // SOC_SUPPORT_SECURE_BOOT_REVOKE_KEY
+#endif // not CONFIG_IDF_TARGET_ESP32
 
 /**
  * @brief Program a block of key data to an efuse block
@@ -742,19 +748,17 @@ esp_err_t esp_efuse_write_key(esp_efuse_block_t block, esp_efuse_purpose_t purpo
 esp_err_t esp_efuse_write_keys(const esp_efuse_purpose_t purposes[], uint8_t keys[][32], unsigned number_of_keys);
 
 
-#if CONFIG_ESP32_REV_MIN_FULL >= 300 || !CONFIG_IDF_TARGET_ESP32
+#if CONFIG_ESP32_REV_MIN_3 || !CONFIG_IDF_TARGET_ESP32
 /**
  * @brief Read key digests from efuse. Any revoked/missing digests will be marked as NULL
  *
- * @param[out] trusted_key_digests Trusted keys digests, stored in this parameter after successfully
- *                                 completing this function.
- *                                 The number of digests depends on the SOC's capabilities.
+ * @param[out] trusted_keys The number of digest in range 0..2
  *
  * @return
  *    - ESP_OK: Successful.
  *    - ESP_FAIL: If trusted_keys is NULL or there is no valid digest.
  */
-esp_err_t esp_secure_boot_read_key_digests(esp_secure_boot_key_digests_t *trusted_key_digests);
+esp_err_t esp_secure_boot_read_key_digests(ets_secure_boot_key_digests_t *trusted_keys);
 #endif
 
 /**

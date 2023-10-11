@@ -21,6 +21,7 @@
 #define BT_TARGET_H
 
 #include <bt_common.h>
+#include "soc/soc_caps.h"
 
 #ifndef BUILDCFG
 #define BUILDCFG
@@ -79,22 +80,13 @@
 #if (UC_BT_SPP_ENABLED == TRUE)
 #define RFCOMM_INCLUDED             TRUE
 #define BTA_JV_INCLUDED             TRUE
-#define BTA_JV_RFCOMM_INCLUDED      TRUE
 #define BTC_SPP_INCLUDED            TRUE
 #endif /* UC_BT_SPP_ENABLED */
-
-#if (UC_BT_L2CAP_ENABLED == TRUE)
-#define BTA_JV_INCLUDED             TRUE
-#define BTC_L2CAP_INCLUDED          TRUE
-#define BTC_SDP_INCLUDED            TRUE
-#define VND_BT_JV_BTA_L2CAP         TRUE
-#endif /* UC_BT_L2CAP_ENABLED */
 
 #if (UC_BT_HFP_AG_ENABLED == TRUE)
 #define BTC_HF_INCLUDED             TRUE
 #define BTA_AG_INCLUDED             TRUE
 #define PLC_INCLUDED                TRUE
-#define BTA_JV_RFCOMM_INCLUDED      TRUE
 #ifndef RFCOMM_INCLUDED
 #define RFCOMM_INCLUDED             TRUE
 #endif
@@ -192,24 +184,6 @@
 #define BLE_42_FEATURE_SUPPORT   FALSE
 #endif
 
-#if (UC_BT_BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER == TRUE)
-#define BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER   TRUE
-#else
-#define BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER   FALSE
-#endif
-
-#if (UC_BT_BLE_FEAT_PERIODIC_ADV_ENH == TRUE)
-#define BLE_FEAT_PERIODIC_ADV_ENH   TRUE
-#else
-#define BLE_FEAT_PERIODIC_ADV_ENH   FALSE
-#endif
-
-#if (UC_BT_BLE_HIGH_DUTY_ADV_INTERVAL == TRUE)
-#define BLE_HIGH_DUTY_ADV_INTERVAL TRUE
-#else
-#define BLE_HIGH_DUTY_ADV_INTERVAL FALSE
-#endif
-
 #if (UC_BT_BLE_RPA_SUPPORTED  == TRUE)
 #define CONTROLLER_RPA_LIST_ENABLE   TRUE
 #else
@@ -295,6 +269,11 @@
 #define BLE_ESTABLISH_LINK_CONNECTION_TIMEOUT UC_BT_BLE_ESTAB_LINK_CONN_TOUT
 #endif
 
+#ifdef SOC_BLE_DONT_UPDATE_OWN_RPA
+#define BLE_UPDATE_BLE_ADDR_TYPE_RPA FALSE
+#else
+#define BLE_UPDATE_BLE_ADDR_TYPE_RPA TRUE
+#endif
 //------------------Added from bdroid_buildcfg.h---------------------
 #ifndef L2CAP_EXTFEA_SUPPORTED_MASK
 #define L2CAP_EXTFEA_SUPPORTED_MASK (L2CAP_EXTFEA_ENH_RETRANS | L2CAP_EXTFEA_STREAM_MODE | L2CAP_EXTFEA_NO_CRC | L2CAP_EXTFEA_FIXED_CHNLS)
@@ -511,36 +490,8 @@
 #define GATTS_SEND_SERVICE_CHANGE_MODE UC_BT_GATTS_SEND_SERVICE_CHANGE_MODE
 #endif
 
-#if (UC_BT_GATTS_ROBUST_CACHING_ENABLED == TRUE)
-#define GATTS_ROBUST_CACHING_ENABLED TRUE
-#else
-#define GATTS_ROBUST_CACHING_ENABLED FALSE
-#endif
-
-#if (UC_BT_GATTS_DEVICE_NAME_WRITABLE == TRUE)
-#define GATTS_DEVICE_NAME_WRITABLE TRUE
-#else
-#define GATTS_DEVICE_NAME_WRITABLE FALSE
-#endif
-
-#if (UC_BT_GATTS_APPEARANCE_WRITABLE == TRUE)
-#define GATTS_APPEARANCE_WRITABLE TRUE
-#else
-#define GATTS_APPEARANCE_WRITABLE FALSE
-#endif
-
 #ifdef UC_BT_BLE_ACT_SCAN_REP_ADV_SCAN
 #define BTM_BLE_ACTIVE_SCAN_REPORT_ADV_SCAN_RSP_INDIVIDUALLY    UC_BT_BLE_ACT_SCAN_REP_ADV_SCAN
-#endif
-
-#ifdef UC_BT_BLE_RPA_TIMEOUT
-#define BTM_BLE_PRIVATE_ADDR_INT UC_BT_BLE_RPA_TIMEOUT
-#endif
-
-#if (UC_BT_CLASSIC_BQB_ENABLED == TRUE)
-#define BT_CLASSIC_BQB_INCLUDED TRUE
-#else
-#define BT_CLASSIC_BQB_INCLUDED FALSE
 #endif
 
 /* This feature is used to eanble interleaved scan*/
@@ -899,12 +850,8 @@
 
 /* Maximum local device name length stored btm database.
   '0' disables storage of the local name in BTM */
-#if UC_MAX_LOC_BD_NAME_LEN
-#define BTM_MAX_LOC_BD_NAME_LEN     UC_MAX_LOC_BD_NAME_LEN
-#define BTC_MAX_LOC_BD_NAME_LEN     BTM_MAX_LOC_BD_NAME_LEN
-#else
+#ifndef BTM_MAX_LOC_BD_NAME_LEN
 #define BTM_MAX_LOC_BD_NAME_LEN     64
-#define BTC_MAX_LOC_BD_NAME_LEN     BTM_MAX_LOC_BD_NAME_LEN
 #endif
 
 /* Fixed Default String. When this is defined as null string, the device's
@@ -997,7 +944,7 @@
 /* TRUE to include Sniff Subrating */
 #if (BTA_DM_PM_INCLUDED == TRUE)
 #ifndef BTM_SSR_INCLUDED
-#define BTM_SSR_INCLUDED                TRUE
+#define BTM_SSR_INCLUDED                FALSE
 #endif
 #endif /* BTA_DM_PM_INCLUDED */
 
@@ -1039,19 +986,6 @@
 #define BLE_MAX_L2CAP_CLIENTS           15
 #endif
 
-/* Support status of L2CAP connection-oriented dynamic channels over LE transport with dynamic CID */
-#ifndef BLE_L2CAP_COC_INCLUDED
-#define BLE_L2CAP_COC_INCLUDED          FALSE // LE COC not use by default
-#endif
-
-/* Support status of L2CAP connection-oriented dynamic channels over LE or BR/EDR transport with dynamic CID */
-#ifndef L2CAP_COC_INCLUDED
-#if (CLASSIC_BT_INCLUDED == TRUE || BLE_L2CAP_COC_INCLUDED == TRUE)
-#define L2CAP_COC_INCLUDED              TRUE
-#else
-#define L2CAP_COC_INCLUDED              FALSE
-#endif
-#endif
 
 /* The maximum number of simultaneous links that L2CAP can support. Up to 7*/
 #ifndef MAX_ACL_CONNECTIONS
@@ -1256,27 +1190,15 @@
 #endif
 
 #ifndef BTM_BLE_ADV_TX_POWER
-#ifdef CONFIG_IDF_TARGET_ESP32
 #define BTM_BLE_ADV_TX_POWER {-12, -9, -6, -3, 0, 3, 6, 9}
-#else
-#define BTM_BLE_ADV_TX_POWER {-24, -21, -18, -15, -12, -9, -6, -3, 0, 3, 6, 9, 12, 15, 18, 21}
-#endif
 #endif
 
 #ifndef BTM_TX_POWER
-#ifdef CONFIG_IDF_TARGET_ESP32
 #define BTM_TX_POWER {-12, -9, -6, -3, 0, 3, 6, 9}
-#else
-#define BTM_TX_POWER {-24, -21, -18, -15, -12, -9, -6, -3, 0, 3, 6, 9, 12, 15, 18, 21}
-#endif
 #endif
 
 #ifndef BTM_TX_POWER_LEVEL_MAX
-#ifdef CONFIG_IDF_TARGET_ESP32
 #define BTM_TX_POWER_LEVEL_MAX 7
-#else
-#define BTM_TX_POWER_LEVEL_MAX 15
-#endif
 #endif
 
 
@@ -1454,12 +1376,6 @@
 #define SDP_INCLUDED                FALSE
 #endif
 
-#if (SDP_INCLUDED == TRUE) && (BTA_JV_INCLUDED == TRUE) && (BT_CLASSIC_BQB_INCLUDED == TRUE)
-#define BT_SDP_BQB_INCLUDED         TRUE
-#else
-#define BT_SDP_BQB_INCLUDED         FALSE
-#endif
-
 /* This is set to enable SDP server functionality. */
 #ifndef SDP_SERVER_ENABLED
 #if SDP_INCLUDED == TRUE
@@ -1485,7 +1401,7 @@
 
 /* The maximum number of attributes in each record. */
 #ifndef SDP_MAX_REC_ATTR
-#if (defined(HID_DEV_INCLUDED) && (HID_DEV_INCLUDED==TRUE)) || (defined(BTC_SDP_INCLUDED) && (BTC_SDP_INCLUDED==TRUE))
+#if defined(HID_DEV_INCLUDED) && (HID_DEV_INCLUDED==TRUE)
 #define SDP_MAX_REC_ATTR            25
 #else
 #define SDP_MAX_REC_ATTR            8
@@ -1528,7 +1444,7 @@
 
 /* The maximum number of simultaneous client and server connections. */
 #ifndef SDP_MAX_CONNECTIONS
-#define SDP_MAX_CONNECTIONS         4
+#define SDP_MAX_CONNECTIONS         2 // 4
 #endif
 
 /* The MTU size for the L2CAP configuration. */
@@ -1558,16 +1474,6 @@
 ******************************************************************************/
 #ifndef RFCOMM_INCLUDED
 #define RFCOMM_INCLUDED             FALSE
-#endif
-
-#if (RFCOMM_INCLUDED == TRUE) && (BT_CLASSIC_BQB_INCLUDED == TRUE)
-#define BT_RFCOMM_BQB_INCLUDED      TRUE
-#else
-#define BT_RFCOMM_BQB_INCLUDED      FALSE
-#endif
-
-#ifndef BTA_JV_RFCOMM_INCLUDED
-#define BTA_JV_RFCOMM_INCLUDED      FALSE
 #endif
 
 /* The maximum number of ports supported. */
@@ -1647,31 +1553,6 @@
 #define PORT_CREDIT_RX_LOW          8
 #endif
 
-/* ERTM Tx window size */
-#ifndef RFC_FCR_OPT_TX_WINDOW_SIZE
-#define RFC_FCR_OPT_TX_WINDOW_SIZE  10
-#endif
-
-/* ERTM Maximum transmissions before disconnecting */
-#ifndef RFC_FCR_OPT_MAX_TX_B4_DISCNT
-#define RFC_FCR_OPT_MAX_TX_B4_DISCNT 20
-#endif
-
-/* ERTM Retransmission timeout (2 secs) */
-#ifndef RFC_FCR_OPT_RETX_TOUT
-#define RFC_FCR_OPT_RETX_TOUT        2000
-#endif
-
-/* ERTM Monitor timeout (12 secs) */
-#ifndef RFC_FCR_OPT_MONITOR_TOUT
-#define RFC_FCR_OPT_MONITOR_TOUT     12000
-#endif
-
-/* ERTM ERTM MPS segment size */
-#ifndef RFC_FCR_OPT_MAX_PDU_SIZE
-#define RFC_FCR_OPT_MAX_PDU_SIZE     1010
-#endif
-
 /******************************************************************************
 **
 ** OBEX
@@ -1709,86 +1590,49 @@
 #define OBX_FCR_TX_BUF_SIZE     BT_DEFAULT_BUFFER_SIZE
 #endif
 
-/*
- * Size of the transmission window when using enhanced retransmission mode. Not used
- * in basic and streaming modes. Range: 1 - 63
- */
+/* This option is application when OBX_14_INCLUDED=TRUE
+Size of the transmission window when using enhanced retransmission mode. Not used
+in basic and streaming modes. Range: 1 - 63
+*/
 #ifndef OBX_FCR_OPT_TX_WINDOW_SIZE_BR_EDR
 #define OBX_FCR_OPT_TX_WINDOW_SIZE_BR_EDR       20
 #endif
 
-/*
- * Number of transmission attempts for a single I-Frame before taking
- * Down the connection. Used In ERTM mode only. Value is Ignored in basic and
- * Streaming modes.
- * Range: 0, 1-0xFF
- * 0 - infinite retransmissions
- * 1 - single transmission
- */
+/* This option is application when OBX_14_INCLUDED=TRUE
+Number of transmission attempts for a single I-Frame before taking
+Down the connection. Used In ERTM mode only. Value is Ignored in basic and
+Streaming modes.
+Range: 0, 1-0xFF
+0 - infinite retransmissions
+1 - single transmission
+*/
 #ifndef OBX_FCR_OPT_MAX_TX_B4_DISCNT
 #define OBX_FCR_OPT_MAX_TX_B4_DISCNT    20
 #endif
 
-/*
- * Retransmission Timeout
- * Range: Minimum 2000 (2 secs) on BR/EDR when supporting PBF.
+/* This option is application when OBX_14_INCLUDED=TRUE
+Retransmission Timeout
+Range: Minimum 2000 (2 secs) on BR/EDR when supporting PBF.
  */
 #ifndef OBX_FCR_OPT_RETX_TOUT
 #define OBX_FCR_OPT_RETX_TOUT           2000
 #endif
 
-/*
- * Monitor Timeout
- * Range: Minimum 12000 (12 secs) on BR/EDR when supporting PBF.
- */
+/* This option is application when OBX_14_INCLUDED=TRUE
+Monitor Timeout
+Range: Minimum 12000 (12 secs) on BR/EDR when supporting PBF.
+*/
 #ifndef OBX_FCR_OPT_MONITOR_TOUT
 #define OBX_FCR_OPT_MONITOR_TOUT        12000
 #endif
 
-/*
- * Maximum PDU payload size.
- * Suggestion: The maximum amount of data that will fit into a 3-DH5 packet.
- * Range: 2 octets
+/* This option is application when OBX_14_INCLUDED=TRUE
+Maximum PDU payload size.
+Suggestion: The maximum amount of data that will fit into a 3-DH5 packet.
+Range: 2 octets
 */
 #ifndef OBX_FCR_OPT_MAX_PDU_SIZE
 #define OBX_FCR_OPT_MAX_PDU_SIZE        L2CAP_MPS_OVER_BR_EDR
-#endif
-
-/*
- * Pool ID where to reassemble the SDU.
- * This Pool will allow buffers to be used that are larger than
- * the L2CAP_MAX_MTU.
- */
-#ifndef OBX_USER_RX_POOL_ID
-#define OBX_USER_RX_POOL_ID              4
-#endif
-
-/*
- * Pool ID where to hold the SDU.
- * This Pool will allow buffers to be used that are larger than
- * the L2CAP_MAX_MTU.
- */
-#ifndef OBX_USER_TX_POOL_ID
-#define OBX_USER_TX_POOL_ID              4
-#endif
-
-/*
- * GKI Buffer Pool ID used to hold MPS segments during SDU reassembly
- */
-#ifndef OBX_FCR_RX_POOL_ID
-#define OBX_FCR_RX_POOL_ID                3
-#endif
-
-/*
- * Pool ID used to hold MPS segments used in (re)transmissions.
- * L2CAP_DEFAULT_ERM_POOL_ID is specified to use the HCI ACL data pool.
- * Note:  This pool needs to have enough buffers to hold two times the window size negotiated
- * in the L2CA_SetFCROptions (2 * tx_win_size)  to allow for retransmissions.
- * The size of each buffer must be able to hold the maximum MPS segment size passed in
- * L2CA_SetFCROptions plus BT_HDR (8) + HCI preamble (4) + L2CAP_MIN_OFFSET (11 - as of BT 2.1 + EDR Spec).
- */
-#ifndef OBX_FCR_TX_POOL_ID
-#define OBX_FCR_TX_POOL_ID                3
 #endif
 
 
@@ -2057,12 +1901,6 @@
 #define HID_DEV_FLUSH_TO 0xffff
 #endif
 
-#if (BTA_HD_INCLUDED == TRUE) && (HID_DEV_INCLUDED == TRUE) && (BT_CLASSIC_BQB_INCLUDED == TRUE)
-#define BT_HID_DEVICE_BQB_INCLUDED      TRUE
-#else
-#define BT_HID_DEVICE_BQB_INCLUDED      FALSE
-#endif
-
 /*************************************************************************
 ** Definitions for Both HID-Host & Device
 */
@@ -2110,12 +1948,6 @@
  */
 #ifndef A2D_INCLUDED
 #define A2D_INCLUDED            FALSE
-#endif
-
-#if (BTC_AV_SRC_INCLUDED == TRUE) && (BT_CLASSIC_BQB_INCLUDED == TRUE)
-#define A2D_SRC_BQB_INCLUDED TRUE
-#else
-#define A2D_SRC_BQB_INCLUDED FALSE
 #endif
 
 /******************************************************************************
@@ -2328,10 +2160,6 @@ The maximum number of payload octets that the local device can receive in a sing
 
 #ifndef BTA_DM_AVOID_A2DP_ROLESWITCH_ON_INQUIRY
 #define BTA_DM_AVOID_A2DP_ROLESWITCH_ON_INQUIRY FALSE
-#endif
-
-#ifndef BTA_GATTC_MAX_CACHE_CHAR
-#define BTA_GATTC_MAX_CACHE_CHAR UC_BT_GATTC_MAX_CACHE_CHAR
 #endif
 
 /******************************************************************************

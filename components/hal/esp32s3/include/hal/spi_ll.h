@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -38,11 +38,11 @@ extern "C" {
 
 /// Swap the bit order to its correct place to send
 #define HAL_SPI_SWAP_DATA_TX(data, len) HAL_SWAP32((uint32_t)(data) << (32 - len))
+/// This is the expected clock frequency
+#define SPI_LL_PERIPH_CLK_FREQ (80 * 1000000)
 #define SPI_LL_GET_HW(ID) ((ID)==0? ({abort();NULL;}):((ID)==1? &GPSPI2 : &GPSPI3))
 
-#define SPI_LL_DMA_MAX_BIT_LEN    (1 << 18)    //reg len: 18 bits
-#define SPI_LL_CPU_MAX_BIT_LEN    (16 * 32)    //Fifo len: 16 words
-#define SPI_LL_MOSI_FREE_LEVEL    1            //Default level after bus initialized
+#define SPI_LL_DATA_MAX_BIT_LEN (1 << 18)
 
 /**
  * The data structure holding calculated clock configuration. Since the
@@ -76,43 +76,9 @@ typedef enum {
 } spi_ll_trans_len_cond_t;
 FLAG_ATTR(spi_ll_trans_len_cond_t)
 
-// SPI base command in esp32s3
-typedef enum {
-     /* Slave HD Only */
-    SPI_LL_BASE_CMD_HD_WRBUF    = 0x01,
-    SPI_LL_BASE_CMD_HD_RDBUF    = 0x02,
-    SPI_LL_BASE_CMD_HD_WRDMA    = 0x03,
-    SPI_LL_BASE_CMD_HD_RDDMA    = 0x04,
-    SPI_LL_BASE_CMD_HD_SEG_END  = 0x05,
-    SPI_LL_BASE_CMD_HD_EN_QPI   = 0x06,
-    SPI_LL_BASE_CMD_HD_WR_END   = 0x07,
-    SPI_LL_BASE_CMD_HD_INT0     = 0x08,
-    SPI_LL_BASE_CMD_HD_INT1     = 0x09,
-    SPI_LL_BASE_CMD_HD_INT2     = 0x0A,
-} spi_ll_base_command_t;
-
 /*------------------------------------------------------------------------------
  * Control
  *----------------------------------------------------------------------------*/
-
-/**
- * Select SPI peripheral clock source (master).
- *
- * @param hw Beginning address of the peripheral registers.
- * @param clk_source clock source to select, see valid sources in type `spi_clock_source_t`
- */
-static inline void spi_ll_set_clk_source(spi_dev_t *hw, spi_clock_source_t clk_source){
-    switch (clk_source)
-    {
-        case SPI_CLK_SRC_XTAL:
-            hw->clk_gate.mst_clk_sel = 0;
-            break;
-        default:
-            hw->clk_gate.mst_clk_sel = 1;
-            break;
-    }
-}
-
 /**
  * Initialize SPI peripheral (master).
  *
@@ -189,27 +155,6 @@ static inline void spi_ll_slave_hd_init(spi_dev_t *hw)
 }
 
 /**
- * Determine and unify the default level of mosi line when bus free
- *
- * @param hw Beginning address of the peripheral registers.
- */
-static inline void spi_ll_set_mosi_free_level(spi_dev_t *hw, bool level)
-{
-    hw->ctrl.d_pol = level;     //set default level for MOSI only on IDLE state
-}
-
-/**
- * Apply the register configurations and wait until it's done
- *
- * @param hw Beginning address of the peripheral registers.
- */
-static inline void spi_ll_apply_config(spi_dev_t *hw)
-{
-    hw->cmd.update = 1;
-    while (hw->cmd.update);    //waiting config applied
-}
-
-/**
  * Check whether user-defined transaction is done.
  *
  * @param hw Beginning address of the peripheral registers.
@@ -222,11 +167,24 @@ static inline bool spi_ll_usr_is_done(spi_dev_t *hw)
 }
 
 /**
- * Trigger start of user-defined transaction.
+ * Trigger start of user-defined transaction for master.
+ * The synchronization between two clock domains is required in ESP32-S3
  *
  * @param hw Beginning address of the peripheral registers.
  */
-static inline void spi_ll_user_start(spi_dev_t *hw)
+static inline void spi_ll_master_user_start(spi_dev_t *hw)
+{
+    hw->cmd.update = 1;
+    while (hw->cmd.update);
+    hw->cmd.usr = 1;
+}
+
+/**
+ * Trigger start of user-defined transaction for slave.
+ *
+ * @param hw Beginning address of the peripheral registers.
+ */
+static inline void spi_ll_slave_user_start(spi_dev_t *hw)
 {
     hw->cmd.usr = 1;
 }
@@ -1132,93 +1090,6 @@ static inline uint32_t spi_ll_slave_hd_get_last_addr(spi_dev_t *hw)
 
 #undef SPI_LL_RST_MASK
 #undef SPI_LL_UNUSED_INT_MASK
-
-/**
- * Get the base spi command in esp32s3
- *
- * @param cmd_t           Command value
- */
-static inline uint8_t spi_ll_get_slave_hd_base_command(spi_command_t cmd_t)
-{
-    uint8_t cmd_base = 0x00;
-    switch (cmd_t)
-    {
-    case SPI_CMD_HD_WRBUF:
-        cmd_base = SPI_LL_BASE_CMD_HD_WRBUF;
-        break;
-    case SPI_CMD_HD_RDBUF:
-        cmd_base = SPI_LL_BASE_CMD_HD_RDBUF;
-        break;
-    case SPI_CMD_HD_WRDMA:
-        cmd_base = SPI_LL_BASE_CMD_HD_WRDMA;
-        break;
-    case SPI_CMD_HD_RDDMA:
-        cmd_base = SPI_LL_BASE_CMD_HD_RDDMA;
-        break;
-    case SPI_CMD_HD_SEG_END:
-        cmd_base = SPI_LL_BASE_CMD_HD_SEG_END;
-        break;
-    case SPI_CMD_HD_EN_QPI:
-        cmd_base = SPI_LL_BASE_CMD_HD_EN_QPI;
-        break;
-    case SPI_CMD_HD_WR_END:
-        cmd_base = SPI_LL_BASE_CMD_HD_WR_END;
-        break;
-    case SPI_CMD_HD_INT0:
-        cmd_base = SPI_LL_BASE_CMD_HD_INT0;
-        break;
-    case SPI_CMD_HD_INT1:
-        cmd_base = SPI_LL_BASE_CMD_HD_INT1;
-        break;
-    case SPI_CMD_HD_INT2:
-        cmd_base = SPI_LL_BASE_CMD_HD_INT2;
-        break;
-    default:
-        HAL_ASSERT(cmd_base);
-    }
-    return cmd_base;
-}
-
-/**
- * Get the spi communication command
- *
- * @param cmd_t           Base command value
- * @param line_mode       Line mode of SPI transaction phases: CMD, ADDR, DOUT/DIN.
- */
-static inline uint16_t spi_ll_get_slave_hd_command(spi_command_t cmd_t, spi_line_mode_t line_mode)
-{
-    uint8_t cmd_base = spi_ll_get_slave_hd_base_command(cmd_t);
-    uint8_t cmd_mod = 0x00; //CMD:1-bit, ADDR:1-bit, DATA:1-bit
-
-    if (line_mode.data_lines == 2) {
-        if (line_mode.addr_lines == 2) {
-            cmd_mod = 0x50; //CMD:1-bit, ADDR:2-bit, DATA:2-bit
-        } else {
-            cmd_mod = 0x10; //CMD:1-bit, ADDR:1-bit, DATA:2-bit
-        }
-    } else if (line_mode.data_lines == 4) {
-        if (line_mode.addr_lines == 4) {
-            cmd_mod = 0xA0; //CMD:1-bit, ADDR:4-bit, DATA:4-bit
-        } else {
-            cmd_mod = 0x20; //CMD:1-bit, ADDR:1-bit, DATA:4-bit
-        }
-    }
-    if (cmd_base == SPI_LL_BASE_CMD_HD_SEG_END || cmd_base == SPI_LL_BASE_CMD_HD_EN_QPI) {
-        cmd_mod = 0x00;
-    }
-
-    return cmd_base | cmd_mod;
-}
-
-/**
- * Get the dummy bits
- *
- * @param line_mode       Line mode of SPI transaction phases: CMD, ADDR, DOUT/DIN.
- */
-static inline int spi_ll_get_slave_hd_dummy_bits(spi_line_mode_t line_mode)
-{
-    return 8;
-}
 
 #ifdef __cplusplus
 }

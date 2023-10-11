@@ -1,6 +1,3 @@
-| Supported Targets | ESP32 | ESP32-C3 | ESP32-C6 | ESP32-S2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- |
-
 # OTA Tool Example
 
 This example demonstrates common operations the OTA tool [otatool.py](../../../../components/app_update/otatool.py) allows the user to perform:
@@ -23,6 +20,12 @@ partition for all switches performed.
 
 Before running either of the example scripts, it is necessary to build and flash the firmware using the usual means:
 
+Make:
+```bash
+make build flash
+```
+
+CMake:
 ```bash
 idf.py build flash
 ```

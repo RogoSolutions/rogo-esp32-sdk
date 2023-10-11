@@ -10,7 +10,6 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 #include <stdio.h>
-#include <inttypes.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
@@ -128,7 +127,7 @@ esp_err_t print_what_saved(void)
     int32_t restart_counter = 0; // value will default to 0, if not set yet in NVS
     err = nvs_get_i32(my_handle, "restart_conter", &restart_counter);
     if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
-    printf("Restart counter = %" PRIu32 "\n", restart_counter);
+    printf("Restart counter = %d\n", restart_counter);
 
     // Read run time blob
     size_t required_size = 0;  // value will default to 0, if not set yet in NVS
@@ -146,7 +145,7 @@ esp_err_t print_what_saved(void)
             return err;
         }
         for (int i = 0; i < required_size / sizeof(uint32_t); i++) {
-            printf("%d: %" PRIu32 "\n", i + 1, run_time[i]);
+            printf("%d: %d\n", i + 1, run_time[i]);
         }
         free(run_time);
     }

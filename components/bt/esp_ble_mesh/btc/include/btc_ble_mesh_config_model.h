@@ -29,13 +29,11 @@ typedef union {
         esp_ble_mesh_client_common_param_t *params;
         esp_ble_mesh_cfg_client_set_state_t *set_state;
     } cfg_client_set_state;
-    /* Rogo API *****************************************/
-    /* Ninh.D.H 05.10.2023 */
+    // Ninh.D.H 21.06.2023
     struct ble_mesh_cfg_client_rogo_set_state_reg_args {
         esp_ble_mesh_client_rogo_param_t *params;
         esp_ble_mesh_cfg_client_set_state_t *set_state;
     } cfg_client_rogo_set_state;
-    /* Rogo API *****************************************/
 } btc_ble_mesh_config_client_args_t;
 
 typedef enum {
@@ -52,12 +50,8 @@ void btc_ble_mesh_config_client_cb_handler(btc_msg_t *msg);
 
 void btc_ble_mesh_config_client_arg_deep_copy(btc_msg_t *msg, void *p_dest, void *p_src);
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+// Ninh.D.H 21.06.2023
 void btc_ble_mesh_config_client_rogo_arg_deep_copy(btc_msg_t *msg, void *p_dest, void *p_src);
-/************************************************************************************************/
-
-void btc_ble_mesh_config_client_arg_deep_free(btc_msg_t *msg);
 
 void btc_ble_mesh_config_client_publish_callback(uint32_t opcode, struct bt_mesh_model *model,
                                                  struct bt_mesh_msg_ctx *ctx,

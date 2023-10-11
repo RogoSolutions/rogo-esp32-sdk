@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2017-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -10,9 +10,12 @@
 #include "assert.h"
 #include "esp_efuse_utility.h"
 #include "soc/efuse_periph.h"
-#include "hal/efuse_hal.h"
+#include "esp32h2/clk.h"
+#include "esp32h2/rom/efuse.h"
 
 static const char *TAG = "efuse";
+
+#define ESP_EFUSE_BLOCK_ERROR_BITS(error_reg, block) ((error_reg) & (0x0F << (4 * (block))))
 
 #ifdef CONFIG_EFUSE_VIRTUAL
 extern uint32_t virt_blocks[EFUSE_BLK_MAX][COUNT_EFUSE_REG_PER_BLOCK];
@@ -21,7 +24,7 @@ extern uint32_t virt_blocks[EFUSE_BLK_MAX][COUNT_EFUSE_REG_PER_BLOCK];
 /*Range addresses to read blocks*/
 const esp_efuse_range_addr_t range_read_addr_blocks[] = {
     {EFUSE_RD_WR_DIS_REG,       EFUSE_RD_REPEAT_DATA4_REG},      // range address of EFUSE_BLK0  REPEAT
-    {EFUSE_RD_MAC_SYS_0_REG, EFUSE_RD_MAC_SYS_5_REG},      // range address of EFUSE_BLK1  MAC_8M
+    {EFUSE_RD_MAC_SPI_SYS_0_REG, EFUSE_RD_MAC_SPI_SYS_5_REG},      // range address of EFUSE_BLK1  MAC_SPI_8M
     {EFUSE_RD_SYS_PART1_DATA0_REG,    EFUSE_RD_SYS_PART1_DATA7_REG},         // range address of EFUSE_BLK2  SYS_DATA
     {EFUSE_RD_USR_DATA0_REG,    EFUSE_RD_USR_DATA7_REG},         // range address of EFUSE_BLK3  USR_DATA
     {EFUSE_RD_KEY0_DATA0_REG,   EFUSE_RD_KEY0_DATA7_REG},        // range address of EFUSE_BLK4  KEY0
@@ -54,18 +57,42 @@ const esp_efuse_range_addr_t range_write_addr_blocks[] = {
 // Update Efuse timing configuration
 static esp_err_t esp_efuse_set_timing(void)
 {
-    // efuse clock is fixed.
-    // An argument (0) is for compatibility and will be ignored.
-    efuse_hal_set_timing(0);
+    // efuse clock is fixed in ESP32-C3, so the ets_efuse_set_timing() function
+    // takes an argument for compatibility with older ROM functions but it's ignored.
+    int res = ets_efuse_set_timing(0);
+    assert(res == 0);
+    (void)res;
+
+    REG_SET_FIELD(EFUSE_WR_TIM_CONF2_REG, EFUSE_PWR_OFF_NUM, 0x60);
+
     return ESP_OK;
 }
+
+static bool efuse_hal_is_coding_error_in_block(unsigned block)
+{
+    if (block == 0) {
+        for (unsigned i = 0; i < 5; i++) {
+            if (REG_READ(EFUSE_RD_REPEAT_ERR0_REG + i * 4)) {
+                return true;
+            }
+        }
+    } else if (block <= 10) {
+        // EFUSE_RD_RS_ERR0_REG: (hi) BLOCK8, BLOCK7, BLOCK6, BLOCK5, BLOCK4, BLOCK3, BLOCK2, BLOCK1 (low)
+        // EFUSE_RD_RS_ERR1_REG:                                                     BLOCK10, BLOCK9
+        block--;
+        uint32_t error_reg = REG_READ(EFUSE_RD_RS_ERR0_REG + (block / 8) * 4);
+        return ESP_EFUSE_BLOCK_ERROR_BITS(error_reg, block % 8) != 0;
+    }
+    return false;
+}
+
 #endif // ifndef CONFIG_EFUSE_VIRTUAL
 
 // Efuse read operation: copies data from physical efuses to efuse read registers.
 void esp_efuse_utility_clear_program_registers(void)
 {
-    efuse_hal_read();
-    efuse_hal_clear_program_registers();
+    ets_efuse_read();
+    ets_efuse_clear_program_registers();
 }
 
 esp_err_t esp_efuse_utility_check_errors(void)
@@ -111,28 +138,18 @@ esp_err_t esp_efuse_utility_burn_chip(void)
                 ESP_LOGE(TAG, "BLOCK%d can not be burned because a previous block got an error, skipped.", num_block);
                 continue;
             }
-            efuse_hal_clear_program_registers();
+            ets_efuse_clear_program_registers();
             if (esp_efuse_get_coding_scheme(num_block) == EFUSE_CODING_SCHEME_RS) {
                 uint8_t block_rs[12];
-                efuse_hal_rs_calculate((void *)range_write_addr_blocks[num_block].start, block_rs);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
-#pragma GCC diagnostic ignored "-Warray-bounds"
+                ets_efuse_rs_calculate((void *)range_write_addr_blocks[num_block].start, block_rs);
                 memcpy((void *)EFUSE_PGM_CHECK_VALUE0_REG, block_rs, sizeof(block_rs));
-#pragma GCC diagnostic pop
             }
             unsigned r_data_len = (range_read_addr_blocks[num_block].end - range_read_addr_blocks[num_block].start) + sizeof(uint32_t);
             unsigned data_len = (range_write_addr_blocks[num_block].end - range_write_addr_blocks[num_block].start) + sizeof(uint32_t);
             memcpy((void *)EFUSE_PGM_DATA0_REG, (void *)range_write_addr_blocks[num_block].start, data_len);
 
             uint32_t backup_write_data[8 + 3]; // 8 words are data and 3 words are RS coding data
-#pragma GCC diagnostic push
-#if     __GNUC__ >= 11
-#pragma GCC diagnostic ignored "-Wstringop-overread"
-#endif
-#pragma GCC diagnostic ignored "-Warray-bounds"
             memcpy(backup_write_data, (void *)EFUSE_PGM_DATA0_REG, sizeof(backup_write_data));
-#pragma GCC diagnostic pop
             int repeat_burn_op = 1;
             bool correct_written_data;
             bool coding_error_before = efuse_hal_is_coding_error_in_block(num_block);
@@ -143,11 +160,11 @@ esp_err_t esp_efuse_utility_burn_chip(void)
 
             do {
                 ESP_LOGI(TAG, "BURN BLOCK%d", num_block);
-                efuse_hal_program(num_block); // BURN a block
+                ets_efuse_program(num_block); // BURN a block
 
                 bool coding_error_after;
                 for (unsigned i = 0; i < 5; i++) {
-                    efuse_hal_read();
+                    ets_efuse_read();
                     coding_error_after = efuse_hal_is_coding_error_in_block(num_block);
                     if (coding_error_after == true) {
                         break;
@@ -161,11 +178,7 @@ esp_err_t esp_efuse_utility_burn_chip(void)
                 correct_written_data = esp_efuse_utility_is_correct_written_data(num_block, r_data_len);
                 if (!correct_written_data || coding_error_occurred) {
                     ESP_LOGW(TAG, "BLOCK%d: next retry to fix an error [%d/3]...", num_block, repeat_burn_op);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
-#pragma GCC diagnostic ignored "-Warray-bounds"
                     memcpy((void *)EFUSE_PGM_DATA0_REG, (void *)backup_write_data, sizeof(backup_write_data));
-#pragma GCC diagnostic pop
                 }
 
             } while ((!correct_written_data || coding_error_occurred) && repeat_burn_op++ < 3);

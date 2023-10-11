@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,7 +7,17 @@
 #include "esp_flash_partitions.h"
 #include "esp_log.h"
 #include "esp_rom_md5.h"
-#include "esp_rom_spiflash.h"
+#if CONFIG_IDF_TARGET_ESP32C3
+#include "esp32c3/rom/spi_flash.h"
+#elif CONFIG_IDF_TARGET_ESP32S2
+#include "esp32s2/rom/spi_flash.h"
+#elif CONFIG_IDF_TARGET_ESP32S3
+#include "esp32s3/rom/spi_flash.h"
+#elif CONFIG_IDF_TARGET_ESP32H2
+#include "esp32h2/rom/spi_flash.h"
+#else
+#include "esp32/rom/spi_flash.h"
+#endif
 
 static const char *TAG = "flash_parts";
 
@@ -25,7 +35,7 @@ esp_err_t esp_partition_table_verify(const esp_partition_info_t *partition_table
             const esp_partition_pos_t *pos = &part->pos;
             if (pos->offset > chip_size || pos->offset + pos->size > chip_size) {
                 if (log_errors) {
-                    ESP_LOGE(TAG, "partition %d invalid - offset 0x%"PRIx32" size 0x%"PRIx32" exceeds flash chip size 0x%"PRIx32,
+                    ESP_LOGE(TAG, "partition %d invalid - offset 0x%x size 0x%x exceeds flash chip size 0x%x",
                              num_parts, pos->offset, pos->size, chip_size);
                 }
                 return ESP_ERR_INVALID_SIZE;
@@ -38,7 +48,7 @@ esp_err_t esp_partition_table_verify(const esp_partition_info_t *partition_table
                 return ESP_ERR_INVALID_STATE;
             }
 
-            md5_context_t context;
+            struct MD5Context context;
             unsigned char digest[16];
             esp_rom_md5_init(&context);
             esp_rom_md5_update(&context, (unsigned char *) partition_table, num_parts * sizeof(esp_partition_info_t));

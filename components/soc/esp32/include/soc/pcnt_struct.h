@@ -1,9 +1,18 @@
-/*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-#pragma once
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#ifndef _SOC_PCNT_STRUCT_H_
+#define _SOC_PCNT_STRUCT_H_
 
 #include <stdint.h>
 
@@ -11,8 +20,8 @@
 extern "C" {
 #endif
 
-typedef struct pcnt_dev_t {
-    volatile struct {
+typedef volatile struct pcnt_dev_s {
+    struct {
         union {
             struct {
                 uint32_t filter_thres:  10;         /*This register is used to filter pulse whose width is smaller than this value for unit0.*/
@@ -35,27 +44,27 @@ typedef struct pcnt_dev_t {
         } conf0;
         union {
             struct {
-                uint32_t cnt_thres0: 16;            /*This register is used to configure thres0 value for unit0.*/
-                uint32_t cnt_thres1: 16;            /*This register is used to configure thres1 value for unit0.*/
+                uint32_t cnt_thres0:16;             /*This register is used to configure thres0 value for unit0.*/
+                uint32_t cnt_thres1:16;             /*This register is used to configure thres1 value for unit0.*/
             };
             uint32_t val;
         } conf1;
         union {
             struct {
-                uint32_t cnt_h_lim: 16;             /*This register is used to configure thr_h_lim value for unit0.*/
-                uint32_t cnt_l_lim: 16;             /*This register is used to configure thr_l_lim value for unit0.*/
+                uint32_t cnt_h_lim:16;              /*This register is used to configure thr_h_lim value for unit0.*/
+                uint32_t cnt_l_lim:16;              /*This register is used to configure thr_l_lim value for unit0.*/
             };
             uint32_t val;
         } conf2;
     } conf_unit[8];
-    volatile union {
+    union {
         struct {
             uint32_t cnt_val   : 16;                /*This register stores the current pulse count value for unit0.*/
             uint32_t reserved16: 16;
         };
         uint32_t val;
     } cnt_unit[8];
-    volatile union {
+    union {
         struct {
             uint32_t cnt_thr_event_u0: 1;           /*This is the interrupt raw bit for channel0 event.*/
             uint32_t cnt_thr_event_u1: 1;           /*This is the interrupt raw bit for channel1 event.*/
@@ -69,7 +78,7 @@ typedef struct pcnt_dev_t {
         };
         uint32_t val;
     } int_raw;
-    volatile union {
+    union {
         struct {
             uint32_t cnt_thr_event_u0: 1;            /*This is the  interrupt status bit for channel0 event.*/
             uint32_t cnt_thr_event_u1: 1;            /*This is the  interrupt status bit for channel1 event.*/
@@ -83,7 +92,7 @@ typedef struct pcnt_dev_t {
         };
         uint32_t val;
     } int_st;
-    volatile union {
+    union {
         struct {
             uint32_t cnt_thr_event_u0: 1;           /*This is the  interrupt enable bit for channel0 event.*/
             uint32_t cnt_thr_event_u1: 1;           /*This is the  interrupt enable bit for channel1 event.*/
@@ -97,7 +106,7 @@ typedef struct pcnt_dev_t {
         };
         uint32_t val;
     } int_ena;
-    volatile union {
+    union {
         struct {
             uint32_t cnt_thr_event_u0: 1;           /*Set this bit to clear channel0 event interrupt.*/
             uint32_t cnt_thr_event_u1: 1;           /*Set this bit to clear channel1 event interrupt.*/
@@ -111,19 +120,19 @@ typedef struct pcnt_dev_t {
         };
         uint32_t val;
     } int_clr;
-    volatile union {
+    union {
         struct {
-            uint32_t cnt_mode: 2;                   /*0: positive value to zero; 1: negative value to zero; 2: counter value negative ; 3: counter value positive*/
-            uint32_t thres1_lat: 1;                 /* counter value equals to thresh1*/
-            uint32_t thres0_lat: 1;                 /* counter value equals to thresh0*/
-            uint32_t l_lim_lat: 1;                  /* counter value reaches h_lim*/
-            uint32_t h_lim_lat: 1;                  /* counter value reaches l_lim*/
-            uint32_t zero_lat: 1;                   /* counter value equals zero*/
-            uint32_t reserved7: 25;
+            uint32_t cnt_mode:2;                    /*0: positive value to zero; 1: negative value to zero; 2: counter value negative ; 3: counter value positive*/
+            uint32_t thres1_lat:1;                  /* counter value equals to thresh1*/
+            uint32_t thres0_lat:1;                  /* counter value equals to thresh0*/
+            uint32_t l_lim_lat:1;                   /* counter value reaches h_lim*/
+            uint32_t h_lim_lat:1;                   /* counter value reaches l_lim*/
+            uint32_t zero_lat:1;                    /* counter value equals zero*/
+            uint32_t reserved7:25;
         };
         uint32_t val;
     } status_unit[8];
-    volatile union {
+    union {
         struct {
             uint32_t cnt_rst_u0:   1;               /*Set this bit to clear unit0's counter.*/
             uint32_t cnt_pause_u0: 1;               /*Set this bit to pause unit0's counter.*/
@@ -164,11 +173,12 @@ typedef struct pcnt_dev_t {
     uint32_t reserved_f0;
     uint32_t reserved_f4;
     uint32_t reserved_f8;
-    volatile uint32_t date;
+    uint32_t date;                                  /**/
 } pcnt_dev_t;
-
 extern pcnt_dev_t PCNT;
 
 #ifdef __cplusplus
 }
 #endif
+
+#endif  /* _SOC_PCNT_STRUCT_H_ */

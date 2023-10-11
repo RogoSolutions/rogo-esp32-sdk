@@ -1,16 +1,6 @@
-/*
- * SPDX-FileCopyrightText: 2018-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
 @COMMENT@
 
 #include <string.h>
-#if __has_include(<bsd/string.h>)
-// for strlcpy
-#include <bsd/string.h>
-#endif
 #include "esp_err.h"
 #if __has_include("soc/soc.h")
 #include "soc/soc.h"

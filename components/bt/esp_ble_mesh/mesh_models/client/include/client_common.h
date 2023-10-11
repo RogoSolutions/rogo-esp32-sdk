@@ -76,8 +76,7 @@ typedef struct {
     void *cb_data;                      /* User defined callback value */
 } bt_mesh_client_common_param_t;
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+// Ninh.D.H 21.06.2023
 typedef struct {
     uint32_t opcode;                    /* Message opcode */
     struct bt_mesh_model *model;        /* Pointer to the client model */
@@ -88,7 +87,6 @@ typedef struct {
     const struct bt_mesh_send_cb *cb;   /* User defined callback function */
     void *cb_data;                      /* User defined callback value */
 } bt_mesh_client_rogo_param_t;
-/************************************************************************************************/
 
 void bt_mesh_client_model_lock(void);
 
@@ -115,12 +113,10 @@ int bt_mesh_client_send_msg(bt_mesh_client_common_param_t *param,
                             struct net_buf_simple *msg, bool need_ack,
                             k_work_handler_t timer_handler);
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+// Ninh.D.h 21.06.2023
 int bt_mesh_client_rogo_send_msg(bt_mesh_client_rogo_param_t *param,
                                  struct net_buf_simple *msg, bool need_ack,
                                  k_work_handler_t timer_handler);
-/************************************************************************************************/
 
 int bt_mesh_client_free_node(bt_mesh_client_node_t *node);
 

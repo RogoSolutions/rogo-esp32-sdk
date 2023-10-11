@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2017-2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2017-2018 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 /*
  *   Software Stack demonstrated:
@@ -60,8 +68,14 @@
  *
  *  In present implementation, applications are able to access mesh stack directly without having to go through LwIP stack.
  *  Applications use esp_mesh_send() and esp_mesh_recv() to send and receive messages over the mesh network.
- *  In mesh stack design, normal devices don't require LwIP stack, but if any of these devices could be promoted to a root node in runtime,
- *  (due to automatic or manual topology reconfiguration) the TCP/IP stack should be initialized (for the root code to access external IP network)
+ *  In mesh stack design, normal devices don't require LwIP stack. But since IDF hasn't supported system without initializing LwIP stack yet,
+ *  applications still need to do LwIP initialization and two more things are required to be done
+ *  (1) stop DHCP server on softAP interface by default
+ *  (2) stop DHCP client on station interface by default.
+ *  Examples:
+ *  tcpip_adapter_init();
+ *  tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP)；
+ *  tcpip_adapter_dhcpc_stop(TCPIP_ADAPTER_IF_STA)；
  *
  *  Over the mesh network, only the root is able to access external IP network.
  *  In application mesh event handler, once a device becomes a root, start DHCP client immediately whether DHCP is chosen.
@@ -174,8 +188,7 @@ typedef enum {
     MESH_EVENT_PARENT_DISCONNECTED,     /**< parent is disconnected on station interface */
     MESH_EVENT_NO_PARENT_FOUND,         /**< no parent found */
     MESH_EVENT_LAYER_CHANGE,            /**< layer changes over the mesh network */
-    MESH_EVENT_TODS_STATE,              /**< state represents whether the root is able to access external IP network.
-                                             This state is a manual event that needs to be triggered with esp_mesh_post_toDS_state(). */
+    MESH_EVENT_TODS_STATE,              /**< state represents whether the root is able to access external IP network */
     MESH_EVENT_VOTE_STARTED,            /**< the process of voting a new root is started either by children or by the root */
     MESH_EVENT_VOTE_STOPPED,            /**< the process of voting a new root is stopped */
     MESH_EVENT_ROOT_ADDRESS,            /**< the root address is obtained. It is posted by mesh stack automatically. */
@@ -279,7 +292,7 @@ typedef enum {
  * @brief IP address and port
  */
 typedef struct {
-    esp_ip4_addr_t ip4;    /**< IP address */
+    ip4_addr_t ip4;    /**< IP address */
     uint16_t port;     /**< port */
 } __attribute__((packed)) mip_t;
 
@@ -1176,10 +1189,7 @@ esp_err_t esp_mesh_get_rx_pending(mesh_rx_pending_t *pending);
 int esp_mesh_available_txupQ_num(const mesh_addr_t *addr, uint32_t *xseqno_in);
 
 /**
- * @brief      Set the number of RX queue for the node, the average number of window allocated to one of
- *             its child node is: wnd = xon_qsize / (2 * max_connection + 1).
- *             However, the window of each child node is not strictly equal to the average value,
- *             it is affected by the traffic also.
+ * @brief      Set the number of queue
  *
  * @attention  This API shall be called before mesh is started.
  *
@@ -1400,7 +1410,7 @@ esp_err_t esp_mesh_set_parent(const wifi_config_t *parent, const mesh_addr_t *pa
  * @return
  *    - ESP_OK
  *    - ESP_ERR_WIFI_NOT_INIT
- *    - ESP_ERR_INVALID_ARG
+ *    - ESP_ERR_WIFI_ARG
  *    - ESP_ERR_WIFI_FAIL
  */
 esp_err_t esp_mesh_scan_get_ap_ie_len(int *len);
@@ -1417,7 +1427,7 @@ esp_err_t esp_mesh_scan_get_ap_ie_len(int *len);
  * @return
  *    - ESP_OK
  *    - ESP_ERR_WIFI_NOT_INIT
- *    - ESP_ERR_INVALID_ARG
+ *    - ESP_ERR_WIFI_ARG
  *    - ESP_ERR_WIFI_FAIL
  */
 esp_err_t esp_mesh_scan_get_ap_record(wifi_ap_record_t *ap_record, void *buffer);
@@ -1506,7 +1516,7 @@ esp_err_t esp_mesh_switch_channel(const uint8_t *new_bssid, int csa_newchan, int
  * @return
  *    - ESP_OK
  *    - ESP_ERR_WIFI_NOT_INIT
- *    - ESP_ERR_INVALID_ARG
+ *    - ESP_ERR_WIFI_ARG
  */
 esp_err_t esp_mesh_get_router_bssid(uint8_t *router_bssid);
 

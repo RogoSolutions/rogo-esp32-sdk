@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <string.h>
 #include <stdlib.h>
@@ -84,9 +92,8 @@ static int vfs_fat_truncate(void* ctx, const char *path, off_t length);
 static int vfs_fat_ftruncate(void* ctx, int fd, off_t length);
 static int vfs_fat_utime(void* ctx, const char *path, const struct utimbuf *times);
 #endif // CONFIG_VFS_SUPPORT_DIR
-static int fresult_to_errno(FRESULT fr);
 
-static vfs_fat_ctx_t* s_fat_ctxs[FF_VOLUMES] = { NULL };
+static vfs_fat_ctx_t* s_fat_ctxs[FF_VOLUMES] = { NULL, NULL };
 //backwards-compatibility with esp_vfs_fat_unregister()
 static vfs_fat_ctx_t* s_fat_ctx = NULL;
 
@@ -204,41 +211,6 @@ esp_err_t esp_vfs_fat_unregister_path(const char* base_path)
     return ESP_OK;
 }
 
-esp_err_t esp_vfs_fat_info(const char* base_path,
-                           uint64_t* out_total_bytes,
-                           uint64_t* out_free_bytes)
-{
-    size_t ctx = find_context_index_by_path(base_path);
-    if (ctx == FF_VOLUMES) {
-        return ESP_ERR_INVALID_STATE;
-    }
-    char* path = s_fat_ctxs[ctx]->fat_drive;
-
-    FATFS* fs;
-    DWORD free_clusters;
-    int res = f_getfree(path, &free_clusters, &fs);
-    if (res != FR_OK) {
-        ESP_LOGE(TAG, "Failed to get number of free clusters (%d)", res);
-        errno = fresult_to_errno(res);
-        return ESP_FAIL;
-    }
-    uint64_t total_sectors = ((uint64_t)(fs->n_fatent - 2)) * fs->csize;
-    uint64_t free_sectors = ((uint64_t)free_clusters) * fs->csize;
-    WORD sector_size = FF_MIN_SS; // 512
-#if FF_MAX_SS != FF_MIN_SS
-    sector_size = fs->ssize;
-#endif
-
-    // Assuming the total size is < 4GiB, should be true for SPI Flash
-    if (out_total_bytes != NULL) {
-        *out_total_bytes = total_sectors * sector_size;
-    }
-    if (out_free_bytes != NULL) {
-        *out_free_bytes = free_sectors * sector_size;
-    }
-    return ESP_OK;
-}
-
 static int get_next_fd(vfs_fat_ctx_t* fat_ctx)
 {
     for (size_t i = 0; i < fat_ctx->max_files; ++i) {
@@ -264,7 +236,7 @@ static int fat_mode_conv(int m)
         res |= FA_CREATE_NEW;
     } else if ((m & O_CREAT) && (m & O_TRUNC)) {
         res |= FA_CREATE_ALWAYS;
-    } else if ((m & O_APPEND) || (m & O_CREAT)) {
+    } else if (m & O_APPEND) {
         res |= FA_OPEN_ALWAYS;
     } else {
         res |= FA_OPEN_EXISTING;
@@ -576,11 +548,7 @@ static off_t vfs_fat_lseek(void* ctx, int fd, off_t offset, int mode)
         return -1;
     }
 
-#if FF_FS_EXFAT
-    ESP_LOGD(TAG, "%s: offset=%ld, filesize:=%" PRIu64, __func__, new_pos, f_size(file));
-#else
-    ESP_LOGD(TAG, "%s: offset=%ld, filesize:=%" PRIu32, __func__, new_pos, f_size(file));
-#endif
+    ESP_LOGD(TAG, "%s: offset=%ld, filesize:=%d", __func__, new_pos, f_size(file));
     FRESULT res = f_lseek(file, new_pos);
     if (res != FR_OK) {
         ESP_LOGD(TAG, "%s: fresult=%d", __func__, res);
@@ -600,7 +568,6 @@ static int vfs_fat_fstat(void* ctx, int fd, struct stat * st)
     st->st_mtime = 0;
     st->st_atime = 0;
     st->st_ctime = 0;
-    st->st_blksize = CONFIG_FATFS_VFS_FSTAT_BLKSIZE;
     return 0;
 }
 
@@ -922,7 +889,7 @@ static int vfs_fat_access(void* ctx, const char *path, int amode)
         // it exists then it is readable and executable
     } else {
         ret = -1;
-        errno = fresult_to_errno(res);
+        errno = ENOENT;
     }
 
     return ret;

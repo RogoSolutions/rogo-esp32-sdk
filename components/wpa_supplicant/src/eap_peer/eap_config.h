@@ -313,11 +313,6 @@ struct eap_peer_config {
 	char *pending_req_otp;
 
 	/**
-	 * pending_req_otp_len - Length of the pending OTP request
-	 */
-	size_t pending_req_otp_len;
-
-	/**
 	 * pac_file - File path or blob name for the PAC entries (EAP-FAST)
 	 *
 	 * wpa_supplicant will need to be able to create this file and write

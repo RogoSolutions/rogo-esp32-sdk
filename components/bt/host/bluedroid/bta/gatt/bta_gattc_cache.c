@@ -285,12 +285,6 @@ static tBTA_GATT_STATUS bta_gattc_add_srvc_to_cache(tBTA_GATTC_SERV *p_srvc_cb,
         p_srvc_cb->p_srvc_cache = list_new(service_free);
     }
 
-    if(!p_srvc_cb->p_srvc_cache) {
-        APPL_TRACE_WARNING("%s(), no resource.", __func__);
-        osi_free(p_new_srvc);
-        return BTA_GATT_NO_RESOURCES;
-    }
-
     if(is_primary) {
         list_append(p_srvc_cb->p_srvc_cache, p_new_srvc);
     } else {
@@ -547,6 +541,7 @@ void bta_gattc_start_disc_char_dscp(UINT16 conn_id, tBTA_GATTC_SERV *p_srvc_cb)
     if (bta_gattc_discover_procedure(conn_id, p_srvc_cb, GATT_DISC_CHAR_DSCPT) != 0) {
         bta_gattc_char_dscpt_disc_cmpl(conn_id, p_srvc_cb);
     }
+
 }
 
 void bta_gattc_update_include_service(const list_t *services) {
@@ -555,7 +550,7 @@ void bta_gattc_update_include_service(const list_t *services) {
     }
     for (list_node_t *sn = list_begin(services); sn != list_end(services); sn = list_next(sn)) {
         tBTA_GATTC_SERVICE *service = list_node(sn);
-        if(!service || !service->included_svc || list_is_empty(service->included_svc)) break;
+        if(!service && list_is_empty(service->included_svc)) break;
         for (list_node_t *sn = list_begin(service->included_svc); sn != list_end(service->included_svc); sn = list_next(sn)) {
             tBTA_GATTC_INCLUDED_SVC *include_service = list_node(sn);
             if(include_service && !include_service->included_service) {
@@ -698,9 +693,7 @@ static void bta_gattc_char_dscpt_disc_cmpl(UINT16 conn_id, tBTA_GATTC_SERV *p_sr
 {
     tBTA_GATTC_ATTR_REC *p_rec = NULL;
 
-    /* Recursive function will cause BTU stack overflow when there are a large number of characteristic
-     * without descriptor to discover. So replace it with while function */
-    while (--p_srvc_cb->total_char > 0) {
+    if (--p_srvc_cb->total_char > 0) {
         p_rec = p_srvc_cb->p_srvc_list + (++ p_srvc_cb->cur_char_idx);
         /* add the next characteristic into cache */
         bta_gattc_add_char_to_cache (p_srvc_cb,
@@ -708,14 +701,11 @@ static void bta_gattc_char_dscpt_disc_cmpl(UINT16 conn_id, tBTA_GATTC_SERV *p_sr
                                      p_rec->s_handle,
                                      &p_rec->uuid,
                                      p_rec->property);
-        /* start to discover next characteristic for descriptor */
-        if (bta_gattc_discover_procedure(conn_id, p_srvc_cb, GATT_DISC_CHAR_DSCPT) == 0) {
-            /* send att req and wait for att rsp */
-            break;
-        }
-    }
 
-    if (p_srvc_cb->total_char == 0) /* all characteristic has been explored, start with next service if any */
+        /* start discoverying next characteristic for char descriptor */
+        bta_gattc_start_disc_char_dscp(conn_id, p_srvc_cb);
+    } else
+        /* all characteristic has been explored, start with next service if any */
     {
 #if (defined BTA_GATT_DEBUG && BTA_GATT_DEBUG == TRUE)
         APPL_TRACE_ERROR("all char has been explored");
@@ -782,7 +772,7 @@ static tBTA_GATT_STATUS bta_gattc_add_srvc_to_list(tBTA_GATTC_SERV *p_srvc_cb,
         /* allocate bigger buffer ?? */
         status = GATT_DB_FULL;
 
-        APPL_TRACE_ERROR("service not added, no resources or wrong state, see CONFIG_BT_GATTC_MAX_CACHE_CHAR");
+        APPL_TRACE_ERROR("service not added, no resources or wrong state");
     }
     return status;
 }
@@ -824,7 +814,7 @@ static tBTA_GATT_STATUS bta_gattc_add_char_to_list(tBTA_GATTC_SERV *p_srvc_cb,
         }
         p_srvc_cb->next_avail_idx ++;
     } else {
-        APPL_TRACE_ERROR("char not added, no resources, see CONFIG_BT_GATTC_MAX_CACHE_CHAR");
+        APPL_TRACE_ERROR("char not added, no resources");
         /* allocate bigger buffer ?? */
         status = BTA_GATT_DB_FULL;
     }
@@ -969,10 +959,6 @@ void bta_gattc_disc_res_cback (UINT16 conn_id, tGATT_DISC_TYPE disc_type, tGATT_
     BOOLEAN          pri_srvc;
     tBTA_GATTC_CLCB *p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
 
-    if (bta_gattc_cb.auto_disc == FALSE) {
-        return;
-    }
-
     p_srvc_cb = bta_gattc_find_scb_by_cid(conn_id);
 
     if (p_srvc_cb != NULL && p_clcb != NULL && p_clcb->state == BTA_GATTC_DISCOVER_ST) {
@@ -1045,10 +1031,6 @@ void bta_gattc_disc_cmpl_cback (UINT16 conn_id, tGATT_DISC_TYPE disc_type, tGATT
 {
     tBTA_GATTC_SERV *p_srvc_cb;
     tBTA_GATTC_CLCB *p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
-
-    if (bta_gattc_cb.auto_disc == FALSE) {
-        return;
-    }
 
     if ( p_clcb && (status != GATT_SUCCESS || p_clcb->status != GATT_SUCCESS) ) {
         if (status == GATT_SUCCESS) {

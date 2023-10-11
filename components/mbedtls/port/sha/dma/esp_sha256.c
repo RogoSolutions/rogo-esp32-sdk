@@ -1,19 +1,35 @@
 /*
- * SHA-256 implementation with hardware ESP support added.
+ *  SHA-256 implementation with hardware ESP support added.
  *
- * SPDX-FileCopyrightText: The Mbed TLS Contributors
+ *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  Additions Copyright (C) 2016-2020, Espressif Systems (Shanghai) PTE LTD
+ *  SPDX-License-Identifier: Apache-2.0
  *
- * SPDX-License-Identifier: Apache-2.0
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may
+ *  not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
  *
- * SPDX-FileContributor: 2016-2023 Espressif Systems (Shanghai) CO LTD
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
  */
+
 /*
  *  The SHA-256 Secure Hash Standard was published by NIST in 2002.
  *
  *  http://csrc.nist.gov/publications/fips/fips180-2/fips180-2.pdf
  */
 
-#include <mbedtls/build_info.h>
+#if !defined(MBEDTLS_CONFIG_FILE)
+#include "mbedtls/config.h"
+#else
+#include MBEDTLS_CONFIG_FILE
+#endif
 
 #if defined(MBEDTLS_SHA256_C) && defined(MBEDTLS_SHA256_ALT)
 
@@ -87,7 +103,7 @@ void mbedtls_sha256_clone( mbedtls_sha256_context *dst,
 /*
  * SHA-256 context setup
  */
-int mbedtls_sha256_starts( mbedtls_sha256_context *ctx, int is224 )
+int mbedtls_sha256_starts_ret( mbedtls_sha256_context *ctx, int is224 )
 {
     memset( ctx, 0, sizeof( mbedtls_sha256_context ) );
 
@@ -100,41 +116,40 @@ int mbedtls_sha256_starts( mbedtls_sha256_context *ctx, int is224 )
     return 0;
 }
 
-static void esp_internal_sha_update_state(mbedtls_sha256_context *ctx)
+#if !defined(MBEDTLS_DEPRECATED_REMOVED)
+void mbedtls_sha256_starts( mbedtls_sha256_context *ctx,
+                            int is224 )
 {
-    if (ctx->sha_state == ESP_SHA256_STATE_INIT) {
-        ctx->first_block = true;
-        ctx->sha_state = ESP_SHA256_STATE_IN_PROCESS;
-    } else if (ctx->sha_state == ESP_SHA256_STATE_IN_PROCESS) {
-        ctx->first_block = false;
-        esp_sha_write_digest_state(ctx->mode, ctx->state);
-    }
+    mbedtls_sha256_starts_ret( ctx, is224 );
 }
+#endif
+
 
 int mbedtls_internal_sha256_process( mbedtls_sha256_context *ctx, const unsigned char data[64] )
 {
-    int ret = -1;
+    int ret;
     esp_sha_acquire_hardware();
-    esp_internal_sha_update_state(ctx);
-
     ret = esp_sha_dma(ctx->mode, data, 64, 0, 0, ctx->first_block);
-    if (ret != 0) {
-        esp_sha_release_hardware();
-        return ret;
-    }
-
-    esp_sha_read_digest_state(ctx->mode, ctx->state);
     esp_sha_release_hardware();
 
     return ret;
 }
 
+#if !defined(MBEDTLS_DEPRECATED_REMOVED)
+void mbedtls_sha256_process( mbedtls_sha256_context *ctx,
+                             const unsigned char data[64] )
+{
+    mbedtls_internal_sha256_process( ctx, data );
+}
+#endif
+
 /*
  * SHA-256 process buffer
  */
-int mbedtls_sha256_update( mbedtls_sha256_context *ctx, const unsigned char *input,
+int mbedtls_sha256_update_ret( mbedtls_sha256_context *ctx, const unsigned char *input,
                                size_t ilen )
 {
+    int ret = 0;
     size_t fill;
     uint32_t left, len, local_len = 0;
 
@@ -166,18 +181,24 @@ int mbedtls_sha256_update( mbedtls_sha256_context *ctx, const unsigned char *inp
 
     if ( len || local_len) {
         esp_sha_acquire_hardware();
-        esp_internal_sha_update_state(ctx);
 
-        int ret = esp_sha_dma(ctx->mode, input, len,  ctx->buffer, local_len, ctx->first_block);
-
-        if (ret != 0) {
-            esp_sha_release_hardware();
-            return ret;
+        if (ctx->sha_state == ESP_SHA256_STATE_INIT) {
+            ctx->first_block = true;
+            ctx->sha_state = ESP_SHA256_STATE_IN_PROCESS;
+        } else if (ctx->sha_state == ESP_SHA256_STATE_IN_PROCESS) {
+            ctx->first_block = false;
+            esp_sha_write_digest_state(ctx->mode, ctx->state);
         }
+
+        ret = esp_sha_dma(ctx->mode, input, len,  ctx->buffer, local_len, ctx->first_block);
 
         esp_sha_read_digest_state(ctx->mode, ctx->state);
 
         esp_sha_release_hardware();
+
+        if (ret != 0) {
+            return ret;
+        }
     }
 
     if ( ilen > 0 ) {
@@ -186,6 +207,15 @@ int mbedtls_sha256_update( mbedtls_sha256_context *ctx, const unsigned char *inp
 
     return 0;
 }
+
+#if !defined(MBEDTLS_DEPRECATED_REMOVED)
+void mbedtls_sha256_update( mbedtls_sha256_context *ctx,
+                            const unsigned char *input,
+                            size_t ilen )
+{
+    mbedtls_sha256_update_ret( ctx, input, ilen );
+}
+#endif
 
 static const unsigned char sha256_padding[64] = {
     0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -197,9 +227,9 @@ static const unsigned char sha256_padding[64] = {
 /*
  * SHA-256 final digest
  */
-int mbedtls_sha256_finish( mbedtls_sha256_context *ctx, unsigned char *output )
+int mbedtls_sha256_finish_ret( mbedtls_sha256_context *ctx, unsigned char output[32] )
 {
-    int ret = -1;
+    int ret;
     uint32_t last, padn;
     uint32_t high, low;
     unsigned char msglen[8];
@@ -214,11 +244,11 @@ int mbedtls_sha256_finish( mbedtls_sha256_context *ctx, unsigned char *output )
     last = ctx->total[0] & 0x3F;
     padn = ( last < 56 ) ? ( 56 - last ) : ( 120 - last );
 
-    if ( ( ret = mbedtls_sha256_update( ctx, sha256_padding, padn ) ) != 0 ) {
+    if ( ( ret = mbedtls_sha256_update_ret( ctx, sha256_padding, padn ) ) != 0 ) {
         return ret;
     }
 
-    if ( ( ret = mbedtls_sha256_update( ctx, msglen, 8 ) ) != 0 ) {
+    if ( ( ret = mbedtls_sha256_update_ret( ctx, msglen, 8 ) ) != 0 ) {
         return ret;
     }
 
@@ -226,5 +256,13 @@ int mbedtls_sha256_finish( mbedtls_sha256_context *ctx, unsigned char *output )
 
     return ret;
 }
+
+#if !defined(MBEDTLS_DEPRECATED_REMOVED)
+void mbedtls_sha256_finish( mbedtls_sha256_context *ctx,
+                            unsigned char output[32] )
+{
+    mbedtls_sha256_finish_ret( ctx, output );
+}
+#endif
 
 #endif /* MBEDTLS_SHA256_C && MBEDTLS_SHA256_ALT */

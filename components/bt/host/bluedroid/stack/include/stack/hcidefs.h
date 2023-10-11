@@ -385,13 +385,6 @@
 #define HCI_BLE_WR_RF_PATH_COMPENSATION     (0x004D | HCI_GRP_BLE_CMDS)
 #define HCI_BLE_SET_PRIVACY_MODE            (0x004E | HCI_GRP_BLE_CMDS)
 #endif // #if (BLE_50_FEATURE_SUPPORT == TRUE)
-#if (BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER == TRUE)
-#define HCI_BLE_SET_PERIOD_ADV_RECV_ENABLE  (0x0059 | HCI_GRP_BLE_CMDS)
-#define HCI_BLE_PERIOD_ADV_SYNC_TRANS       (0x005A | HCI_GRP_BLE_CMDS)
-#define HCI_BLE_PERIOD_ADV_SET_INFO_TRANS   (0x005B | HCI_GRP_BLE_CMDS)
-#define HCI_BLE_SET_PAST_PARAMS             (0x005C | HCI_GRP_BLE_CMDS)
-#define HCI_BLE_SET_DEFAULT_PAST_PARAMS     (0x005D | HCI_GRP_BLE_CMDS)
-#endif // #if (BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER == TRUE)
 // Vendor OGF define
 #define HCI_VENDOR_OGF          0x3F
 
@@ -809,9 +802,6 @@
 #define HCI_BLE_SCAN_REQ_RECEIVED_EVT       0x13
 #define HCI_BLE_CHANNEL_SELECT_ALG          0x14
 #endif // #if (BLE_50_FEATURE_SUPPORT == TRUE)
-#if (BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER == TRUE)
-#define HCI_BLE_PERIOD_ADV_SYNC_TRANS_RECV_EVT 0x18
-#endif // #if (BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER == TRUE)
 
 /* Definitions for LE Channel Map */
 #define HCI_BLE_CHNL_MAP_SIZE               5
@@ -825,6 +815,7 @@
 **  Defentions for HCI Error Codes that are past in the events
 */
 #define HCI_SUCCESS                                     0x00
+#define HCI_PENDING                                     0x00
 #define HCI_ERR_ILLEGAL_COMMAND                         0x01
 #define HCI_ERR_NO_CONNECTION                           0x02
 #define HCI_ERR_HW_FAILURE                              0x03

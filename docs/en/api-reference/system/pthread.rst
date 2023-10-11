@@ -21,7 +21,7 @@ Unlike many operating systems using POSIX Threads, ESP-IDF is a real-time operat
 
    If calling a standard libc or C++ sleep function, such as ``usleep`` defined in ``unistd.h``, then the task will only block and yield the CPU if the sleep time is longer than :ref:`one FreeRTOS tick period <CONFIG_FREERTOS_HZ>`. If the time is shorter, the thread will busy-wait instead of yielding to another RTOS task.
 
-By default, all POSIX Threads have the same RTOS priority, but it is possible to change this by calling a :ref:`custom API <esp-pthread>`.
+By default all POSIX Threads have the same RTOS priority, but it is possible to change this by calling a :ref:`custom API <esp-pthread>`.
 
 Standard features
 -----------------
@@ -98,32 +98,8 @@ Static initializer constant ``PTHREAD_COND_INITIALIZER`` is supported.
 
 .. note:: These functions can be called from tasks created using either pthread or FreeRTOS APIs
 
-Semaphores
-^^^^^^^^^^
-
-In IDF, POSIX *unnamed* semaphores are implemented. The accessible API is described below. It implements `semaphores as specified in the POSIX standard <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/semaphore.h.html>`_, unless specified otherwise.
-
-* `sem_init() <https://pubs.opengroup.org/onlinepubs/9699919799/functions/sem_init.html>`_
-* `sem_destroy() <https://pubs.opengroup.org/onlinepubs/9699919799/functions/sem_destroy.html>`_
-
-  - ``pshared`` is ignored. Semaphores can always be shared between FreeRTOS tasks.
-
-* `sem_post() <https://pubs.opengroup.org/onlinepubs/9699919799/functions/sem_post.html>`_
-
-  - If the semaphore has a value of ``SEM_VALUE_MAX`` already, -1 is returned and ``errno`` is set to ``EAGAIN``.
-
-* `sem_wait() <https://pubs.opengroup.org/onlinepubs/9699919799/functions/sem_wait.html>`_
-* `sem_trywait() <https://pubs.opengroup.org/onlinepubs/9699919799/functions/sem_trywait.html>`_
-* `sem_timedwait() <https://pubs.opengroup.org/onlinepubs/9699919799/functions/sem_timedwait.html>`_
-
-  - The time value passed by abstime will be rounded up to the next FreeRTOS tick. 
-  - The actual timeout will happen after the tick the time was rounded to and before the following tick.
-  - It is possible, though unlikely, that the task is preempted directly after the timeout calculation, delaying the timeout of the following blocking operating system call by the duration of the preemption.
-
-* `sem_getvalue() <https://pubs.opengroup.org/onlinepubs/9699919799/functions/sem_getvalue.html>`_
-
 Read/Write Locks
-^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
 
 * ``pthread_rwlock_init()``
   - The ``attr`` argument is not implemented and is ignored.
@@ -134,8 +110,9 @@ Read/Write Locks
 
 Static initializer constant ``PTHREAD_RWLOCK_INITIALIZER`` is supported.
 
-.. note:: These functions can be called from tasks created using either pthread or FreeRTOS APIs
 
+.. note:: These functions can be called from tasks created using either pthread or FreeRTOS APIs. Note also that the current pthread reader-writer-locks implementation is based on the condition variable API. The performance is not optimal when locking only for a minimal amount of time like e.g. accessing a simple variable. In these cases with minimal locking time, a simple mutex might be faster.
+          
 Thread-Specific Data
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -144,7 +121,7 @@ Thread-Specific Data
 * ``pthread_key_delete()``
 * ``pthread_setspecific()`` / ``pthread_getspecific()``
 
-.. note:: These functions can be called from tasks created using either pthread or FreeRTOS APIs. When calling these functions from tasks created using FreeRTOS APIs, :ref:`CONFIG_FREERTOS_TLSP_DELETION_CALLBACKS` config option must be enabled to ensure the thread-specific data is cleaned up before the task is deleted.
+.. note:: These functions can be called from tasks created using either pthread or FreeRTOS APIs
 
 .. note:: There are other options for thread local storage in ESP-IDF, including options with higher performance. See :doc:`/api-guides/thread-local-storage`.
 
@@ -163,7 +140,7 @@ Other POSIX Threads functions (not listed here) are not implemented and will pro
 ESP-IDF Extensions
 ------------------
 
-The API :cpp:func:`esp_pthread_set_cfg` defined in the ``esp_pthreads.h`` header offers custom extensions to control how subsequent calls to ``pthread_create()`` will behave. Currently, the following configuration can be set:
+The API :cpp:func:`esp_pthread_set_cfg` defined in the ``esp_pthreads.h`` header offers custom extensions to control how subsequent calls to ``pthread_create()`` will behave. Currently the following configuration can be set:
 
 .. list::
   - Default stack size of new threads, if not specified when calling ``pthread_create()`` (overrides :ref:`CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT`).
@@ -184,3 +161,4 @@ API Reference
 -------------
 
 .. include-build-file:: inc/esp_pthread.inc
+

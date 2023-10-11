@@ -16,7 +16,6 @@ PROTOBUF_C__BEGIN_DECLS
 
 #include "sec0.pb-c.h"
 #include "sec1.pb-c.h"
-#include "sec2.pb-c.h"
 
 typedef struct SessionData SessionData;
 
@@ -35,11 +34,7 @@ typedef enum _SecSchemeVersion {
   /*
    *!< Security scheme 1 - Curve25519 + AES-256-CTR
    */
-  SEC_SCHEME_VERSION__SecScheme1 = 1,
-  /*
-   *!< Security scheme 2 - SRP6a + AES-256-GCM
-   */
-  SEC_SCHEME_VERSION__SecScheme2 = 2
+  SEC_SCHEME_VERSION__SecScheme1 = 1
     PROTOBUF_C__FORCE_ENUM_TO_BE_INT_SIZE(SEC_SCHEME_VERSION)
 } SecSchemeVersion;
 
@@ -48,8 +43,7 @@ typedef enum _SecSchemeVersion {
 typedef enum {
   SESSION_DATA__PROTO__NOT_SET = 0,
   SESSION_DATA__PROTO_SEC0 = 10,
-  SESSION_DATA__PROTO_SEC1 = 11,
-  SESSION_DATA__PROTO_SEC2 = 12
+  SESSION_DATA__PROTO_SEC1 = 11
     PROTOBUF_C__FORCE_ENUM_TO_BE_INT_SIZE(SESSION_DATA__PROTO__CASE)
 } SessionData__ProtoCase;
 
@@ -74,10 +68,6 @@ struct  SessionData
      *!< Payload data in case of security 1 
      */
     Sec1Payload *sec1;
-    /*
-     *!< Payload data in case of security 2 
-     */
-    Sec2Payload *sec2;
   };
 };
 #define SESSION_DATA__INIT \

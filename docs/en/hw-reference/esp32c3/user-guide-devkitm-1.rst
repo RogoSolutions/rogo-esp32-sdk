@@ -8,7 +8,7 @@ This user guide will help you get started with ESP32-C3-DevKitM-1 and will also 
 
 ESP32-C3-DevKitM-1 is an entry-level development board based on `ESP32-C3-MINI-1 <https://www.espressif.com/sites/default/files/documentation/esp32-c3-mini-1_datasheet_en.pdf>`_, a module named for its small size. This board integrates complete Wi-Fi and Bluetooth LE functions.
 
-Most of the I/O pins on the ESP32-C3-MINI-1 module are broken out to the pin headers on both sides of this board for easy interfacing. Developers can either connect peripherals with jumper wires or mount ESP32-C3-DevKitM-1 on a breadboard.
+Most of the I/O pins on the ESP32-C3-MINI-1 module are broken out to the pin headers on both sides of this board for easy interfacing. Developers can either connect peripherals with jumper wires or mount ESP32-C3-DevKitM-1 on a breadboard. 
 
 .. figure:: ../../../_static/esp32-c3-devkitm-1-v1-isometric.png
     :align: center
@@ -16,7 +16,7 @@ Most of the I/O pins on the ESP32-C3-MINI-1 module are broken out to the pin hea
     :figclass: align-center
 
     ESP32-C3-DevKitM-1
-
+    
 The document consists of the following major sections:
 
 - `Getting Started`_: Overview of ESP32-C3-DevKitM-1 and hardware/software setup instructions to get started.
@@ -28,6 +28,7 @@ Getting Started
 ===============
 
 This section provides a brief introduction of ESP32-C3-DevKitM-1, instructions on how to do the initial hardware setup and how to flash firmware onto it.
+
 
 Description of Components
 -------------------------
@@ -77,7 +78,7 @@ Before powering up your ESP32-C3-DevKitM-1, please make sure that it is in good 
 Required Hardware
 ^^^^^^^^^^^^^^^^^
 
-- ESP32-C3-DevKitM-1
+- ESP32-C3-DevKitM-1  
 - USB 2.0 cable (Standard-A to Micro-B)
 - Computer running Windows, Linux, or macOS
 
@@ -98,7 +99,7 @@ Retail Orders
 
 If you order one or several samples, each ESP32-C3-DevKitM-1 comes in an individual package in either antistatic bag or any packaging depending on your retailer.
 
-For retail orders, please go to https://www.espressif.com/en/contact-us/get-samples.
+For retail orders, please go to https://www.espressif.com/en/company/contact/buy-a-sample.
 
 
 Wholesale Orders
@@ -191,10 +192,11 @@ No.  Name  Type [1]_   Function
 
 Pin Layout
 ^^^^^^^^^^^
-.. figure:: ../../../_static/esp32-c3-devkitm-1-v1-pinout.png
+.. figure:: ../../../_static/esp32-c3-devkitm-1-v1-pinout.jpg
     :align: center
     :scale: 45%
     :alt: ESP32-C3-DevKitM-1 (click to enlarge)
+    :figclass: align-center
 
     ESP32-C3-DevKitM-1 Pin Layout (click to enlarge)
 

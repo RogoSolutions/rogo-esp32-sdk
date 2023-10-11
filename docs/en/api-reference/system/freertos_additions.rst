@@ -1,20 +1,21 @@
-FreeRTOS (Supplemental Features)
-================================
+FreeRTOS Additions
+==================
 
-ESP-IDF provides multiple features to supplement the features offered by FreeRTOS. These supplemental features are available on all FreeRTOS implementations supported by ESP-IDF (i.e., ESP-IDF FreeRTOS and Amazon SMP FreeRTOS). This document describes these supplemental features and is split into the following sections:
+This document describes the additional features added to ESP-IDF FreeRTOS. This document is split into the following parts:
 
 .. contents:: Contents
     :depth: 2
+
 
 .. ---------------------------------------------------- Overview -------------------------------------------------------
 
 Overview
 --------
 
-ESP-IDF adds various new features to supplement the capabilities of FreeRTOS as follows:
+ESP-IDF FreeRTOS is modified version of based on the Xtensa port of FreeRTOS v10.4.3 with significant modifications for SMP compatibility (see :doc:`ESP-IDF FreeRTOS SMP Changes<../../api-guides/freertos-smp>`). However, various new features specific to ESP-IDF FreeRTOS have been added. The features are as follows:
 
 - **Ring buffers**: Ring buffers provide a FIFO buffer that can accept entries of arbitrary lengths.
-- **ESP-IDF Tick and Idle Hooks**: ESP-IDF provides multiple custom tick interrupt hooks and idle task hooks that are more numerous and more flexible when compared to FreeRTOS tick and idle hooks.
+- **Hooks**: ESP-IDF FreeRTOS hooks provides support for registering extra Idle and Tick hooks at run time. Moreover, the hooks can be asymmetric among both CPUs.
 - **Thread Local Storage Pointer (TLSP) Deletion Callbacks**: TLSP Deletion callbacks are run automatically when a task is deleted, thus allowing users to clean up their TLSPs automatically.
 - **Component Specific Properties**: Currently added only one component specific property ``ORIG_INCLUDE_PATH``.
 
@@ -24,13 +25,7 @@ ESP-IDF adds various new features to supplement the capabilities of FreeRTOS as 
 Ring Buffers
 ------------
 
-FreeRTOS provides stream buffers and message buffers as the primary mechanisms to send arbitrarily sized data between tasks and ISRs. However, FreeRTOS stream buffers and message buffers have the following limitations:
-
-- Strictly single sender and single receiver
-- Data is passed by copy
-- Unable to reserve buffer space for a deferred send (i.e., send acquire)
-
-Therefore, ESP-IDF provides a separate ring buffer implementation to address the issues above. ESP-IDF ring buffers are strictly FIFO buffers that supports arbitrarily sized items. Ring buffers are a more memory efficient alternative to FreeRTOS queues in situations where the size of items is variable. The capacity of a ring buffer is not measured by the number of items it can store, but rather by the amount of memory used for storing items. The ring buffer provides APIs to send an item, or to allocate space for an item in the ring buffer to be filled manually by the user. For efficiency reasons, **items are always retrieved from the ring buffer by reference**. As a result, all retrieved items *must also be returned* to the ring buffer by using :cpp:func:`vRingbufferReturnItem` or :cpp:func:`vRingbufferReturnItemFromISR`, in order for them to be removed from the ring buffer completely. The ring buffers are split into the three following types:
+The ESP-IDF FreeRTOS ring buffer is a strictly FIFO buffer that supports arbitrarily sized items. Ring buffers are a more memory efficient alternative to FreeRTOS queues in situations where the size of items is variable. The capacity of a ring buffer is not measured by the number of items it can store, but rather by the amount of memory used for storing items. The ring buffer provides API to send an item, or to allocate space for an item in the ring buffer to be filled manually by the user. For efficiency reasons, **items are always retrieved from the ring buffer by reference**. As a result, all retrieved items *must also be returned* to the ring buffer by using :cpp:func:`vRingbufferReturnItem` or :cpp:func:`vRingbufferReturnItemFromISR`, in order for them to be removed from the ring buffer completely. The ring buffers are split into the three following types:
 
 **No-Split buffers** will guarantee that an item is stored in contiguous memory and will not attempt to split an item under any circumstances. Use No-Split buffers when items must occupy contiguous memory. *Only this buffer type allows you to get the data item address and write to the item by yourself.* Refer the documentation of the functions :cpp:func:`xRingbufferSendAcquire` and :cpp:func:`xRingbufferSendComplete` for more details.
 
@@ -311,7 +306,7 @@ The following example demonstrates queue set usage with ring buffers.
     ...
 
         //Block on queue set
-        QueueSetMemberHandle_t member = xQueueSelectFromSet(queue_set, pdMS_TO_TICKS(1000));
+        xQueueSetMemberHandle member = xQueueSelectFromSet(queue_set, pdMS_TO_TICKS(1000));
 
         //Check if member is ring buffer
         if (member != NULL && xRingbufferCanRead(buf_handle, member) == pdTRUE) {
@@ -368,44 +363,52 @@ The code snippet below demonstrates a ring buffer being allocated entirely in ex
     free(buffer_struct);
     free(buffer_storage);
 
+Priority Inversion
+^^^^^^^^^^^^^^^^^^
 
-.. ------------------------------------------- ESP-IDF Tick and Idle Hooks ---------------------------------------------
+Ideally, ring buffers can be used with multiple tasks in an SMP fashion where the **highest priority task will always be serviced first.** However due to the usage of binary semaphores in the ring buffer's underlying implementation, priority inversion may occur under very specific circumstances.
 
-ESP-IDF Tick and Idle Hooks
----------------------------
+The ring buffer governs sending by a binary semaphore which is given whenever space is freed on the ring buffer. The highest priority task waiting to send will repeatedly take the semaphore until sufficient free space becomes available or until it times out. Ideally this should prevent any lower priority tasks from being serviced as the semaphore should always be given to the highest priority task.
 
-FreeRTOS allows applications to provide a tick hook and an idle hook at compile time:
+However, in between iterations of acquiring the semaphore, there is a **gap in the critical section** which may permit another task (on the other core or with an even higher priority) to free some space on the ring buffer and as a result give the semaphore. Therefore, the semaphore will be given before the highest priority task can re-acquire the semaphore. This will result in the **semaphore being acquired by the second-highest priority task** waiting to send, hence causing priority inversion.
 
-- FreeRTOS tick hook can be enabled via the :ref:`CONFIG_FREERTOS_USE_TICK_HOOK` option. The application must provide the ``void vApplicationTickHook( void )`` callback.
-- FreeRTOS idle hook can be enabled via the :ref:`CONFIG_FREERTOS_USE_IDLE_HOOK` option. The application must provide the ``void vApplicationIdleHook( void )`` callback.
+This side effect will not affect ring buffer performance drastically given if the number of tasks using the ring buffer simultaneously is low, and the ring buffer is not operating near maximum capacity.
 
-However, the FreeRTOS tick hook and idle hook have the following draw backs:
 
-- The FreeRTOS hooks are registered at compile time
-- Only one of each hook can be registered
-- On multi-core targets, the FreeRTOS hooks are symmetric, meaning each CPU's tick interrupt and idle tasks ends up calling the same hook.
+.. ------------------------------------------------------ Hooks --------------------------------------------------------
 
-Therefore, ESP-IDF tick and idle hooks are provided to supplement the features of FreeRTOS tick and idle hooks. The ESP-IDF hooks have the following features:
+Hooks
+-----
 
-- The hooks can be registered and deregistered at run-time
-- Multiple hooks can be registered (with a maximum of 8 hooks of each type per CPU)
-- On multi-core targets, the hooks can be asymmetric, meaning different hooks can be registered to each CPU
+FreeRTOS consists of Idle Hooks and Tick Hooks which allow for application specific functionality to be added to the Idle Task and Tick Interrupt. ESP-IDF provides its own Idle and Tick Hook API in addition to the hooks provided by vanilla FreeRTOS. ESP-IDF hooks have the added benefit of being run time configurable and asymmetrical.
 
-ESP-IDF hooks can be registered and deregistered using the following APIs:
+Vanilla FreeRTOS Hooks
+^^^^^^^^^^^^^^^^^^^^^^
 
-- For tick hooks:
+Idle and Tick Hooks in vanilla FreeRTOS are implemented by the user defining the functions ``vApplicationIdleHook()`` and  ``vApplicationTickHook()`` respectively somewhere in the application. Vanilla FreeRTOS will run the user defined Idle Hook and Tick Hook on every iteration of the Idle Task and Tick Interrupt respectively.
 
-    - Register using :cpp:func:`esp_register_freertos_tick_hook` or :cpp:func:`esp_register_freertos_tick_hook_for_cpu`
-    - Deregister using :cpp:func:`esp_deregister_freertos_tick_hook` or :cpp:func:`esp_deregister_freertos_tick_hook_for_cpu`
+Vanilla FreeRTOS hooks are referred to as **Legacy Hooks** in ESP-IDF FreeRTOS. To enable legacy hooks, :ref:`CONFIG_FREERTOS_LEGACY_HOOKS` should be enabled in :doc:`project configuration menu </api-reference/kconfig>`.
 
-- For idle hooks:
+.. only:: not CONFIG_FREERTOS_UNICORE
 
-    - Register using :cpp:func:`esp_register_freertos_idle_hook` or :cpp:func:`esp_register_freertos_idle_hook_for_cpu`
-    - Deregister using :cpp:func:`esp_deregister_freertos_idle_hook` or :cpp:func:`esp_deregister_freertos_idle_hook_for_cpu`
+    Due to vanilla FreeRTOS being designed for single core, ``vApplicationIdleHook()`` and ``vApplicationTickHook()`` can only be defined once. However, the {IDF_TARGET_NAME} is dual-core in nature, therefore same Idle Hook and Tick Hook are used for both cores (in other words, the hooks are symmetrical for both cores).
+
+ESP-IDF Idle and Tick Hooks
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For some use-cases it may be necessary for the Idle Tasks or Tick Interrupts to execute multiple hooks that are configurable at run time.
+
+.. only:: not CONFIG_FREERTOS_UNICORE
+
+    Furthermore, due to the dual-core nature of the {IDF_TARGET_NAME}, it may be necessary for some applications to have separate hooks for each core.
+
+Therefore, ESP-IDF provides its own hooks API in addition to the legacy hooks provided by vanilla FreeRTOS.
+
+The ESP-IDF tick and idle hooks are registered at run time. Each tick hook and idle hook must be registered to a specific CPU. When the idle task runs or a tick interrupt occurs on a particular CPU, the CPU will run each of its registered idle hook and tick hook in turn.
 
 .. note::
+    Tick interrupt stays active whilst cache is disabled and hence ``vApplicationTickHook()`` (legacy case) or ESP-IDF tick hooks must be placed in internal RAM. Please refer to the :ref:`SPI flash API documentation <iram-safe-interrupt-handlers>` for more details.
 
-    The tick interrupt stays active while the cache is disabled, therefore any tick hook (FreeRTOS or ESP-IDF) functions must be placed in internal RAM. Please refer to the :ref:`SPI flash API documentation <iram-safe-interrupt-handlers>` for more details.
 
 .. -------------------------------------------------- TLSP Callback ----------------------------------------------------
 
@@ -418,7 +421,7 @@ Vanilla FreeRTOS provides a Thread Local Storage Pointers (TLSP) feature. These 
 - get a task's TLSPs by calling :cpp:func:`pvTaskGetThreadLocalStoragePointer` during the task's lifetime.
 - free the memory pointed to by the TLSPs before the task is deleted.
 
-However, there can be instances where users may want the freeing of TLSP memory to be automatic. Therefore, ESP-IDF provides the additional feature of TLSP deletion callbacks. These user provided deletion callbacks are called automatically when a task is deleted, thus allowing the TLSP memory to be cleaned up without needing to add the cleanup logic explicitly to the code of every task.
+However, there can be instances where users may want the freeing of TLSP memory to be automatic. Therefore, ESP-IDF FreeRTOS provides the additional feature of TLSP deletion callbacks. These user provided deletion callbacks are called automatically when a task is deleted, thus allows the TLSP memory to be cleaned up without needing to add the cleanup logic explicitly to the code of every task.
 
 The TLSP deletion callbacks are set in a similar fashion to the TLSPs themselves.
 
@@ -430,14 +433,6 @@ When implementing TLSP callbacks, users should note the following:
 - The callback **must never attempt to block or yield** and critical sections should be kept as short as possible
 - The callback is called shortly before a deleted task's memory is freed. Thus, the callback can either be called from :cpp:func:`vTaskDelete` itself, or from the idle task.
 
-.. ----------------------------------------------- IDF Additional API --------------------------------------------------
-
-.. _freertos-idf-additional-api:
-
-IDF Additional API
-------------------
-
-The :component_file:`freertos/esp_additions/include/freertos/idf_additions.h` header contains FreeRTOS related helper functions added by ESP-IDF. Users can include this header via ``#include "freertos/idf_additions.h"``.
 
 .. ------------------------------------------ Component Specific Properties --------------------------------------------
 
@@ -463,8 +458,3 @@ Hooks API
 ^^^^^^^^^
 
 .. include-build-file:: inc/esp_freertos_hooks.inc
-
-Additional API
-^^^^^^^^^^^^^^
-
-.. include-build-file:: inc/idf_additions.inc

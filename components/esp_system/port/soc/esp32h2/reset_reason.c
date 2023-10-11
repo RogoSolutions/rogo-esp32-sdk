@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2018 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "esp_system.h"
 #include "esp_rom_sys.h"
@@ -23,9 +31,9 @@ static esp_reset_reason_t get_reset_reason(soc_reset_reason_t rtc_reset_reason, 
     case RESET_REASON_CPU0_SW:
     case RESET_REASON_CORE_SW:
         if (reset_reason_hint == ESP_RST_PANIC ||
-            reset_reason_hint == ESP_RST_BROWNOUT ||
-            reset_reason_hint == ESP_RST_TASK_WDT ||
-            reset_reason_hint == ESP_RST_INT_WDT) {
+                reset_reason_hint == ESP_RST_BROWNOUT ||
+                reset_reason_hint == ESP_RST_TASK_WDT ||
+                reset_reason_hint == ESP_RST_INT_WDT) {
             return reset_reason_hint;
         }
         return ESP_RST_SW;
@@ -58,7 +66,7 @@ static esp_reset_reason_t get_reset_reason(soc_reset_reason_t rtc_reset_reason, 
 static void __attribute__((constructor)) esp_reset_reason_init(void)
 {
     esp_reset_reason_t hint = esp_reset_reason_get_hint();
-    s_reset_reason = get_reset_reason(esp_rom_get_reset_reason(PRO_CPU_NUM), hint);
+ s_reset_reason = get_reset_reason(esp_rom_get_reset_reason(PRO_CPU_NUM), hint);
     if (hint != ESP_RST_UNKNOWN) {
         esp_reset_reason_clear_hint();
     }
@@ -94,7 +102,7 @@ void IRAM_ATTR esp_reset_reason_set_hint(esp_reset_reason_t hint)
 }
 
 /* in IRAM, can be called from panic handler */
-esp_reset_reason_t esp_reset_reason_get_hint(void)
+esp_reset_reason_t IRAM_ATTR esp_reset_reason_get_hint(void)
 {
     uint32_t reset_reason_hint = REG_READ(RTC_RESET_CAUSE_REG);
     uint32_t high = (reset_reason_hint >> RST_REASON_SHIFT) & RST_REASON_MASK;

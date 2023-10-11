@@ -116,7 +116,7 @@ const uint8_t bta_hd_st_idle[][BTA_HD_NUM_COLS] = {
     /* BTA_HD_API_REMOVE_DEVICE_EVT  */ {BTA_HD_REMOVE_DEVICE_ACT, BTA_HD_IDLE_ST},
     /* BTA_HD_API_SEND_REPORT_EVT    */ {BTA_HD_SEND_REPORT_ACT, BTA_HD_IDLE_ST},
     /* BTA_HD_API_REPORT_ERROR_EVT   */ {BTA_HD_IGNORE, BTA_HD_IDLE_ST},
-    /* BTA_HD_API_VC_UNPLUG_EVT      */ {BTA_HD_VC_UNPLUG_ACT, BTA_HD_IDLE_ST},
+    /* BTA_HD_API_VC_UNPLUG_EVT      */ {BTA_HD_IGNORE, BTA_HD_IDLE_ST},
     /* BTA_HD_INT_OPEN_EVT           */ {BTA_HD_OPEN_ACT, BTA_HD_CONN_ST},
     /* BTA_HD_INT_CLOSE_EVT          */ {BTA_HD_IGNORE, BTA_HD_IDLE_ST},
     /* BTA_HD_INT_INTR_DATA_EVT      */ {BTA_HD_IGNORE, BTA_HD_IDLE_ST},
@@ -317,21 +317,4 @@ static const char *bta_hd_state_code(tBTA_HD_STATE state_code)
         return "<unknown>";
     }
 }
-
-#if BT_HID_DEVICE_BQB_INCLUDED
-tBTA_STATUS bta_hd_bqb_set_local_di_record(void)
-{
-    tBTA_STATUS status = BTA_FAILURE;
-
-    tBTA_DI_RECORD bqb_device_info;
-    bqb_device_info.vendor = 0;
-    bqb_device_info.vendor_id_source = 0xff; // BTA_HH_VENDOR_ID_INVALID
-    bqb_device_info.product = 1;
-    bqb_device_info.version = 0;
-    bqb_device_info.primary_record = TRUE;
-
-    return BTA_DmSetLocalDiRecord(&bqb_device_info, &bta_hd_cb.sdp_handle);
-}
-#endif /* BT_HID_DEVICE_BQB_INCLUDED */
-
 #endif /* BTA_HD_INCLUDED */

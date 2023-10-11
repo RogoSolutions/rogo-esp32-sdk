@@ -374,19 +374,9 @@ static void secure_beacon_recv(struct net_buf_simple *buf)
 
     cache_add(data, sub);
 
-    /* Spec v1.0.1, Section 3.8.4:
-     * If a node on a primary subnet receives an update on
-     * the primary subnet, it shall propagate the IV update
-     * to all other subnets. If a node on a primary subnet
-     * receives an IV update on any other subnet, the update
-     * shall be ignored.
-     * If a node on a primary subnet receives an key update
-     * on any other subnet, the update shall not be ignored.
-     */
+    /* If we have NetKey0 accept initiation only from it */
     if (bt_mesh_primary_subnet_exist() &&
-        sub->net_idx != BLE_MESH_KEY_PRIMARY &&
-        BLE_MESH_IV_UPDATE(flags) &&
-        !BLE_MESH_KEY_REFRESH(flags)) {
+            sub->net_idx != BLE_MESH_KEY_PRIMARY) {
         BT_WARN("Ignoring secure beacon on non-primary subnet");
         goto update_stats;
     }
@@ -400,15 +390,7 @@ static void secure_beacon_recv(struct net_buf_simple *buf)
         bt_mesh_beacon_ivu_initiator(false);
     }
 
-    /* If a node on a primary subnet receives an IV update on any other subnet,
-     * the IV update shall be ignored. And if a node on a non-primary subnet
-     * receives an IV update on primary subnet, the IV update shall be ignored,
-     * because it doesn't have a primary network key.
-     */
-    if ((bt_mesh_primary_subnet_exist() && sub->net_idx == BLE_MESH_KEY_PRIMARY) ||
-        (!bt_mesh_primary_subnet_exist() && sub->net_idx != BLE_MESH_KEY_PRIMARY)) {
-        iv_change = bt_mesh_net_iv_update(iv_index, BLE_MESH_IV_UPDATE(flags));
-    }
+    iv_change = bt_mesh_net_iv_update(iv_index, BLE_MESH_IV_UPDATE(flags));
 
     kr_change = bt_mesh_kr_update(sub, BLE_MESH_KEY_REFRESH(flags), new_key);
     if (kr_change) {

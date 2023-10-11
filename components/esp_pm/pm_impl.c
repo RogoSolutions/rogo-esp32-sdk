@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2016-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2016-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,22 +7,19 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <stdint.h>
 #include <sys/param.h>
 
 #include "esp_attr.h"
 #include "esp_err.h"
 #include "esp_pm.h"
 #include "esp_log.h"
-#include "esp_cpu.h"
 
 #include "esp_private/crosscore_int.h"
 
 #include "soc/rtc.h"
+#include "hal/cpu_hal.h"
 #include "hal/uart_ll.h"
 #include "hal/uart_types.h"
-#include "driver/uart.h"
-#include "driver/gpio.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -31,21 +28,35 @@
 #include "xtensa/core-macros.h"
 #endif
 
-#if SOC_SPI_MEM_SUPPORT_TIME_TUNING
-#include "esp_private/mspi_timing_tuning.h"
-#endif
-
 #include "esp_private/pm_impl.h"
 #include "esp_private/pm_trace.h"
 #include "esp_private/esp_timer_private.h"
-#include "esp_private/esp_clk.h"
-#include "esp_private/sleep_cpu.h"
-#include "esp_private/sleep_gpio.h"
-#include "esp_private/sleep_modem.h"
+
 #include "esp_sleep.h"
 
 #include "sdkconfig.h"
 
+// [refactor-todo] opportunity for further refactor
+#if CONFIG_IDF_TARGET_ESP32
+#include "esp32/clk.h"
+#include "esp32/pm.h"
+#include "driver/gpio.h"
+#elif CONFIG_IDF_TARGET_ESP32S2
+#include "esp32s2/clk.h"
+#include "esp32s2/pm.h"
+#include "driver/gpio.h"
+#elif CONFIG_IDF_TARGET_ESP32S3
+#include "esp32s3/clk.h"
+#include "esp32s3/pm.h"
+#elif CONFIG_IDF_TARGET_ESP32C3
+#include "esp32c3/clk.h"
+#include "esp32c3/pm.h"
+#include "driver/gpio.h"
+#elif CONFIG_IDF_TARGET_ESP32H2
+#include "esp32h2/clk.h"
+#include "esp32h2/pm.h"
+#include "driver/gpio.h"
+#endif
 
 #define MHZ (1000000)
 
@@ -69,20 +80,21 @@
 #if CONFIG_IDF_TARGET_ESP32
 /* Minimal divider at which REF_CLK_FREQ can be obtained */
 #define REF_CLK_DIV_MIN 10
+#define DEFAULT_CPU_FREQ CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ
 #elif CONFIG_IDF_TARGET_ESP32S2
 /* Minimal divider at which REF_CLK_FREQ can be obtained */
 #define REF_CLK_DIV_MIN 2
+#define DEFAULT_CPU_FREQ CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ
 #elif CONFIG_IDF_TARGET_ESP32S3
 /* Minimal divider at which REF_CLK_FREQ can be obtained */
-#define REF_CLK_DIV_MIN 2         // TODO: IDF-5660
+#define REF_CLK_DIV_MIN 2
+#define DEFAULT_CPU_FREQ CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ
 #elif CONFIG_IDF_TARGET_ESP32C3
 #define REF_CLK_DIV_MIN 2
-#elif CONFIG_IDF_TARGET_ESP32C2
-#define REF_CLK_DIV_MIN 2
-#elif CONFIG_IDF_TARGET_ESP32C6
-#define REF_CLK_DIV_MIN 2
+#define DEFAULT_CPU_FREQ CONFIG_ESP32C3_DEFAULT_CPU_FREQ_MHZ
 #elif CONFIG_IDF_TARGET_ESP32H2
 #define REF_CLK_DIV_MIN 2
+#define DEFAULT_CPU_FREQ CONFIG_ESP32H2_DEFAULT_CPU_FREQ_MHZ
 #endif
 
 #ifdef CONFIG_PM_PROFILING
@@ -102,7 +114,7 @@ static uint32_t s_mode_mask;
 
 #if CONFIG_FREERTOS_USE_TICKLESS_IDLE
 
-#define PERIPH_SKIP_LIGHT_SLEEP_NO 2
+#define PERIPH_SKIP_LIGHT_SLEEP_NO 1
 
 /* Indicates if light sleep shoule be skipped by peripherals. */
 static skip_light_sleep_cb_t s_periph_skip_light_sleep_cb[PERIPH_SKIP_LIGHT_SLEEP_NO];
@@ -160,7 +172,6 @@ static const char* s_mode_names[] = {
         "APB_MAX",
         "CPU_MAX"
 };
-static uint32_t s_light_sleep_counts, s_light_sleep_reject_counts;
 #endif // WITH_PROFILING
 
 #ifdef CONFIG_FREERTOS_SYSTICK_USES_CCOUNT
@@ -183,6 +194,9 @@ static const char* TAG = "pm";
 static void do_switch(pm_mode_t new_mode);
 static void leave_idle(void);
 static void on_freq_update(uint32_t old_ticks_per_us, uint32_t ticks_per_us);
+#if CONFIG_PM_SLP_DEFAULT_PARAMS_OPT
+static void esp_pm_light_sleep_default_params_config(int min_freq_mhz, int max_freq_mhz);
+#endif
 
 pm_mode_t esp_pm_impl_get_mode(esp_pm_lock_type_t type, int arg)
 {
@@ -199,29 +213,23 @@ pm_mode_t esp_pm_impl_get_mode(esp_pm_lock_type_t type, int arg)
     }
 }
 
-static esp_err_t esp_pm_sleep_configure(const void *vconfig)
-{
-    esp_err_t err = ESP_OK;
-    const esp_pm_config_t* config = (const esp_pm_config_t*) vconfig;
-
-#if SOC_PM_SUPPORT_CPU_PD
-    err = sleep_cpu_configure(config->light_sleep_enable);
-    if (err != ESP_OK) {
-        return err;
-    }
-#endif
-
-    err = sleep_modem_configure(config->max_freq_mhz, config->min_freq_mhz, config->light_sleep_enable);
-    return err;
-}
-
 esp_err_t esp_pm_configure(const void* vconfig)
 {
 #ifndef CONFIG_PM_ENABLE
     return ESP_ERR_NOT_SUPPORTED;
 #endif
 
-    const esp_pm_config_t* config = (const esp_pm_config_t*) vconfig;
+#if CONFIG_IDF_TARGET_ESP32
+    const esp_pm_config_esp32_t* config = (const esp_pm_config_esp32_t*) vconfig;
+#elif CONFIG_IDF_TARGET_ESP32S2
+    const esp_pm_config_esp32s2_t* config = (const esp_pm_config_esp32s2_t*) vconfig;
+#elif CONFIG_IDF_TARGET_ESP32S3
+    const esp_pm_config_esp32s3_t* config = (const esp_pm_config_esp32s3_t*) vconfig;
+#elif CONFIG_IDF_TARGET_ESP32C3
+    const esp_pm_config_esp32c3_t* config = (const esp_pm_config_esp32c3_t*) vconfig;
+#elif CONFIG_IDF_TARGET_ESP32H2
+    const esp_pm_config_esp32h2_t* config = (const esp_pm_config_esp32h2_t*) vconfig;
+#endif
 
 #ifndef CONFIG_FREERTOS_USE_TICKLESS_IDLE
     if (config->light_sleep_enable) {
@@ -242,7 +250,7 @@ esp_err_t esp_pm_configure(const void* vconfig)
         return ESP_ERR_INVALID_ARG;
     }
 
-    int xtal_freq_mhz = esp_clk_xtal_freq() / MHZ;
+    int xtal_freq_mhz = (int) rtc_clk_xtal_freq_get();
     if (min_freq_mhz < xtal_freq_mhz && min_freq_mhz * MHZ / REF_CLK_FREQ < REF_CLK_DIV_MIN) {
         ESP_LOGW(TAG, "min_freq_mhz should be >= %d", REF_CLK_FREQ * REF_CLK_DIV_MIN / MHZ);
         return ESP_ERR_INVALID_ARG;
@@ -266,13 +274,6 @@ esp_err_t esp_pm_configure(const void* vconfig)
          */
         apb_max_freq = 80;
     }
-#elif CONFIG_IDF_TARGET_ESP32C6 || CONFIG_IDF_TARGET_ESP32H2
-    /* Maximum SOC APB clock frequency is 40 MHz, maximum Modem (WiFi,
-     * Bluetooth, etc..) APB clock frequency is 80 MHz */
-    const int soc_apb_clk_freq = esp_clk_apb_freq() / MHZ;
-    const int modem_apb_clk_freq = MODEM_APB_CLK_FREQ / MHZ;
-    const int apb_clk_freq = MAX(soc_apb_clk_freq, modem_apb_clk_freq);
-    int apb_max_freq = MIN(max_freq_mhz, apb_clk_freq); /* CPU frequency in APB_MAX mode */
 #else
     int apb_max_freq = MIN(max_freq_mhz, 80); /* CPU frequency in APB_MAX mode */
 #endif
@@ -300,7 +301,22 @@ esp_err_t esp_pm_configure(const void* vconfig)
     s_config_changed = true;
     portEXIT_CRITICAL(&s_switch_lock);
 
-    esp_pm_sleep_configure(config);
+#if CONFIG_PM_SLP_DISABLE_GPIO && SOC_GPIO_SUPPORT_SLP_SWITCH
+    esp_sleep_enable_gpio_switch(config->light_sleep_enable);
+#endif
+
+#if CONFIG_PM_POWER_DOWN_CPU_IN_LIGHT_SLEEP && SOC_PM_SUPPORT_CPU_PD
+    esp_err_t ret = esp_sleep_cpu_pd_low_init(config->light_sleep_enable);
+    if (config->light_sleep_enable && ret != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to enable CPU power down during light sleep.");
+    }
+#endif
+
+#if CONFIG_PM_SLP_DEFAULT_PARAMS_OPT
+    if (config->light_sleep_enable) {
+        esp_pm_light_sleep_default_params_config(min_freq_mhz, max_freq_mhz);
+    }
+#endif
 
     return ESP_OK;
 }
@@ -311,7 +327,17 @@ esp_err_t esp_pm_get_configuration(void* vconfig)
         return ESP_ERR_INVALID_ARG;
     }
 
-    esp_pm_config_t* config = (esp_pm_config_t*) vconfig;
+#if CONFIG_IDF_TARGET_ESP32
+    esp_pm_config_esp32_t* config = (esp_pm_config_esp32_t*) vconfig;
+#elif CONFIG_IDF_TARGET_ESP32S2
+    esp_pm_config_esp32s2_t* config = (esp_pm_config_esp32s2_t*) vconfig;
+#elif CONFIG_IDF_TARGET_ESP32S3
+    esp_pm_config_esp32s3_t* config = (esp_pm_config_esp32s3_t*) vconfig;
+#elif CONFIG_IDF_TARGET_ESP32C3
+    esp_pm_config_esp32c3_t* config = (esp_pm_config_esp32c3_t*) vconfig;
+#elif CONFIG_IDF_TARGET_ESP32H2
+    esp_pm_config_esp32h2_t* config = (esp_pm_config_esp32h2_t*) vconfig;
+#endif
 
     portENTER_CRITICAL(&s_switch_lock);
     config->light_sleep_enable = s_light_sleep_en;
@@ -479,17 +505,7 @@ static void IRAM_ATTR do_switch(pm_mode_t new_mode)
         if (switch_down) {
             on_freq_update(old_ticks_per_us, new_ticks_per_us);
         }
-       if (new_config.source == SOC_CPU_CLK_SRC_PLL) {
-            rtc_clk_cpu_freq_set_config_fast(&new_config);
-#if SOC_SPI_MEM_SUPPORT_TIME_TUNING
-            mspi_timing_change_speed_mode_cache_safe(false);
-#endif
-        } else {
-#if SOC_SPI_MEM_SUPPORT_TIME_TUNING
-            mspi_timing_change_speed_mode_cache_safe(true);
-#endif
-            rtc_clk_cpu_freq_set_config_fast(&new_config);
-        }
+        rtc_clk_cpu_freq_set_config_fast(&new_config);
         if (!switch_down) {
             on_freq_update(old_ticks_per_us, new_ticks_per_us);
         }
@@ -516,7 +532,7 @@ static void IRAM_ATTR update_ccompare(void)
     /* disable level 4 and below */
     uint32_t irq_status = XTOS_SET_INTLEVEL(XCHAL_DEBUGLEVEL - 2);
 #endif
-    uint32_t ccount = esp_cpu_get_cycle_count();
+    uint32_t ccount = cpu_hal_get_cycle_count();
     uint32_t ccompare = XTHAL_GET_CCOMPARE(XT_TIMER_INDEX);
     if ((ccompare - CCOMPARE_MIN_CYCLES_IN_FUTURE) - ccount < UINT32_MAX / 2) {
         uint32_t diff = ccompare - ccount;
@@ -620,20 +636,14 @@ void IRAM_ATTR vApplicationSleep( TickType_t xExpectedIdleTime )
         int64_t sleep_time_us = MIN(wakeup_delay_us, time_until_next_alarm);
         if (sleep_time_us >= configEXPECTED_IDLE_TIME_BEFORE_SLEEP * portTICK_PERIOD_MS * 1000LL) {
             esp_sleep_enable_timer_wakeup(sleep_time_us - LIGHT_SLEEP_EARLY_WAKEUP_US);
-#if CONFIG_PM_TRACE && SOC_PM_SUPPORT_RTC_PERIPH_PD
+#ifdef CONFIG_PM_TRACE
             /* to force tracing GPIOs to keep state */
             esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
 #endif
             /* Enter sleep */
             ESP_PM_TRACE_ENTER(SLEEP, core_id);
             int64_t sleep_start = esp_timer_get_time();
-            if (esp_light_sleep_start() != ESP_OK){
-#ifdef WITH_PROFILING
-                s_light_sleep_reject_counts++;
-            } else {
-                s_light_sleep_counts++;
-#endif
-            }
+            esp_light_sleep_start();
             int64_t slept_us = esp_timer_get_time() - sleep_start;
             ESP_PM_TRACE_EXIT(SLEEP, core_id);
 
@@ -648,7 +658,7 @@ void IRAM_ATTR vApplicationSleep( TickType_t xExpectedIdleTime )
                  * work for timer interrupt, and changing CCOMPARE would clear
                  * the interrupt flag.
                  */
-                esp_cpu_set_cycle_count(XTHAL_GET_CCOMPARE(XT_TIMER_INDEX) - 16);
+                cpu_hal_set_cycle_count(XTHAL_GET_CCOMPARE(XT_TIMER_INDEX) - 16);
                 while (!(XTHAL_GET_INTERRUPT() & BIT(XT_TIMER_INTNUM))) {
                     ;
                 }
@@ -673,9 +683,6 @@ void esp_pm_impl_dump_stats(FILE* out)
     pm_time_t last_mode_change_time = s_last_mode_change_time;
     pm_mode_t cur_mode = s_mode;
     pm_time_t now = pm_get_time();
-    bool light_sleep_en = s_light_sleep_en;
-    uint32_t light_sleep_counts = s_light_sleep_counts;
-    uint32_t light_sleep_reject_counts = s_light_sleep_reject_counts;
     portEXIT_CRITICAL_ISR(&s_switch_lock);
 
     time_in_mode[cur_mode] += now - last_mode_change_time;
@@ -683,20 +690,16 @@ void esp_pm_impl_dump_stats(FILE* out)
     fprintf(out, "\nMode stats:\n");
     fprintf(out, "%-8s  %-10s  %-10s  %-10s\n", "Mode", "CPU_freq", "Time(us)", "Time(%)");
     for (int i = 0; i < PM_MODE_COUNT; ++i) {
-        if (i == PM_MODE_LIGHT_SLEEP && !light_sleep_en) {
+        if (i == PM_MODE_LIGHT_SLEEP && !s_light_sleep_en) {
             /* don't display light sleep mode if it's not enabled */
             continue;
         }
-        fprintf(out, "%-8s  %-3"PRIu32"M%-7s %-10lld  %-2d%%\n",
+        fprintf(out, "%-8s  %-3dM%-7s %-10lld  %-2d%%\n",
                 s_mode_names[i],
                 s_cpu_freq_by_mode[i].freq_mhz,
                 "",                                     //Empty space to align columns
                 time_in_mode[i],
                 (int) (time_in_mode[i] * 100 / now));
-    }
-    if (light_sleep_en){
-        fprintf(out, "\nSleep stats:\n");
-        fprintf(out, "light_sleep_counts:%ld  light_sleep_reject_counts:%ld\n", light_sleep_counts, light_sleep_reject_counts);
     }
 }
 #endif // WITH_PROFILING
@@ -718,28 +721,25 @@ void esp_pm_impl_init(void)
 {
 #if defined(CONFIG_ESP_CONSOLE_UART)
     //This clock source should be a source which won't be affected by DFS
-    uart_sclk_t clk_source = UART_SCLK_DEFAULT;
-#if SOC_UART_SUPPORT_REF_TICK
+    uint32_t clk_source;
+#if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2
     clk_source = UART_SCLK_REF_TICK;
-#elif SOC_UART_SUPPORT_XTAL_CLK
-    clk_source = UART_SCLK_XTAL;
 #else
-    #error "No UART clock source is aware of DFS"
-#endif // SOC_UART_SUPPORT_xxx
+    clk_source = UART_SCLK_XTAL;
+#endif
     while(!uart_ll_is_tx_idle(UART_LL_GET_HW(CONFIG_ESP_CONSOLE_UART_NUM)));
     /* When DFS is enabled, override system setting and use REFTICK as UART clock source */
     uart_ll_set_sclk(UART_LL_GET_HW(CONFIG_ESP_CONSOLE_UART_NUM), clk_source);
-
-    uint32_t sclk_freq;
-    esp_err_t err = uart_get_sclk_freq(clk_source, &sclk_freq);
-    assert(err == ESP_OK);
-    uart_ll_set_baudrate(UART_LL_GET_HW(CONFIG_ESP_CONSOLE_UART_NUM), CONFIG_ESP_CONSOLE_UART_BAUDRATE, sclk_freq);
+    uart_ll_set_baudrate(UART_LL_GET_HW(CONFIG_ESP_CONSOLE_UART_NUM), CONFIG_ESP_CONSOLE_UART_BAUDRATE);
 #endif // CONFIG_ESP_CONSOLE_UART
 
 #ifdef CONFIG_PM_TRACE
     esp_pm_trace_init();
 #endif
 
+#if CONFIG_PM_SLP_DISABLE_GPIO && SOC_GPIO_SUPPORT_SLP_SWITCH
+    esp_sleep_config_gpio_isolate();
+#endif
     ESP_ERROR_CHECK(esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "rtos0",
             &s_rtos_lock_handle[0]));
     ESP_ERROR_CHECK(esp_pm_lock_acquire(s_rtos_lock_handle[0]));
@@ -754,7 +754,7 @@ void esp_pm_impl_init(void)
      * This will be modified later by a call to esp_pm_configure.
      */
     rtc_cpu_freq_config_t default_config;
-    if (!rtc_clk_cpu_freq_mhz_to_config(CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ, &default_config)) {
+    if (!rtc_clk_cpu_freq_mhz_to_config(DEFAULT_CPU_FREQ, &default_config)) {
         assert(false && "unsupported frequency");
     }
     for (size_t i = 0; i < PM_MODE_COUNT; ++i) {
@@ -762,10 +762,20 @@ void esp_pm_impl_init(void)
     }
 
 #ifdef CONFIG_PM_DFS_INIT_AUTO
-    int xtal_freq_mhz = esp_clk_xtal_freq() / MHZ;
-    esp_pm_config_t cfg = {
-        .max_freq_mhz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ,
-        .min_freq_mhz = xtal_freq_mhz,
+    int xtal_freq = (int) rtc_clk_xtal_freq_get();
+#if CONFIG_IDF_TARGET_ESP32
+    esp_pm_config_esp32_t cfg = {
+#elif CONFIG_IDF_TARGET_ESP32S2
+    esp_pm_config_esp32s2_t cfg = {
+#elif CONFIG_IDF_TARGET_ESP32S3
+    esp_pm_config_esp32s3_t cfg = {
+#elif CONFIG_IDF_TARGET_ESP32C3
+    esp_pm_config_esp32c3_t cfg = {
+#elif CONFIG_IDF_TARGET_ESP32H2
+    esp_pm_config_esp32h2_t cfg = {
+#endif
+        .max_freq_mhz = DEFAULT_CPU_FREQ,
+        .min_freq_mhz = xtal_freq,
     };
 
     esp_pm_configure(&cfg);
@@ -775,11 +785,7 @@ void esp_pm_impl_init(void)
 void esp_pm_impl_idle_hook(void)
 {
     int core_id = xPortGetCoreID();
-#if CONFIG_FREERTOS_SMP
-    uint32_t state = portDISABLE_INTERRUPTS();
-#else
     uint32_t state = portSET_INTERRUPT_MASK_FROM_ISR();
-#endif
     if (!s_core_idle[core_id]
 #ifdef CONFIG_FREERTOS_USE_TICKLESS_IDLE
     && !periph_should_skip_light_sleep()
@@ -788,11 +794,7 @@ void esp_pm_impl_idle_hook(void)
         esp_pm_lock_release(s_rtos_lock_handle[core_id]);
         s_core_idle[core_id] = true;
     }
-#if CONFIG_FREERTOS_SMP
-    portRESTORE_INTERRUPTS(state);
-#else
     portCLEAR_INTERRUPT_MASK_FROM_ISR(state);
-#endif
     ESP_PM_TRACE_ENTER(IDLE, core_id);
 }
 
@@ -803,11 +805,7 @@ void IRAM_ATTR esp_pm_impl_isr_hook(void)
     /* Prevent higher level interrupts (than the one this function was called from)
      * from happening in this section, since they will also call into esp_pm_impl_isr_hook.
      */
-#if CONFIG_FREERTOS_SMP
-    uint32_t state = portDISABLE_INTERRUPTS();
-#else
     uint32_t state = portSET_INTERRUPT_MASK_FROM_ISR();
-#endif
 #if defined(CONFIG_FREERTOS_SYSTICK_USES_CCOUNT) && (portNUM_PROCESSORS == 2)
     if (s_need_update_ccompare[core_id]) {
         update_ccompare();
@@ -818,11 +816,7 @@ void IRAM_ATTR esp_pm_impl_isr_hook(void)
 #else
     leave_idle();
 #endif // CONFIG_FREERTOS_SYSTICK_USES_CCOUNT && portNUM_PROCESSORS == 2
-#if CONFIG_FREERTOS_SMP
-    portRESTORE_INTERRUPTS(state);
-#else
     portCLEAR_INTERRUPT_MASK_FROM_ISR(state);
-#endif
     ESP_PM_TRACE_EXIT(ISR_HOOK, core_id);
 }
 
@@ -831,7 +825,7 @@ void esp_pm_impl_waiti(void)
 #if CONFIG_FREERTOS_USE_TICKLESS_IDLE
     int core_id = xPortGetCoreID();
     if (s_skipped_light_sleep[core_id]) {
-        esp_cpu_wait_for_intr();
+        cpu_hal_waiti();
         /* Interrupt took the CPU out of waiti and s_rtos_lock_handle[core_id]
          * is now taken. However since we are back to idle task, we can release
          * the lock so that vApplicationSleep can attempt to enter light sleep.
@@ -840,6 +834,69 @@ void esp_pm_impl_waiti(void)
     }
     s_skipped_light_sleep[core_id] = true;
 #else
-    esp_cpu_wait_for_intr();
+    cpu_hal_waiti();
 #endif // CONFIG_FREERTOS_USE_TICKLESS_IDLE
 }
+
+#define PERIPH_INFORM_OUT_LIGHT_SLEEP_OVERHEAD_NO 1
+
+/* Inform peripherals of light sleep wakeup overhead time */
+static inform_out_light_sleep_overhead_cb_t s_periph_inform_out_light_sleep_overhead_cb[PERIPH_INFORM_OUT_LIGHT_SLEEP_OVERHEAD_NO];
+
+esp_err_t esp_pm_register_inform_out_light_sleep_overhead_callback(inform_out_light_sleep_overhead_cb_t cb)
+{
+    for (int i = 0; i < PERIPH_INFORM_OUT_LIGHT_SLEEP_OVERHEAD_NO; i++) {
+        if (s_periph_inform_out_light_sleep_overhead_cb[i] == cb) {
+            return ESP_OK;
+        } else if (s_periph_inform_out_light_sleep_overhead_cb[i] == NULL) {
+            s_periph_inform_out_light_sleep_overhead_cb[i] = cb;
+            return ESP_OK;
+        }
+    }
+    return ESP_ERR_NO_MEM;
+}
+
+esp_err_t esp_pm_unregister_inform_out_light_sleep_overhead_callback(inform_out_light_sleep_overhead_cb_t cb)
+{
+    for (int i = 0; i < PERIPH_INFORM_OUT_LIGHT_SLEEP_OVERHEAD_NO; i++) {
+        if (s_periph_inform_out_light_sleep_overhead_cb[i] == cb) {
+            s_periph_inform_out_light_sleep_overhead_cb[i] = NULL;
+            return ESP_OK;
+        }
+    }
+    return ESP_ERR_INVALID_STATE;
+}
+
+void periph_inform_out_light_sleep_overhead(uint32_t out_light_sleep_time)
+{
+    for (int i = 0; i < PERIPH_INFORM_OUT_LIGHT_SLEEP_OVERHEAD_NO; i++) {
+        if (s_periph_inform_out_light_sleep_overhead_cb[i]) {
+            s_periph_inform_out_light_sleep_overhead_cb[i](out_light_sleep_time);
+        }
+    }
+}
+
+static update_light_sleep_default_params_config_cb_t s_light_sleep_default_params_config_cb = NULL;
+
+void esp_pm_register_light_sleep_default_params_config_callback(update_light_sleep_default_params_config_cb_t cb)
+{
+    if (s_light_sleep_default_params_config_cb == NULL) {
+        s_light_sleep_default_params_config_cb = cb;
+    }
+}
+
+void esp_pm_unregister_light_sleep_default_params_config_callback(void)
+{
+    if (s_light_sleep_default_params_config_cb) {
+        s_light_sleep_default_params_config_cb = NULL;
+    }
+}
+
+#if CONFIG_PM_SLP_DEFAULT_PARAMS_OPT
+static void esp_pm_light_sleep_default_params_config(int min_freq_mhz, int max_freq_mhz)
+{
+    if (s_light_sleep_default_params_config_cb) {
+        (*s_light_sleep_default_params_config_cb)(min_freq_mhz, max_freq_mhz);
+    }
+}
+#endif

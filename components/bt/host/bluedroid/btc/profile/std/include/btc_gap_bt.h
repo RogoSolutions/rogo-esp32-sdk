@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef __BTC_GAP_BT_H__
 #define __BTC_GAP_BT_H__
@@ -152,7 +160,6 @@ typedef union {
 void btc_gap_bt_call_handler(btc_msg_t *msg);
 void btc_gap_bt_cb_handler(btc_msg_t *msg);
 void btc_gap_bt_arg_deep_copy(btc_msg_t *msg, void *p_dest, void *p_src);
-void btc_gap_bt_arg_deep_free(btc_msg_t *msg);
 void btc_gap_bt_busy_level_updated(uint8_t bl_flags);
 
 esp_err_t btc_gap_bt_get_cod(esp_bt_cod_t *cod);

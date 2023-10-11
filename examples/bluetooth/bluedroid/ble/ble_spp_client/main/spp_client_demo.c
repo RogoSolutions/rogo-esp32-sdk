@@ -1,8 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
 
 /****************************************************************************
 *
@@ -104,12 +106,12 @@ static int notify_value_count = 0;
 static uint16_t count = SPP_IDX_NB;
 static esp_gattc_db_elem_t *db = NULL;
 static esp_ble_gap_cb_param_t scan_rst;
-static QueueHandle_t cmd_reg_queue = NULL;
+static xQueueHandle cmd_reg_queue = NULL;
 QueueHandle_t spp_uart_queue = NULL;
 
 #ifdef SUPPORT_HEARTBEAT
 static uint8_t  heartbeat_s[9] = {'E','s','p','r','e','s','s','i','f'};
-static QueueHandle_t cmd_heartbeat_queue = NULL;
+static xQueueHandle cmd_heartbeat_queue = NULL;
 #endif
 
 static esp_bt_uuid_t spp_service_uuid = {
@@ -218,7 +220,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         }
         //the unit of the duration is second
         uint32_t duration = 0xFFFF;
-        ESP_LOGI(GATTC_TAG, "Enable Ble Scan:during time %04" PRIx32 " minutes.",duration);
+        ESP_LOGI(GATTC_TAG, "Enable Ble Scan:during time 0x%04X minutes.",duration);
         esp_ble_gap_start_scanning(duration);
         break;
     }
@@ -551,7 +553,7 @@ void uart_task(void *pvParameters)
     uart_event_t event;
     for (;;) {
         //Waiting for UART event.
-        if (xQueueReceive(spp_uart_queue, (void * )&event, (TickType_t)portMAX_DELAY)) {
+        if (xQueueReceive(spp_uart_queue, (void * )&event, (portTickType)portMAX_DELAY)) {
             switch (event.type) {
             //Event of UART receving data
             case UART_DATA:
@@ -591,7 +593,7 @@ static void spp_uart_init(void)
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_RTS,
         .rx_flow_ctrl_thresh = 122,
-        .source_clk = UART_SCLK_DEFAULT,
+        .source_clk = UART_SCLK_APB,
     };
 
     //Install UART driver, and get the queue.

@@ -66,7 +66,7 @@ Likewise, the "Application Loading and Monitoring" label indicates the key softw
 
 "Debugging With JTAG" and "Application Loading and Monitoring" is integrated under the `Eclipse <https://www.eclipse.org/>`_ IDE in order to provide a quick and easy transition between writing/compiling/loading/debugging code. The Eclipse IDE (and the integrated debugging software) is available for Windows, Linux and macOS platforms. Depending on user preferences, both the debugger and ``idf.py build`` can also be used directly from terminal/command line, instead of Eclipse.
 
-.. only:: esp32 or esp32s2
+.. only:: not SOC_USB_SERIAL_JTAG_SUPPORTED
 
     If the |devkit-name-with-link| is used, then connection from PC to {IDF_TARGET_NAME} is done effectively with a single USB cable. This is made possible by the FT2232H chip, which provides two USB channels, one for JTAG and the other for UART connection.
 
@@ -78,14 +78,14 @@ Likewise, the "Application Loading and Monitoring" label indicates the key softw
 
     .. note::
 
-        Debugging through the USB interface implemented in {IDF_TARGET_NAME} requires to have a chip with revision 0.3 or newer. Please use other debugging options (e.g. with ESP-Prog) for chip revisions 0.1 and 0.2. The easiest way to determine the chip revision is to look for the ``boot: chip revision: v0.3`` message at the beginning of the boot log. See `SoC errata <https://www.espressif.com/sites/default/files/documentation/esp32-c3_errata_en.pdf>`_ for more details.
+        Debugging through the USB interface implemented in {IDF_TARGET_NAME} requires to have a chip with revision 3 or newer. Please use other debugging options (e.g. with ESP-Prog) for chip revision 1 and 2. The easiest way to determine the chip revision is to look for the ``Chip is ESP32-C3 (revision 3)`` message near the end of a successful chip flashing done by ``idf.py flash``.
 
 .. _jtag-debugging-selecting-jtag-adapter:
 
 Selecting JTAG Adapter
 ----------------------
 
-.. only:: esp32 or esp32s2
+.. only:: not SOC_USB_SERIAL_JTAG_SUPPORTED
 
     The quickest and most convenient way to start with JTAG debugging is by using |devkit-name-with-link|. Each version of this development board has JTAG interface already built in. No need for an external JTAG adapter and extra wiring / cable to connect JTAG to {IDF_TARGET_NAME}. |devkit-name| is using FT2232H JTAG interface operating at 20 MHz clock speed, which is difficult to achieve with an external adapter.
 
@@ -95,7 +95,7 @@ Selecting JTAG Adapter
 
 If you decide to use separate JTAG adapter, look for one that is compatible with both the voltage levels on the {IDF_TARGET_NAME} as well as with the OpenOCD software. The JTAG port on the {IDF_TARGET_NAME} is an industry-standard JTAG port which lacks (and does not need) the TRST pin. The JTAG I/O pins all are powered from the VDD_3P3_RTC pin (which normally would be powered by a 3.3 V rail) so the JTAG adapter needs to be able to work with JTAG pins in that voltage range.
 
-On the software side, OpenOCD supports a fair amount of JTAG adapters. See https://openocd.org/doc/html/Debug-Adapter-Hardware.html for an (unfortunately slightly incomplete) list of the adapters OpenOCD works with. This page lists SWD-compatible adapters as well; take note that the {IDF_TARGET_NAME} does not support SWD. JTAG adapters that are hardcoded to a specific product line, e.g. ST-LINK debugging adapters for STM32 families, will not work.
+On the software side, OpenOCD supports a fair amount of JTAG adapters. See http://openocd.org/doc/html/Debug-Adapter-Hardware.html for an (unfortunately slightly incomplete) list of the adapters OpenOCD works with. This page lists SWD-compatible adapters as well; take note that the {IDF_TARGET_NAME} does not support SWD. JTAG adapters that are hardcoded to a specific product line, e.g. ST-LINK debugging adapters for STM32 families, will not work.
 
 The minimal signalling to get a working JTAG connection are TDI, TDO, TCK, TMS and GND. Some JTAG debuggers also need a connection from the {IDF_TARGET_NAME} power line to a line called e.g. Vtar to set the working voltage. SRST can optionally be connected to the CH_PD of the {IDF_TARGET_NAME}, although for now, support in OpenOCD for that line is pretty minimal.
 
@@ -119,7 +119,7 @@ The output should be as follows (although the version may be more recent than li
     Open On-Chip Debugger  v0.10.0-esp32-20190708 (2019-07-08-11:04)
     Licensed under GNU GPL v2
     For bug reports, read
-        https://openocd.org/doc/doxygen/bugs.html
+        http://openocd.org/doc/doxygen/bugs.html
 
 You may also verify that OpenOCD knows where its configuration scripts are located by printing the value of ``OPENOCD_SCRIPTS`` environment variable, by typing ``echo $OPENOCD_SCRIPTS`` (for Linux and macOS) or ``echo %OPENOCD_SCRIPTS%`` (for Windows). If a valid path is printed, then OpenOCD is set up correctly.
 
@@ -136,11 +136,10 @@ Configuring {IDF_TARGET_NAME} Target
 
 Once OpenOCD is installed, you can proceed to configuring the {IDF_TARGET_NAME} target (i.e {IDF_TARGET_NAME} board with JTAG interface). Configuring the target is split into the following three steps:
 
-* :ref:`jtag-debugging-configure-and-connect-JTAG-interface`
-* :ref:`jtag-debugging-run-openocd`
-* :ref:`jtag-upload-app-debug`
+* Configure and connect JTAG interface
+* Run OpenOCD
+* Upload application for debugging
 
-.. _jtag-debugging-configure-and-connect-JTAG-interface:
 
 Configure and connect JTAG interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -171,15 +170,13 @@ Open a terminal and set it up for using the ESP-IDF as described in the :ref:`se
    :start-after: run-openocd
    :end-before: ---
 
-{IDF_TARGET_FTDI_CONFIG:default="Not Updated!", esp32s3="board/esp32s3-ftdi.cfg", esp32c3="board/esp32c3-ftdi.cfg", esp32c6="board/esp32c6-ftdi.cfg", esp32h2="board/esp32h2-ftdi.cfg"}
-
 .. note::
 
     The files provided after ``-f`` above are specific for |run-openocd-device-name|. You may need to provide different files depending on the hardware that is used. For guidance see :ref:`jtag-debugging-tip-openocd-configure-target`.
 
-    .. only:: SOC_USB_SERIAL_JTAG_SUPPORTED
+    .. only:: esp32c3
 
-        For example, ``{IDF_TARGET_FTDI_CONFIG}`` can be used for a custom board with an FT2232H or FT232H chip used for JTAG connection, or with ESP-Prog.
+    For example, ``board/esp32c3-ftdi.cfg`` can be used for a custom board with an FT2232H or FT232H chip used for JTAG connection, or with ESP-Prog.
 
 .. highlight:: none
 
@@ -208,15 +205,13 @@ Another option is to write application image to flash using OpenOCD via JTAG wit
 
 OpenOCD flashing command ``program_esp`` has the following format:
 
-``program_esp <image_file> <offset> [verify] [reset] [exit] [compress] [encrypt]``
+``program_esp <image_file> <offset> [verify] [reset] [exit]``
 
  - ``image_file`` - Path to program image file.
  - ``offset`` - Offset in flash bank to write image.
  - ``verify`` - Optional. Verify flash contents after writing.
  - ``reset`` - Optional. Reset target after programing.
  - ``exit`` - Optional. Finally exit OpenOCD.
- - ``compress`` - Optional. Compress image file before programming.
- - ``encrypt`` - Optional. Encrypt binary before writing to flash. Same functionality with ``idf.py encrypted-flash``
 
 You are now ready to start application debugging. Follow the steps described in the section below.
 
@@ -228,11 +223,10 @@ Launching Debugger
 
 The toolchain for {IDF_TARGET_NAME} features GNU Debugger, in short GDB. It is available with other toolchain programs under filename: {IDF_TARGET_TOOLCHAIN_PREFIX}-gdb. GDB can be called and operated directly from command line in a terminal. Another option is to call it from within IDE (like Eclipse, Visual Studio Code, etc.) and operate indirectly with help of GUI instead of typing commands in a terminal.
 
-The options of using debugger are discussed under links below.
+Both options of using debugger are discussed under links below.
 
 * :ref:`jtag-debugging-using-debugger-eclipse`
 * :ref:`jtag-debugging-using-debugger-command-line`
-* `Configuration for Visual Studio Code Debug <https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/DEBUGGING.md>`__
 
 It is recommended to first check if debugger works from :ref:`jtag-debugging-using-debugger-command-line` and then move to using :ref:`jtag-debugging-using-debugger-eclipse`.
 
@@ -253,11 +247,6 @@ This section is intended for users not familiar with GDB. It presents example de
 7. :ref:`jtag-debugging-examples-eclipse-07`
 
 Similar debugging actions are provided using GDB from :ref:`jtag-debugging-examples-command-line`.
-
-.. note::
-
-    :ref:`jtag-debugging-examples-command-line-08` is currently only available for command line debugging.
-
 
 Before proceeding to examples, set up your {IDF_TARGET_NAME} target and load it with :example:`get-started/blink`.
 
@@ -322,7 +311,7 @@ Related Documents
 
 .. toctree::
     :hidden:
-
+    
     :maxdepth: 1
 
     using-debugger
@@ -334,4 +323,4 @@ Related Documents
 - :doc:`debugging-examples`
 - :doc:`tips-and-quirks`
 - :doc:`../app_trace`
-- `Introduction to ESP-Prog Board <https://docs.espressif.com/projects/espressif-esp-iot-solution/en/latest/hw-reference/ESP-Prog_guide.html>`__
+- `Introduction to ESP-Prog Board <https://docs.espressif.com/projects/espressif-esp-iot-solution/en/latest/hw-reference/ESP-Prog_guide.html>`__ 

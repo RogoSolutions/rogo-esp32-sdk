@@ -19,66 +19,9 @@
 #ifndef HCIMSGS_H
 #define HCIMSGS_H
 
-#include <stddef.h>
 #include "common/bt_target.h"
 #include "stack/hcidefs.h"
 #include "stack/bt_types.h"
-#include "osi/pkt_queue.h"
-#include "osi/allocator.h"
-
-#define HCI_CMD_BUF_TYPE_METADATA       (0xa56e)
-
-#define HCI_CMD_MSG_F_SRC_NOACK         (0x01)
-
-typedef void (*hci_cmd_cmpl_cb)(BT_HDR *response, void *context);
-typedef void (*hci_cmd_stat_cb)(uint8_t status, BT_HDR *command, void *context);
-typedef void (*hci_cmd_free_cb)(pkt_linked_item_t *linked_pkt);
-
-typedef struct {
-    uint8_t flags_src;
-    uint8_t flags_vnd; // used for downstream layer
-    uint16_t opcode;
-    hci_cmd_cmpl_cb command_complete_cb;
-    hci_cmd_stat_cb command_status_cb;
-    void *context;
-    void *complete_future;
-    hci_cmd_free_cb command_free_cb;
-    BT_HDR command;
-} hci_cmd_metadata_t;
-
-#define HCI_CMD_METADATA_HDR_SIZE       (sizeof(hci_cmd_metadata_t))
-
-#define HCI_CMD_LINKED_BUF_SIZE(paramlen)      (BT_PKT_LINKED_HDR_SIZE + HCI_CMD_METADATA_HDR_SIZE + HCIC_PREAMBLE_SIZE + (paramlen))
-
-#define HCI_GET_CMD_METAMSG(cmd_ptr)  (hci_cmd_metadata_t *)((void *)(cmd_ptr) - offsetof(hci_cmd_metadata_t, command))
-#define HCI_GET_CMD_LINKED_STRUCT(metadata_ptr) (pkt_linked_item_t *)((void *)(metadata_ptr) - offsetof(pkt_linked_item_t, data))
-
-static inline BT_HDR *hci_get_cmd_buf(size_t param_len)
-{
-    pkt_linked_item_t *linked_pkt = osi_calloc(HCI_CMD_LINKED_BUF_SIZE(param_len));
-    if (linked_pkt == NULL) {
-        return NULL;
-    }
-    hci_cmd_metadata_t *metadata = (hci_cmd_metadata_t *)linked_pkt->data;
-    BT_HDR *command = &metadata->command;
-
-    command->layer_specific = HCI_CMD_BUF_TYPE_METADATA;
-    command->len = HCIC_PREAMBLE_SIZE + param_len;
-    command->offset = 0;
-
-    return command;
-}
-
-static inline void hci_free_cmd_buf(BT_HDR *buf)
-{
-    assert(buf->layer_specific == HCI_CMD_BUF_TYPE_METADATA);
-    hci_cmd_metadata_t *metadata = HCI_GET_CMD_METAMSG(buf);
-    pkt_linked_item_t *linked_pkt = HCI_GET_CMD_LINKED_STRUCT(metadata);
-    osi_free(linked_pkt);
-}
-
-#define HCI_GET_CMD_BUF(param_len)       hci_get_cmd_buf(param_len)
-#define HCI_FREE_CMD_BUF(buf)            hci_free_cmd_buf(buf)
 
 void bte_main_hci_send(BT_HDR *p_msg, UINT16 event);
 void bte_main_lpm_allow_bt_device_sleep(void);
@@ -435,7 +378,7 @@ BOOLEAN btsnd_hcic_sniff_sub_rate(UINT16 handle, UINT16 max_lat,
 #endif  /* BTM_SSR_INCLUDED */
 
 /* Extended Inquiry Response */
-void btsnd_hcic_write_ext_inquiry_response(BT_HDR *buffer, UINT8 fec_req);
+void btsnd_hcic_write_ext_inquiry_response(void *buffer, UINT8 fec_req);
 
 #define HCIC_PARAM_SIZE_EXT_INQ_RESP        241
 
@@ -555,7 +498,7 @@ BOOLEAN btsnd_hcic_delete_stored_key (BD_ADDR bd_addr, BOOLEAN delete_all_flag);
 /* Delete Stored Key */
 
 /* Change Local Name */
-BOOLEAN btsnd_hcic_change_name (const UINT8 *name);
+BOOLEAN btsnd_hcic_change_name(BD_NAME name);
 
 #define HCIC_PARAM_SIZE_CHANGE_NAME     BD_NAME_LEN
 
@@ -698,7 +641,7 @@ BOOLEAN btsnd_hcic_write_inquiry_mode(UINT8 type);              /* Write Inquiry
 
 #define HCID_GET_SCO_LEN(p)  (*((UINT8 *)((p) + 1) + p->offset + 2))
 
-void btsnd_hcic_vendor_spec_cmd (BT_HDR *buffer, UINT16 opcode,
+void btsnd_hcic_vendor_spec_cmd (void *buffer, UINT16 opcode,
                                  UINT8 len, UINT8 *p_data,
                                  void *p_cmd_cplt_cback);
 
@@ -939,7 +882,7 @@ BOOLEAN btsnd_hcic_read_authenticated_payload_tout(UINT16 handle);
 BOOLEAN btsnd_hcic_write_authenticated_payload_tout(UINT16 handle,
         UINT16 timeout);
 
-BOOLEAN btsnd_hcic_ble_update_adv_report_flow_control (UINT16 num, BT_HDR *static_buf);
+BOOLEAN btsnd_hcic_ble_update_adv_report_flow_control (UINT16 num);
 #if (BLE_50_FEATURE_SUPPORT == TRUE)
 BOOLEAN btsnd_hcic_ble_read_phy(UINT16 conn_handle);
 
@@ -962,7 +905,7 @@ UINT8 btsnd_hcic_ble_set_extend_rand_address(UINT8 adv_handle, BD_ADDR rand_addr
 UINT8 btsnd_hcic_ble_set_ext_adv_params(UINT8 adv_handle, UINT16 properties, UINT32 interval_min,
                                           UINT32 interval_max, UINT8 channel_map, UINT8 own_addr_type,
                                           UINT8 peer_addr_type, BD_ADDR peer_addr,
-                                          UINT8 adv_filter_policy, INT8 adv_tx_power,
+                                          UINT8 adv_filter_policy, UINT8 adv_tx_power,
                                           UINT8 primary_adv_phy, UINT8 secondary_adv_max_skip,
                                           UINT8 secondary_adv_phy,
                                           UINT8 adv_sid, UINT8 scan_req_ntf_enable);
@@ -1031,32 +974,10 @@ UINT8 btsnd_hcic_ble_read_trans_power(void);
 UINT8 btsnd_hcic_ble_read_rf_path_compensation(void);
 
 UINT8 btsnd_hcic_ble_write_rf_path_compensation(UINT16 rf_tx_path, UINT16 rf_rx_path);
-
 #endif // #if (BLE_50_FEATURE_SUPPORT == TRUE)
-
 #define HCIC_PARAM_SIZE_WRITE_AUTHENT_PAYLOAD_TOUT  4
 
 #define HCI__WRITE_AUTHENT_PAYLOAD_TOUT_HANDLE_OFF  0
 #define HCI__WRITE_AUTHENT_PAYLOAD_TOUT_TOUT_OFF    2
-
-#if (BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER == TRUE)
-#define HCIC_PARAM_SIZE_PERIODIC_ADV_RECV_ENABLE                3
-#define HCI_PERIODIC_ADV_RECV_REPORT_EN                         1
-#define HCI_PERIODIC_ADV_RECV_DUP_FILTER_EN                     2
-#define HCIC_PARAM_SIZE_PERIODIC_ADV_SYNC_TRANS                 6
-#define HCIC_PARAM_SIZE_PERIODIC_ADV_SET_INFO_TRANS             5
-#define HCIC_PARAM_SIZE_SET_PAST_PARAMS                         8
-#define HCIC_PARAM_SIZE_SET_DEFAULT_PAST_PARAMS                 6
-
-UINT8 btsnd_hcic_ble_set_periodic_adv_recv_enable(UINT16 sync_handle, UINT8 enable);
-
-BOOLEAN btsnd_hcic_ble_periodic_adv_sync_trans(UINT16 conn_handle, UINT16 service_data, UINT16 sync_handle);
-
-BOOLEAN btsnd_hcic_ble_periodic_adv_set_info_trans(UINT16 conn_handle, UINT16 service_data, UINT8 adv_handle);
-
-BOOLEAN btsnd_hcic_ble_set_periodic_adv_sync_trans_params(UINT16 conn_handle, UINT8 mode, UINT16 skip, UINT16 sync_timeout, UINT8 cte_type);
-
-UINT8 btsnd_hcic_ble_set_default_periodic_adv_sync_trans_params(UINT8 mode, UINT16 skip, UINT16 sync_timeout, UINT8 cte_type);
-#endif // #if (BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER == TRUE)
 
 #endif

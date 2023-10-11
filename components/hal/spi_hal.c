@@ -1,16 +1,22 @@
-/*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // The HAL layer for SPI (common part)
 
 #include "hal/spi_hal.h"
 #include "hal/log.h"
-#include "hal/assert.h"
 #include "soc/soc_caps.h"
-#include "soc/clk_tree_defs.h"
 
 //This GDMA related part will be introduced by GDMA dedicated APIs in the future. Here we temporarily use macros.
 #if SOC_GDMA_SUPPORTED
@@ -25,9 +31,7 @@
 #define spi_dma_ll_set_out_eof_generation(dev, chan, enable)          gdma_ll_tx_set_eof_mode(&GDMA, chan, enable);
 #endif
 
-/* The tag may be unused if log level is set to NONE  */
-static const __attribute__((unused)) char SPI_HAL_TAG[] = "spi_hal";
-
+static const char SPI_HAL_TAG[] = "spi_hal";
 #define SPI_HAL_CHECK(a, str, ret_val, ...) \
     if (!(a)) { \
         HAL_LOGE(SPI_HAL_TAG,"%s(%d): "str, __FUNCTION__, __LINE__, ##__VA_ARGS__); \
@@ -39,7 +43,7 @@ static void s_spi_hal_dma_init_config(const spi_hal_context_t *hal)
     spi_dma_ll_rx_enable_burst_data(hal->dma_in, hal->rx_dma_chan, 1);
     spi_dma_ll_tx_enable_burst_data(hal->dma_out, hal->tx_dma_chan, 1);
     spi_dma_ll_rx_enable_burst_desc(hal->dma_in, hal->rx_dma_chan, 1);
-    spi_dma_ll_tx_enable_burst_desc(hal->dma_out, hal->tx_dma_chan, 1);
+    spi_dma_ll_tx_enable_burst_desc(hal->dma_out, hal->tx_dma_chan ,1);
 }
 
 void spi_hal_init(spi_hal_context_t *hal, uint32_t host_id, const spi_hal_config_t *config)
@@ -56,10 +60,6 @@ void spi_hal_init(spi_hal_context_t *hal, uint32_t host_id, const spi_hal_config
     hal->rx_dma_chan = config->rx_dma_chan;
     hal->dmadesc_n = config->dmadesc_n;
 
-#if SPI_LL_MOSI_FREE_LEVEL
-    // Change default data line level to low which same as esp32
-    spi_ll_set_mosi_free_level(hw, 0);
-#endif
     spi_ll_master_init(hw);
     s_spi_hal_dma_init_config(hal);
 
@@ -70,7 +70,6 @@ void spi_hal_init(spi_hal_context_t *hal, uint32_t host_id, const spi_hal_config
     spi_ll_enable_int(hw);
     spi_ll_set_int_stat(hw);
     spi_ll_set_mosi_delay(hw, 0, 0);
-    spi_ll_apply_config(hw);
 }
 
 void spi_hal_deinit(spi_hal_context_t *hal)
@@ -84,13 +83,13 @@ void spi_hal_deinit(spi_hal_context_t *hal)
 
 esp_err_t spi_hal_cal_clock_conf(const spi_hal_timing_param_t *timing_param, int *out_freq, spi_hal_timing_conf_t *timing_conf)
 {
-    spi_hal_timing_conf_t temp_conf = {};
+    spi_hal_timing_conf_t temp_conf;
 
-    int eff_clk_n = spi_ll_master_cal_clock(timing_param->clk_src_hz, timing_param->expected_freq, timing_param->duty_cycle, &temp_conf.clock_reg);
+    int eff_clk_n = spi_ll_master_cal_clock(SPI_LL_PERIPH_CLK_FREQ, timing_param->clock_speed_hz, timing_param->duty_cycle, &temp_conf.clock_reg);
 
     //When the speed is too fast, we may need to use dummy cycles to compensate the reading.
     //But these don't work for full-duplex connections.
-    spi_hal_cal_timing(timing_param->clk_src_hz, eff_clk_n, timing_param->use_gpio, timing_param->input_delay_ns, &temp_conf.timing_dummy, &temp_conf.timing_miso_delay);
+    spi_hal_cal_timing(eff_clk_n, timing_param->use_gpio, timing_param->input_delay_ns, &temp_conf.timing_dummy, &temp_conf.timing_miso_delay);
 
 #ifdef CONFIG_IDF_TARGET_ESP32
     const int freq_limit = spi_hal_get_freq_limit(timing_param->use_gpio, timing_param->input_delay_ns);
@@ -117,12 +116,11 @@ int spi_hal_master_cal_clock(int fapb, int hz, int duty_cycle)
     return spi_ll_master_cal_clock(fapb, hz, duty_cycle, NULL);
 }
 
-
-void spi_hal_cal_timing(int source_freq_hz, int eff_clk, bool gpio_is_used, int input_delay_ns, int *dummy_n, int *miso_delay_n)
+void spi_hal_cal_timing(int eff_clk, bool gpio_is_used, int input_delay_ns, int *dummy_n, int *miso_delay_n)
 {
-    const int apbclk_kHz = source_freq_hz / 1000;
+    const int apbclk_kHz = APB_CLK_FREQ / 1000;
     //how many apb clocks a period has
-    const int spiclk_apb_n = source_freq_hz / eff_clk;
+    const int spiclk_apb_n = APB_CLK_FREQ / eff_clk;
     const int gpio_delay_ns = gpio_is_used ? GPIO_MATRIX_DELAY_NS : 0;
 
     //how many apb clocks the delay is, the 1 is to compensate in case ``input_delay_ns`` is rounded off.
@@ -149,8 +147,6 @@ void spi_hal_cal_timing(int source_freq_hz, int eff_clk, bool gpio_is_used, int 
     HAL_LOGD(SPI_HAL_TAG, "eff: %d, limit: %dk(/%d), %d dummy, %d delay", eff_clk / 1000, apbclk_kHz / (delay_apb_n + 1), delay_apb_n, dummy_required, miso_delay);
 }
 
-#ifdef CONFIG_IDF_TARGET_ESP32
-//TODO: IDF-6578
 int spi_hal_get_freq_limit(bool gpio_is_used, int input_delay_ns)
 {
     const int apbclk_kHz = APB_CLK_FREQ / 1000;
@@ -164,4 +160,3 @@ int spi_hal_get_freq_limit(bool gpio_is_used, int input_delay_ns)
 
     return APB_CLK_FREQ / (delay_apb_n + 1);
 }
-#endif

@@ -1,14 +1,15 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
 #include "esp_log.h"
 
 #include "bt_app_core.h"
@@ -21,11 +22,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#ifdef CONFIG_EXAMPLE_A2DP_SINK_OUTPUT_INTERNAL_DAC
-#include "driver/dac_continuous.h"
-#else
-#include "driver/i2s_std.h"
-#endif
+#include "driver/i2s.h"
 
 #include "sys/lock.h"
 
@@ -35,9 +32,6 @@
 #define APP_RC_CT_TL_RN_TRACK_CHANGE     (2)
 #define APP_RC_CT_TL_RN_PLAYBACK_CHANGE  (3)
 #define APP_RC_CT_TL_RN_PLAY_POS_CHANGE  (4)
-
-/* Application layer causes delay value */
-#define APP_DELAY_VALUE                  50  // 5ms
 
 /*******************************
  * STATIC FUNCTION DECLARATIONS
@@ -84,14 +78,9 @@ static const char *s_a2d_audio_state_str[] = {"Suspended", "Stopped", "Started"}
 static esp_avrc_rn_evt_cap_mask_t s_avrc_peer_rn_cap;
                                              /* AVRC target notification capability bit mask */
 static _lock_t s_volume_lock;
-static TaskHandle_t s_vcs_task_hdl = NULL;    /* handle for volume change simulation task */
+static xTaskHandle s_vcs_task_hdl = NULL;    /* handle for volume change simulation task */
 static uint8_t s_volume = 0;                 /* local volume value */
 static bool s_volume_notify;                 /* notify volume change or not */
-#ifndef CONFIG_EXAMPLE_A2DP_SINK_OUTPUT_INTERNAL_DAC
-i2s_chan_handle_t tx_chan = NULL;
-#else
-dac_continuous_handle_t tx_chan;
-#endif
 
 /********************************
  * STATIC FUNCTION DEFINITIONS
@@ -109,14 +98,12 @@ static void bt_app_alloc_meta_buffer(esp_avrc_ct_cb_param_t *param)
 
 static void bt_av_new_track(void)
 {
-    /* request metadata */
     uint8_t attr_mask = ESP_AVRC_MD_ATTR_TITLE |
                         ESP_AVRC_MD_ATTR_ARTIST |
                         ESP_AVRC_MD_ATTR_ALBUM |
                         ESP_AVRC_MD_ATTR_GENRE;
     esp_avrc_ct_send_metadata_cmd(APP_RC_CT_TL_GET_META_DATA, attr_mask);
 
-    /* register notification if peer support the event_id */
     if (esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_TEST, &s_avrc_peer_rn_cap,
                                            ESP_AVRC_RN_TRACK_CHANGE)) {
         esp_avrc_ct_send_register_notification_cmd(APP_RC_CT_TL_RN_TRACK_CHANGE,
@@ -126,7 +113,6 @@ static void bt_av_new_track(void)
 
 static void bt_av_playback_changed(void)
 {
-    /* register notification if peer support the event_id */
     if (esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_TEST, &s_avrc_peer_rn_cap,
                                            ESP_AVRC_RN_PLAY_STATUS_CHANGE)) {
         esp_avrc_ct_send_register_notification_cmd(APP_RC_CT_TL_RN_PLAYBACK_CHANGE,
@@ -136,7 +122,6 @@ static void bt_av_playback_changed(void)
 
 static void bt_av_play_pos_changed(void)
 {
-    /* register notification if peer support the event_id */
     if (esp_avrc_rn_evt_bit_mask_operation(ESP_AVRC_BIT_MASK_OP_TEST, &s_avrc_peer_rn_cap,
                                            ESP_AVRC_RN_PLAY_POS_CHANGED)) {
         esp_avrc_ct_send_register_notification_cmd(APP_RC_CT_TL_RN_PLAY_POS_CHANGE,
@@ -158,7 +143,7 @@ static void bt_av_notify_evt_handler(uint8_t event_id, esp_avrc_rn_param_t *even
         break;
     /* when track playing position changed, this event comes */
     case ESP_AVRC_RN_PLAY_POS_CHANGED:
-        ESP_LOGI(BT_AV_TAG, "Play position changed: %"PRIu32"-ms", event_parameter->play_pos);
+        ESP_LOGI(BT_AV_TAG, "Play position changed: %d-ms", event_parameter->play_pos);
         bt_av_play_pos_changed();
         break;
     /* others */
@@ -170,60 +155,47 @@ static void bt_av_notify_evt_handler(uint8_t event_id, esp_avrc_rn_param_t *even
 
 void bt_i2s_driver_install(void)
 {
+    /* I2S configuration parameters */
+    i2s_config_t i2s_config = {
 #ifdef CONFIG_EXAMPLE_A2DP_SINK_OUTPUT_INTERNAL_DAC
-    dac_continuous_config_t cont_cfg = {
-        .chan_mask = DAC_CHANNEL_MASK_ALL,
-        .desc_num = 8,
-        .buf_size = 2048,
-        .freq_hz = 44100,
-        .offset = 127,
-        .clk_src = DAC_DIGI_CLK_SRC_DEFAULT,   // Using APLL as clock source to get a wider frequency range
-        .chan_mode = DAC_CHANNEL_MODE_ALTER,
-    };
-    /* Allocate continuous channels */
-    ESP_ERROR_CHECK(dac_continuous_new_channels(&cont_cfg, &tx_chan));
-    /* Enable the continuous channels */
-    ESP_ERROR_CHECK(dac_continuous_enable(tx_chan));
+        .mode = I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_DAC_BUILT_IN,
 #else
-    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
-    chan_cfg.auto_clear = true;
-    i2s_std_config_t std_cfg = {
-        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(44100),
-        .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
-        .gpio_cfg = {
-            .mclk = I2S_GPIO_UNUSED,
-            .bclk = CONFIG_EXAMPLE_I2S_BCK_PIN,
-            .ws = CONFIG_EXAMPLE_I2S_LRCK_PIN,
-            .dout = CONFIG_EXAMPLE_I2S_DATA_PIN,
-            .din = I2S_GPIO_UNUSED,
-            .invert_flags = {
-                .mclk_inv = false,
-                .bclk_inv = false,
-                .ws_inv = false,
-            },
-        },
+        .mode = I2S_MODE_MASTER | I2S_MODE_TX,              /* only TX */
+#endif
+        .sample_rate = 44100,
+        .bits_per_sample = 16,
+        .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,       /* 2-channels */
+        .communication_format = I2S_COMM_FORMAT_STAND_MSB,
+        .dma_buf_count = 6,
+        .dma_buf_len = 60,
+        .intr_alloc_flags = 0,                              /* default interrupt priority */
+        .tx_desc_auto_clear = true                          /* auto clear tx descriptor on underflow */
     };
+
     /* enable I2S */
-    ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &tx_chan, NULL));
-    ESP_ERROR_CHECK(i2s_channel_init_std_mode(tx_chan, &std_cfg));
-    ESP_ERROR_CHECK(i2s_channel_enable(tx_chan));
+    i2s_driver_install(0, &i2s_config, 0, NULL);
+#ifdef CONFIG_EXAMPLE_A2DP_SINK_OUTPUT_INTERNAL_DAC
+    i2s_set_dac_mode(I2S_DAC_CHANNEL_BOTH_EN);
+    i2s_set_pin(0, NULL);
+#else
+    i2s_pin_config_t pin_config = {
+        .bck_io_num = CONFIG_EXAMPLE_I2S_BCK_PIN,
+        .ws_io_num = CONFIG_EXAMPLE_I2S_LRCK_PIN,
+        .data_out_num = CONFIG_EXAMPLE_I2S_DATA_PIN,
+        .data_in_num = -1                                   /* not used */
+    };
+    i2s_set_pin(0, &pin_config);
 #endif
 }
 
 void bt_i2s_driver_uninstall(void)
 {
-#ifdef CONFIG_EXAMPLE_A2DP_SINK_OUTPUT_INTERNAL_DAC
-    ESP_ERROR_CHECK(dac_continuous_disable(tx_chan));
-    ESP_ERROR_CHECK(dac_continuous_del_channels(tx_chan));
-#else
-    ESP_ERROR_CHECK(i2s_channel_disable(tx_chan));
-    ESP_ERROR_CHECK(i2s_del_channel(tx_chan));
-#endif
+    i2s_driver_uninstall(0);
 }
 
 static void volume_set_by_controller(uint8_t volume)
 {
-    ESP_LOGI(BT_RC_TG_TAG, "Volume is set by remote controller to: %"PRIu32"%%", (uint32_t)volume * 100 / 0x7f);
+    ESP_LOGI(BT_RC_TG_TAG, "Volume is set by remote controller to: %d%%", (uint32_t)volume * 100 / 0x7f);
     /* set the volume in protection of lock */
     _lock_acquire(&s_volume_lock);
     s_volume = volume;
@@ -232,7 +204,7 @@ static void volume_set_by_controller(uint8_t volume)
 
 static void volume_set_by_local_host(uint8_t volume)
 {
-    ESP_LOGI(BT_RC_TG_TAG, "Volume is set locally to: %"PRIu32"%%", (uint32_t)volume * 100 / 0x7f);
+    ESP_LOGI(BT_RC_TG_TAG, "Volume is set locally to: %d%%", (uint32_t)volume * 100 / 0x7f);
     /* set the volume in protection of lock */
     _lock_acquire(&s_volume_lock);
     s_volume = volume;
@@ -253,7 +225,7 @@ static void volume_change_simulation(void *arg)
 
     for (;;) {
         /* volume up locally every 10 seconds */
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        vTaskDelay(10000 / portTICK_RATE_MS);
         uint8_t volume = (s_volume + 5) & 0x7f;
         volume_set_by_local_host(volume);
     }
@@ -274,8 +246,8 @@ static void bt_av_hdl_a2d_evt(uint16_t event, void *p_param)
             s_a2d_conn_state_str[a2d->conn_stat.state], bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
         if (a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_DISCONNECTED) {
             esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
-            bt_i2s_driver_uninstall();
             bt_i2s_task_shut_down();
+            bt_i2s_driver_uninstall();
         } else if (a2d->conn_stat.state == ESP_A2D_CONNECTION_STATE_CONNECTED){
             esp_bt_gap_set_scan_mode(ESP_BT_NON_CONNECTABLE, ESP_BT_NON_DISCOVERABLE);
             bt_i2s_task_start_up();
@@ -301,7 +273,6 @@ static void bt_av_hdl_a2d_evt(uint16_t event, void *p_param)
         /* for now only SBC stream is supported */
         if (a2d->audio_cfg.mcc.type == ESP_A2D_MCT_SBC) {
             int sample_rate = 16000;
-            int ch_count = 2;
             char oct0 = a2d->audio_cfg.mcc.cie.sbc[0];
             if (oct0 & (0x01 << 6)) {
                 sample_rate = 32000;
@@ -310,34 +281,8 @@ static void bt_av_hdl_a2d_evt(uint16_t event, void *p_param)
             } else if (oct0 & (0x01 << 4)) {
                 sample_rate = 48000;
             }
+            i2s_set_clk(0, sample_rate, 16, 2);
 
-            if (oct0 & (0x01 << 3)) {
-                ch_count = 1;
-            }
-        #ifdef CONFIG_EXAMPLE_A2DP_SINK_OUTPUT_INTERNAL_DAC
-            dac_continuous_disable(tx_chan);
-            dac_continuous_del_channels(tx_chan);
-            dac_continuous_config_t cont_cfg = {
-                .chan_mask = DAC_CHANNEL_MASK_ALL,
-                .desc_num = 8,
-                .buf_size = 2048,
-                .freq_hz = sample_rate,
-                .offset = 127,
-                .clk_src = DAC_DIGI_CLK_SRC_DEFAULT,   // Using APLL as clock source to get a wider frequency range
-                .chan_mode = (ch_count == 1) ? DAC_CHANNEL_MODE_SIMUL : DAC_CHANNEL_MODE_ALTER,
-            };
-            /* Allocate continuous channels */
-            dac_continuous_new_channels(&cont_cfg, &tx_chan);
-            /* Enable the continuous channels */
-            dac_continuous_enable(tx_chan);
-        #else
-            i2s_channel_disable(tx_chan);
-            i2s_std_clk_config_t clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(sample_rate);
-            i2s_std_slot_config_t slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, ch_count);
-            i2s_channel_reconfig_std_clock(tx_chan, &clk_cfg);
-            i2s_channel_reconfig_std_slot(tx_chan, &slot_cfg);
-            i2s_channel_enable(tx_chan);
-        #endif
             ESP_LOGI(BT_AV_TAG, "Configure audio player: %x-%x-%x-%x",
                      a2d->audio_cfg.mcc.cie.sbc[0],
                      a2d->audio_cfg.mcc.cie.sbc[1],
@@ -355,35 +300,6 @@ static void bt_av_hdl_a2d_evt(uint16_t event, void *p_param)
         } else {
             ESP_LOGI(BT_AV_TAG, "A2DP PROF STATE: Deinit Complete");
         }
-        break;
-    }
-    /* When protocol service capabilities configured, this event comes */
-    case ESP_A2D_SNK_PSC_CFG_EVT: {
-        a2d = (esp_a2d_cb_param_t *)(p_param);
-        ESP_LOGI(BT_AV_TAG, "protocol service capabilities configured: 0x%x ", a2d->a2d_psc_cfg_stat.psc_mask);
-        if (a2d->a2d_psc_cfg_stat.psc_mask & ESP_A2D_PSC_DELAY_RPT) {
-            ESP_LOGI(BT_AV_TAG, "Peer device support delay reporting");
-        } else {
-            ESP_LOGI(BT_AV_TAG, "Peer device unsupport delay reporting");
-        }
-        break;
-    }
-    /* when set delay value completed, this event comes */
-    case ESP_A2D_SNK_SET_DELAY_VALUE_EVT: {
-        a2d = (esp_a2d_cb_param_t *)(p_param);
-        if (ESP_A2D_SET_INVALID_PARAMS == a2d->a2d_set_delay_value_stat.set_state) {
-            ESP_LOGI(BT_AV_TAG, "Set delay report value: fail");
-        } else {
-            ESP_LOGI(BT_AV_TAG, "Set delay report value: success, delay_value: %u * 1/10 ms", a2d->a2d_set_delay_value_stat.delay_value);
-        }
-        break;
-    }
-    /* when get delay value completed, this event comes */
-    case ESP_A2D_SNK_GET_DELAY_VALUE_EVT: {
-        a2d = (esp_a2d_cb_param_t *)(p_param);
-        ESP_LOGI(BT_AV_TAG, "Get delay report value: delay_value: %u * 1/10 ms", a2d->a2d_get_delay_value_stat.delay_value);
-        /* Default delay value plus delay caused by application layer */
-        esp_a2d_sink_set_delay_value(a2d->a2d_get_delay_value_stat.delay_value + APP_DELAY_VALUE);
         break;
     }
     /* others */
@@ -407,18 +323,15 @@ static void bt_av_hdl_avrc_ct_evt(uint16_t event, void *p_param)
                  rc->conn_stat.connected, bda[0], bda[1], bda[2], bda[3], bda[4], bda[5]);
 
         if (rc->conn_stat.connected) {
-            /* get remote supported event_ids of peer AVRCP Target */
             esp_avrc_ct_send_get_rn_capabilities_cmd(APP_RC_CT_TL_GET_CAPS);
         } else {
-            /* clear peer notification capability record */
             s_avrc_peer_rn_cap.bits = 0;
         }
         break;
     }
     /* when passthrough responsed, this event comes */
     case ESP_AVRC_CT_PASSTHROUGH_RSP_EVT: {
-        ESP_LOGI(BT_RC_CT_TAG, "AVRC passthrough rsp: key_code 0x%x, key_state %d, rsp_code %d", rc->psth_rsp.key_code,
-                    rc->psth_rsp.key_state, rc->psth_rsp.rsp_code);
+        ESP_LOGI(BT_RC_CT_TAG, "AVRC passthrough rsp: key_code 0x%x, key_state %d", rc->psth_rsp.key_code, rc->psth_rsp.key_state);
         break;
     }
     /* when metadata responsed, this event comes */
@@ -435,7 +348,7 @@ static void bt_av_hdl_avrc_ct_evt(uint16_t event, void *p_param)
     }
     /* when feature of remote device indicated, this event comes */
     case ESP_AVRC_CT_REMOTE_FEATURES_EVT: {
-        ESP_LOGI(BT_RC_CT_TAG, "AVRC remote features %"PRIx32", TG features %x", rc->rmt_feats.feat_mask, rc->rmt_feats.tg_feat_flag);
+        ESP_LOGI(BT_RC_CT_TAG, "AVRC remote features %x, TG features %x", rc->rmt_feats.feat_mask, rc->rmt_feats.tg_feat_flag);
         break;
     }
     /* when notification capability of peer device got, this event comes */
@@ -489,7 +402,7 @@ static void bt_av_hdl_avrc_tg_evt(uint16_t event, void *p_param)
     }
     /* when notification registered, this event comes */
     case ESP_AVRC_TG_REGISTER_NOTIFICATION_EVT: {
-        ESP_LOGI(BT_RC_TG_TAG, "AVRC register event notification: %d, param: 0x%"PRIx32, rc->reg_ntf.event_id, rc->reg_ntf.event_parameter);
+        ESP_LOGI(BT_RC_TG_TAG, "AVRC register event notification: %d, param: 0x%x", rc->reg_ntf.event_id, rc->reg_ntf.event_parameter);
         if (rc->reg_ntf.event_id == ESP_AVRC_RN_VOLUME_CHANGE) {
             s_volume_notify = true;
             esp_avrc_rn_param_t rn_param;
@@ -500,7 +413,7 @@ static void bt_av_hdl_avrc_tg_evt(uint16_t event, void *p_param)
     }
     /* when feature of remote device indicated, this event comes */
     case ESP_AVRC_TG_REMOTE_FEATURES_EVT: {
-        ESP_LOGI(BT_RC_TG_TAG, "AVRC remote features: %"PRIx32", CT features: %x", rc->rmt_feats.feat_mask, rc->rmt_feats.ct_feat_flag);
+        ESP_LOGI(BT_RC_TG_TAG, "AVRC remote features: %x, CT features: %x", rc->rmt_feats.feat_mask, rc->rmt_feats.ct_feat_flag);
         break;
     }
     /* others */
@@ -520,10 +433,7 @@ void bt_app_a2d_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
     case ESP_A2D_CONNECTION_STATE_EVT:
     case ESP_A2D_AUDIO_STATE_EVT:
     case ESP_A2D_AUDIO_CFG_EVT:
-    case ESP_A2D_PROF_STATE_EVT:
-    case ESP_A2D_SNK_PSC_CFG_EVT:
-    case ESP_A2D_SNK_SET_DELAY_VALUE_EVT:
-    case ESP_A2D_SNK_GET_DELAY_VALUE_EVT: {
+    case ESP_A2D_PROF_STATE_EVT: {
         bt_app_work_dispatch(bt_av_hdl_a2d_evt, event, param, sizeof(esp_a2d_cb_param_t), NULL);
         break;
     }
@@ -539,7 +449,7 @@ void bt_app_a2d_data_cb(const uint8_t *data, uint32_t len)
 
     /* log the number every 100 packets */
     if (++s_pkt_cnt % 100 == 0) {
-        ESP_LOGI(BT_AV_TAG, "Audio packet count: %"PRIu32, s_pkt_cnt);
+        ESP_LOGI(BT_AV_TAG, "Audio packet count: %u", s_pkt_cnt);
     }
 }
 

@@ -1,6 +1,3 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C6 | ESP32-H2 | ESP32-S2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | -------- | -------- |
-
 # Hello World Example
 
 Starts a FreeRTOS task to print "Hello World".
@@ -9,7 +6,7 @@ Starts a FreeRTOS task to print "Hello World".
 
 ## How to use example
 
-Follow detailed instructions provided specifically for this example.
+Follow detailed instructions provided specifically for this example. 
 
 Select the instructions depending on Espressif chip installed on your development board:
 
@@ -21,16 +18,18 @@ Select the instructions depending on Espressif chip installed on your developmen
 
 The project **hello_world** contains one source file in C language [hello_world_main.c](main/hello_world_main.c). The file is located in folder [main](main).
 
-ESP-IDF projects are built using CMake. The project build configuration is contained in `CMakeLists.txt` files that provide set of directives and instructions describing the project's source files and targets (executable, library, or both).
+ESP-IDF projects are built using CMake. The project build configuration is contained in `CMakeLists.txt` files that provide set of directives and instructions describing the project's source files and targets (executable, library, or both). 
 
 Below is short explanation of remaining files in the project folder.
 
 ```
 ├── CMakeLists.txt
-├── pytest_hello_world.py      Python script used for automated testing
+├── example_test.py            Python script used for automated example testing
 ├── main
-│   ├── CMakeLists.txt
-│   └── hello_world_main.c
+│   ├── CMakeLists.txt
+│   ├── component.mk           Component make file
+│   └── hello_world_main.c
+├── Makefile                   Makefile used by legacy GNU Make
 └── README.md                  This is the file you are currently reading
 ```
 

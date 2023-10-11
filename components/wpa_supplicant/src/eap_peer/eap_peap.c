@@ -10,7 +10,7 @@
 #ifdef EAP_PEAP
 #include "utils/common.h"
 #include "crypto/sha1.h"
-#include "crypto/tls.h"
+#include "tls/tls.h"
 #include "eap_peer/eap_tlv_common.h"
 #include "eap_peer/eap_peap_common.h"
 #include "eap_peer/eap_i.h"
@@ -634,7 +634,7 @@ static int eap_peap_phase2_request(struct eap_sm *sm,
 		return -1;
 	}
 	pos = (u8 *) (hdr + 1);
-	wpa_printf(MSG_DEBUG, "EAP-PEAP: Phase 2 Request: type=%d", *pos);
+	wpa_printf(MSG_DEBUG, "EAP-PEAP: Phase 2 Request: type=%d\n", *pos);
 	switch (*pos) {
 	case EAP_TYPE_IDENTITY:
 		*resp = eap_sm_build_identity_resp(sm, hdr->identifier, 1);
@@ -702,7 +702,7 @@ static int eap_peap_phase2_request(struct eap_sm *sm,
 				data->phase2_type.method =
 					data->phase2_types[i].method;
 				wpa_printf(MSG_DEBUG, "EAP-PEAP: Selected "
-					  "Phase 2 EAP vendor %d method %d",
+					  "Phase 2 EAP vendor %d method %d\n",
 					  data->phase2_type.vendor,
 					  data->phase2_type.method);
 				break;
@@ -730,7 +730,7 @@ static int eap_peap_phase2_request(struct eap_sm *sm,
 		}
 		if (data->phase2_priv == NULL || data->phase2_method == NULL) {
 			wpa_printf(MSG_ERROR, "EAP-PEAP: failed to initialize "
-				  "Phase 2 EAP method %d", *pos);
+				  "Phase 2 EAP method %d\n", *pos);
 			ret->methodState = METHOD_DONE;
 			ret->decision = DECISION_FAIL;
 			return -1;
@@ -750,7 +750,7 @@ static int eap_peap_phase2_request(struct eap_sm *sm,
 	}
 
 	if (*resp == NULL) {
-		wpa_printf(MSG_ERROR, "phase 2 response failure");
+		wpa_printf(MSG_ERROR, "phase 2 response failure\n");
 		wpabuf_free(data->pending_phase2_req);
 		data->pending_phase2_req = wpabuf_alloc_copy(hdr, len);
 	}
@@ -781,7 +781,7 @@ eap_peap_decrypt(struct eap_sm *sm, struct eap_peap_data *data,
 	size_t len;
 
 	wpa_printf(MSG_DEBUG, "EAP-PEAP: received %lu bytes encrypted data for"
-		  " Phase 2", (unsigned long) wpabuf_len(in_data));
+		  " Phase 2\n", (unsigned long) wpabuf_len(in_data));
 
 	if (data->pending_phase2_req) {
 		wpa_printf(MSG_DEBUG, "EAP-PEAP: Pending Phase 2 request - "
@@ -929,12 +929,12 @@ continue_req:
 					    &resp)) {
 			wpabuf_free(in_decrypted);
 			wpa_printf(MSG_ERROR, "EAP-PEAP: Phase2 Request "
-				  "processing failed");
+				  "processing failed\n");
 			return 0;
 		}
 		break;
 	case EAP_CODE_SUCCESS:
-		wpa_printf(MSG_DEBUG, "EAP-PEAP: Phase 2 Success");
+		wpa_printf(MSG_DEBUG, "EAP-PEAP: Phase 2 Success\n");
 		if (data->peap_version == 1) {
 			/* EAP-Success within TLS tunnel is used to indicate
 			 * shutdown of the TLS channel. The authentication has
@@ -983,7 +983,7 @@ continue_req:
 		}
 		break;
 	case EAP_CODE_FAILURE:
-		wpa_printf(MSG_DEBUG, "EAP-PEAP: Phase 2 Failure");
+		wpa_printf(MSG_DEBUG, "EAP-PEAP: Phase 2 Failure\n");
 		ret->decision = DECISION_FAIL;
 		ret->methodState = METHOD_MAY_CONT;
 		ret->allowNotifications = FALSE;
@@ -1104,7 +1104,7 @@ static struct wpabuf * eap_peap_process(struct eap_sm *sm, void *priv,
 		}
 
 		if (tls_connection_established(sm->ssl_ctx, data->ssl.conn)) {
-			char label[24] = {0};
+			char label[24];
 			wpa_printf(MSG_DEBUG, "EAP-PEAP: TLS done, proceed to Phase 2");
 			os_free(data->key_data);
 			/* draft-josefsson-ppext-eap-tls-eap-05.txt
@@ -1115,9 +1115,9 @@ static struct wpabuf * eap_peap_process(struct eap_sm *sm, void *priv,
 			 * label by default, but allow it to be configured with
 			 * phase1 parameter peaplabel=1. */
 			if (data->peap_version > 1 || data->force_new_label)
-				os_strlcpy(label, "client PEAP encryption", 24);
+				strcpy(label, "client PEAP encryption");
 			else
-				os_strlcpy(label, "client EAP encryption", 24);
+				strcpy(label, "client EAP encryption");
 			wpa_printf(MSG_DEBUG, "EAP-PEAP: using label '%s' in "
 				   "key derivation", label);
 			data->key_data =

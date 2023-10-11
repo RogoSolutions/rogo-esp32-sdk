@@ -1,10 +1,4 @@
 /*
- * SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
-/*
  * Since at least FreeRTOS V7.5.3 uxTopUsedPriority is no longer
  * present in the kernel, so it has to be supplied by other means for
  * OpenOCD's threads awareness.
@@ -16,6 +10,7 @@
  */
 
 #include "FreeRTOS.h"
+#include "esp_attr.h"
 #include "sdkconfig.h"
 
 #ifdef __GNUC__
@@ -25,5 +20,5 @@
 #endif
 
 #ifdef CONFIG_FREERTOS_DEBUG_OCDAWARE
-const int USED uxTopUsedPriority = configMAX_PRIORITIES - 1;  //will be removed
+const int USED DRAM_ATTR uxTopUsedPriority = configMAX_PRIORITIES - 1;
 #endif

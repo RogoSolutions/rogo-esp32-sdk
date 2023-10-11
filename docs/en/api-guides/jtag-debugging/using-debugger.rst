@@ -8,8 +8,6 @@ This section covers configuration and running debugger using several methods:
 * from :ref:`jtag-debugging-using-debugger-command-line`
 * using :ref:`jtag-debugging-with-idf-py`
 
-See also a separate document `Configuration for Visual Studio Code Debug <https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/DEBUGGING.md>`__ describing how to run a debugger from VS Code.
-
 
 .. _jtag-debugging-using-debugger-eclipse:
 
@@ -24,7 +22,7 @@ Debugging functionality is provided out of box in standard Eclipse installation.
 
 To begin with, install "GDB Hardware Debugging" plugin by opening Eclipse and going to `Help` > `Install` New Software.
 
-Once installation is complete, configure debugging session following steps below. Please note that some of configuration parameters are generic and some are project specific. This will be shown below by configuring debugging for "blink" example project. If not done already, add this project to Eclipse workspace following guidance in `Eclipse Plugin <https://github.com/espressif/idf-eclipse-plugin/blob/master/README.md>`_.  The source of :example:`get-started/blink` application is available  in :idf:`examples` directory of ESP-IDF repository.
+Once installation is complete, configure debugging session following steps below. Please note that some of configuration parameters are generic and some are project specific. This will be shown below by configuring debugging for "blink" example project. If not done already, add this project to Eclipse workspace following guidance in section :doc:`Build and Flash with Eclipse IDE <../../get-started/eclipse-setup>`.  The source of :example:`get-started/blink` application is available  in :idf:`examples` directory of ESP-IDF repository.
 
 1.  In Eclipse go to `Run` > `Debug Configuration`. A new window will open. In the window's left pane double click "GDB Hardware Debugging" (or select "GDB Hardware Debugging" and press the "New" button) to create a new configuration.
 
@@ -32,7 +30,7 @@ Once installation is complete, configure debugging session following steps below
 
 3.  On the "Main" tab below, under "Project:", press "Browse" button and select the "blink" project.
 
-4.  In next line "C/C++ Application:" press "Browse" button and select "blink.elf" file. If "blink.elf" is not there, then likely this project has not been build yet. See `Eclipse Plugin <https://github.com/espressif/idf-eclipse-plugin/blob/master/README.md>`_ how to do it.
+4.  In next line "C/C++ Application:" press "Browse" button and select "blink.elf" file. If "blink.elf" is not there, then likely this project has not been build yet. See :doc:`Build and Flash with Eclipse IDE <../../get-started/eclipse-setup>` how to do it.
 
 5.  Finally, under "Build (if required) before launching" click "Disable auto build".
 
@@ -208,7 +206,7 @@ It is also possible to execute the described debugging tools conveniently from `
 
 1.  ``idf.py openocd``
 
-    Runs OpenOCD in a console with configuration defined in the environment or via command line. It uses default script directory defined as ``OPENOCD_SCRIPTS`` environmental variable, which is automatically added from an Export script (``export.sh`` or ``export.bat``).
+    Runs OpenOCD in a console with configuration defined in the environment or via command line. It uses default script directory defined as ``OPENOCD_SCRIPTS`` environmental variable, which is automatically added from an Export script (``export.sh`` or ``export.bat``). 
     It is possible to override the script location using command line argument ``--openocd-scripts``.
 
     .. include:: {IDF_TARGET_PATH_NAME}.inc
@@ -230,7 +228,7 @@ It is also possible to execute the described debugging tools conveniently from `
 
 4.  ``idf.py gdbgui``
 
-    Starts `gdbgui <https://www.gdbgui.com>`_ debugger frontend enabling out-of-the-box debugging in a browser window. Please run the install script with the "--enable-gdbgui" argument in order to make this option supported, e.g. ``install.sh --enable-gdbgui``.
+    Starts `gdbgui <https://www.gdbgui.com>`_ debugger frontend enabling out-of-the-box debugging in a browser window.
 
 
     It is possible to combine these debugging actions on a single command line allowing convenient setup of blocking and non-blocking actions in one step. ``idf.py`` implements a simple logic to move the background actions (such as openocd) to the beginning and the interactive ones (such as gdb, monitor) to the end of the action list.

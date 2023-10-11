@@ -34,12 +34,12 @@ ESP-IDF 软件引导加载程序 (Bootloader) 主要执行以下任务：
    ESP-IDF V2.1 之前的版本
    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-	与新版本相比，ESP-IDF V2.1 之前的版本构建的引导加载程序对硬件的配置更少。使用这些早期 ESP-IDF 版本的引导加载程序并构建新应用程序时，请启用配置选项 :ref:`CONFIG_APP_COMPATIBLE_PRE_V2_1_BOOTLOADERS`。
+	与新版本相比，ESP-IDF V2.1 之前的版本构建的引导加载程序对硬件的配置更少。使用这些早期 ESP-IDF 版本的引导加载程序并构建新应用程序时，请启用配置选项 :ref:`CONFIG_ESP32_COMPATIBLE_PRE_V2_1_BOOTLOADERS`。
 
    ESP-IDF V3.1 之前的版本
    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-	ESP-IDF V3.1 之前的版本构建的引导加载程序不支持分区表二进制文件中的 MD5 校验。使用这些 ESP-IDF 版本的引导加载程序并构建新应用程序时，请启用配置选项 :ref:`CONFIG_APP_COMPATIBLE_PRE_V3_1_BOOTLOADERS`。
+	ESP-IDF V3.1 之前的版本构建的引导加载程序不支持分区表二进制文件中的 MD5 校验。使用这些 ESP-IDF 版本的引导加载程序并构建新应用程序时，请启用配置选项 :ref:`CONFIG_ESP32_COMPATIBLE_PRE_V3_1_BOOTLOADERS`。
 
 配置 SPI Flash
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -86,19 +86,6 @@ ROM 中的 :ref:`first-stage-bootloader` 从 flash 中读取 :ref:`second-stage-
 
 - :ref:`CONFIG_BOOTLOADER_FACTORY_RESET_PIN_LEVEL` - 设置管脚电平高低。设备重置后，根据此设置将管脚拉高或拉低，才能触发出厂重置事件。如果管脚具有内部上拉，则上拉会在管脚采样前生效。有关管脚内部上拉的详细信息，请参考 {IDF_TARGET_NAME} 的技术规格书。
 
-.. only:: SOC_RTC_FAST_MEM_SUPPORTED
-
-    如果应用程序需要知道设备是否触发了出厂重置，可以通过调用 :cpp:func:`bootloader_common_get_rtc_retain_mem_factory_reset_state` 函数来确定：
-    
-    - 如果读取到设备出厂重置状态为 true，会返回状态 true，说明设备已经触发出厂重置。此后会重置状态为 false，以便后续的出厂重置触发判断。
-    - 如果读取到设备出厂重置状态为 false，会返回状态 false，说明设备并未触发出厂重置，或者保存此状态的内存区域已失效。
-
-    同时需要注意该功能需要占用部分 RTC FAST 内存（占用的内存与 :ref:`CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP` 大小相同）。
-
-.. only:: not SOC_RTC_FAST_MEM_SUPPORTED
-
-    有时应用程序需要知道设备是否触发了出厂重置，但 {IDF_TARGET_NAME} 没有 RTC FAST 内存，因此没有相应的 API 可用于监测。然而也有方法实现出厂重置监测，比如，设置一个在出厂重置时会被引导加载程序擦除的 NVS 分区（需将此分区添加到 :ref:`CONFIG_BOOTLOADER_DATA_FACTORY_RESET` 中）。在这个 NVS 分区中保存一个令牌数据 "factory_reset_state"，让该令牌在应用程序中自增。"factory_reset_state" 为 0 时则表明触发了出厂重置。
-
 .. _bootloader_boot_from_test_firmware:
 
 从测试固件启动
@@ -137,15 +124,20 @@ ROM 中的 :ref:`first-stage-bootloader` 从 flash 中读取 :ref:`second-stage-
 引导加载程序大小
 ---------------------
 
-{IDF_TARGET_MAX_BOOTLOADER_SIZE:default = "64 KB (0x10000 bytes)", esp32 = "48 KB (0xC000 bytes)"}
+{IDF_TARGET_DEFAULT_MAX_BOOTLOADER_SIZE:default = "0x8000 (32768)", esp32 = "0x7000 (28672)", esp32s2 = "0x7000 (28672)"}
+{IDF_TARGET_MAX_BOOTLOADER_SIZE:default = "64KB (0x10000 bytes)", esp32 = "48KB (0xC000 bytes)"}
 {IDF_TARGET_MAX_PARTITION_TABLE_OFFSET:default = "0x12000", esp32 = "0xE000"}
 .. Above is calculated as 0x1000 at start of flash + IDF_TARGET_MAX_BOOTLOADER_SIZE + 0x1000 signature sector
 
 当需要启用额外的引导加载程序功能，包括 :doc:`/security/flash-encryption` 或安全启动，尤其是设置高级别 :ref:`CONFIG_BOOTLOADER_LOG_LEVEL` 时，监控引导加载程序 .bin 文件的大小变得非常重要。
 
-当使用默认的 :ref:`CONFIG_PARTITION_TABLE_OFFSET` 值 0x8000 时，二进制文件最大可为 {IDF_TARGET_CONFIG_PARTITION_TABLE_OFFSET} 字节。
+当使用默认的 :ref:`CONFIG_PARTITION_TABLE_OFFSET` 值 0x8000 时，二进制文件最大可为 {IDF_TARGET_DEFAULT_MAX_BOOTLOADER_SIZE} 字节。
 
 如果引导加载程序二进制文件过大，则引导加载程序会构建将失败并显示 "Bootloader binary size [..] is too large for partition table offset" 的错误。如果此二进制文件已经被烧录，那么 {IDF_TARGET_NAME} 将无法启动 - 日志中将记录无效分区表或无效引导加载程序校验和的错误。
+
+.. note::
+
+	对引导加载程序大小检查仅发生在 CMake 构建系统中，若使用的是旧版 GNU Make 构建系统，则不会检查大小，但如果引导加载程序太大，{IDF_TARGET_NAME} 将无法启动。
 
 可以使用如下方法解决此问题：
 
@@ -155,12 +147,10 @@ ROM 中的 :ref:`first-stage-bootloader` 从 flash 中读取 :ref:`second-stage-
 
 当启用 Secure Boot V2 时，由于引导加载程序最先加载到固定大小的缓冲区中进行验证，对二进制文件大小的绝对限制为 {IDF_TARGET_MAX_BOOTLOADER_SIZE}（不包括 4 KB 签名）。
 
-.. only:: SOC_RTC_FAST_MEM_SUPPORTED
+从深度睡眠中快速启动
+----------------------
 
-    从深度睡眠中快速启动
-    ----------------------
-
-    引导加载程序有 :ref:`CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP` 选项，可以减少从深度睡眠中唤醒的时间（有利于降低功耗）。当 :ref:`CONFIG_SECURE_BOOT` 选项禁用时，该选项可用。由于无需镜像校验，唤醒时间减少。在第一次启动时，引导加载程序将启动的应用程序的地址存储在 RTC FAST 存储器中。而在唤醒过程中，这个地址用于启动而无需任何检查，从而实现了快速加载。
+引导加载程序有 :ref:`CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP` 选项，可以减少从深度睡眠中唤醒的时间（有利于降低功耗）。当 :ref:`CONFIG_SECURE_BOOT` 选项禁用时，该选项可用。由于无需镜像校验，唤醒时间减少。在第一次启动时，引导加载程序将启动的应用程序的地址存储在 RTC FAST 存储器中。而在唤醒过程中，这个地址用于启动而无需任何检查，从而实现了快速加载。
 
 自定义引导加载程序
 ----------------------
@@ -173,3 +163,5 @@ ROM 中的 :ref:`first-stage-bootloader` 从 flash 中读取 :ref:`second-stage-
 在引导加载程序的代码中，用户不能使用其他组件提供的驱动和函数，如果确实需要，请将该功能的实现部分放在项目的 `bootloader_components` 目录中（注意，这会增加引导加载程序的大小）。
 
 如果引导加载程序过大，则可能与内存中的分区表重叠，分区表默认烧录在偏移量 0x8000 处。增加 :ref:`分区表偏移量 <CONFIG_PARTITION_TABLE_OFFSET>` ，将分区表放在 flash 中靠后的区域，这样可以增加引导程序的可用空间。
+
+.. note:: 上述任意一种自定义引导程序的方法都需要使用 CMake 构建系统（即不支持传统的 Make 构建系统）。

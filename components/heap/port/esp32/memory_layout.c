@@ -1,8 +1,17 @@
-/*
- * SPDX-FileCopyrightText: 2010-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2010-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#ifndef BOOTLOADER_BUILD
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -172,21 +181,13 @@ SOC_RESERVE_MEMORY_REGION(0x3fffc000, 0x40000000, trace_mem); //Reserve trace me
 SOC_RESERVE_MEMORY_REGION(SOC_EXTRAM_DATA_LOW, SOC_EXTRAM_DATA_HIGH, spi_ram);
 #endif
 
-extern int _data_start, _heap_start, _heap_end, _iram_start, _iram_end, _rtc_force_fast_end, _rtc_noinit_end;
-extern int _rtc_fast_reserved_start, _rtc_fast_reserved_end;
-extern int _rtc_slow_reserved_start, _rtc_slow_reserved_end;
-
+extern int _data_start, _heap_start, _iram_start, _iram_end, _rtc_force_fast_end, _rtc_noinit_end;
 // Static data region. DRAM used by data+bss and possibly rodata
 SOC_RESERVE_MEMORY_REGION((intptr_t)&_data_start, (intptr_t)&_heap_start, dram_data);
 
 // IRAM code region
 // ESP32 has an IRAM-only region 0x4008_0000 - 0x4009_FFFF, reserve the used part
 SOC_RESERVE_MEMORY_REGION((intptr_t)&_iram_start, (intptr_t)&_iram_end, iram_code);
-
-// If IRAM spans into SRAM1 due to CONFIG_ESP_SYSTEM_ESP32_SRAM1_REGION_AS_IRAM, reserve the corresponding part of DRAM
-#ifdef CONFIG_ESP_SYSTEM_ESP32_SRAM1_REGION_AS_IRAM
-SOC_RESERVE_MEMORY_REGION((intptr_t) &_heap_end, 0x40000000, sram1_iram);
-#endif
 
 // RTC Fast RAM region
 #ifdef CONFIG_ESP_SYSTEM_ALLOW_RTC_FAST_MEM_AS_HEAP
@@ -197,5 +198,4 @@ SOC_RESERVE_MEMORY_REGION(SOC_RTC_DRAM_LOW, (intptr_t)&_rtc_force_fast_end, rtcr
 #endif
 #endif
 
-SOC_RESERVE_MEMORY_REGION((intptr_t)&_rtc_fast_reserved_start, (intptr_t)&_rtc_fast_reserved_end, rtc_fast_reserved_data);
-SOC_RESERVE_MEMORY_REGION((intptr_t)&_rtc_slow_reserved_start, (intptr_t)&_rtc_slow_reserved_end, rtc_reserved_data);
+#endif /* BOOTLOADER_BUILD */

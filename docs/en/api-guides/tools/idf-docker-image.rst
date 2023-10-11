@@ -2,9 +2,6 @@
 IDF Docker Image
 ****************
 
-..
-    When changing this page, please keep tools/docker/README.md in sync.
-
 .. highlight:: bash
 
 IDF Docker image (``espressif/idf``) is intended for building applications and libraries with specific versions of ESP-IDF, when doing automated builds.
@@ -12,9 +9,9 @@ IDF Docker image (``espressif/idf``) is intended for building applications and l
 The image contains:
 
 - Common utilities such as git, wget, curl, zip.
-- Python 3.7 or newer.
+- Python 3.6 or newer.
 - A copy of a specific version of ESP-IDF (see below for information about versions). ``IDF_PATH`` environment variable is set, and points to ESP-IDF location in the container.
-- All the build tools required for the specific version of ESP-IDF: CMake, ninja, cross-compiler toolchains, etc.
+- All the build tools required for the specific version of ESP-IDF: CMake, make, ninja, cross-compiler toolchains, etc.
 - All Python packages required by ESP-IDF are installed in a virtual environment.
 
 The image entrypoint sets up ``PATH`` environment variable to point to the correct version of tools, and activates the Python virtual environment. As a result, the environment is ready to use the ESP-IDF build system.
@@ -60,11 +57,32 @@ The above command explained:
 - ``espressif/idf``: uses Docker image ``espressif/idf`` with tag ``latest`` (implicitly added by Docker when no tag is specified)
 - ``idf.py build``: runs this command inside the container
 
-To build with a specific Docker image tag, specify it as ``espressif/idf:TAG``, for example::
+To build with a specific docker image tag, specify it as ``espressif/idf:TAG``, for example::
 
     docker run --rm -v $PWD:/project -w /project espressif/idf:release-v4.4 idf.py build
 
 You can check the up-to-date list of available tags at https://hub.docker.com/r/espressif/idf/tags.
+
+
+Building a project with GNU Make
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Same as for CMake, except that the build command is different::
+
+    docker run --rm -v $PWD:/project -w /project espressif/idf make defconfig all -j4
+
+
+.. note::
+
+    If the ``sdkconfig`` file does not exist, the default behavior of GNU Make build system is to open the menuconfig UI. This may be not desired in automated build environments. To ensure that the ``sdkconfig`` file exists, ``defconfig`` target is added before ``all``.
+
+If you intend to build the same project repeatedly, you may bind the ``tools/kconfig`` directory of ESP-IDF to a named volume. This will prevent Kconfig tools, located in ESP-IDF directory, from being rebuilt, causing a rebuild of the rest of the project::
+
+    docker run --rm -v $PWD:/project -v kconfig:/opt/esp/idf/tools/kconfig -w /project espressif/idf make defconfig all -j4
+
+If you need clean up the ``kconfig`` volume, run ``docker volume rm kconfig``.
+
+Binding the ``tools/kconfig`` directory to a volume is not necessary when using the CMake build system.
 
 Using the image interactively
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -81,35 +99,7 @@ Then inside the container, use ``idf.py`` as usual::
 
 .. note::
 
-    Commands which communicate with the development board, such as ``idf.py flash`` and ``idf.py monitor`` will not work in the container unless the serial port is passed through into the container. This can be done with Docker for Linux with the `device option`_. However currently this is not possible with Docker for Windows (https://github.com/docker/for-win/issues/1018) and Docker for Mac (https://github.com/docker/for-mac/issues/900). This limitation may be overcome by using `remote serial ports`_. An example how to do this can be found in the following `using remote serial port`_ section.
-
-
-.. _using remote serial port:
-
-Using remote serial port
-~~~~~~~~~~~~~~~~~~~~~~~~
-The `RFC2217`_ (Telnet) protocol can be used to remotely connect to a serial port. For more information please see the `remote serial ports`_ documentation in the esptool project. This method can also be used to access the serial port inside a Docker container if it cannot be accessed directly. Following is an example how to use the flash command from within a Docker container.
-
-On host install and start ``esp_rfc2217_server``:
-
-* On Windows, package is available as a one-file bundled executable created by pyinstaller and it can be downloaded from the `esptool releases`_ page in a zip archive along with other esptool utilities::
-
-        esp_rfc2217_server -v -p 4000 COM3
-
-* On Linux/MacOS, package is available as part of `esptool` which can be found in ESP-IDF environment or by installing using pip::
-
-        pip install esptool
-
-  And then starting the server by executing::
-
-        esp_rfc2217_server.py -v -p 4000 /dev/ttyUSB0
-
-Now the device attached to the host can be flashed from inside a Docker container by using::
-
-    docker run --rm -v <host_path>:/<container_path> -w /<container_path> espressif/idf idf.py --port 'rfc2217://host.docker.internal:4000?ign_set_control' flash
-
-Please make sure that ``<host_path>`` is properly set to your project path on the host and ``<container_path>`` is set as a working directory inside the container with the ``-w`` option. The ``host.docker.internal`` is a special Docker DNS name to access the host. This can be replaced with host IP if necessary.
-
+    Commands which communicate with the development board, such as ``idf.py flash`` and ``idf.py monitor`` will not work in the container unless the serial port is passed through into the container. However currently this is not possible with Docker for Windows (https://github.com/docker/for-win/issues/1018) and Docker for Mac (https://github.com/docker/for-mac/issues/900).
 
 Building custom images
 ======================
@@ -129,8 +119,3 @@ To use these arguments, pass them via the ``--build-arg`` command line option. F
         --build-arg IDF_CLONE_SHALLOW=1 \
         --build-arg IDF_INSTALL_TARGETS=esp32c3 \
         tools/docker
-
-.. _remote serial ports: https://docs.espressif.com/projects/esptool/en/latest/esptool/remote-serial-ports.html
-.. _RFC2217: http://www.ietf.org/rfc/rfc2217.txt
-.. _esptool releases: https://github.com/espressif/esptool/releases
-.. _device option: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities

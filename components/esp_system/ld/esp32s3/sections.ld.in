@@ -18,21 +18,26 @@ SECTIONS
   .rtc.text :
   {
     . = ALIGN(4);
-    _rtc_fast_start = ABSOLUTE(.);
     _rtc_text_start = ABSOLUTE(.);
     *(.rtc.entry.text)
 
     mapping[rtc_text]
 
     *rtc_wake_stub*.*(.literal .text .literal.* .text.*)
-    *(.rtc_text_end_test)
-
-    /* 16B padding for possible CPU prefetch and 4B alignment for PMS split lines */
-    . += _esp_memprot_prefetch_pad_size;
-    . = ALIGN(4);
-
     _rtc_text_end = ABSOLUTE(.);
   } > rtc_iram_seg
+
+  /**
+   * This section is required to skip rtc.text area because rtc_iram_seg and
+   * rtc_data_seg are reflect the same address space on different buses.
+   */
+  .rtc.dummy :
+  {
+    _rtc_dummy_start = ABSOLUTE(.);
+    _rtc_fast_start = ABSOLUTE(.);
+    . = SIZEOF(.rtc.text);
+    _rtc_dummy_end = ABSOLUTE(.);
+  } > rtc_data_seg
 
   /**
    * This section located in RTC FAST Memory area.
@@ -65,7 +70,7 @@ SECTIONS
 
     mapping[rtc_data]
 
-    *rtc_wake_stub*.*(.data .rodata .data.* .rodata.*)
+    *rtc_wake_stub*.*(.data .rodata .data.* .rodata.* .bss .bss.*)
     _rtc_data_end = ABSOLUTE(.);
   } > rtc_data_location
 
@@ -110,27 +115,6 @@ SECTIONS
     . = ALIGN(4) ;
     _rtc_force_slow_end = ABSOLUTE(.);
   } > rtc_slow_seg
-
-  /**
-   * This section holds RTC data that should have fixed addresses.
-   * The data are not initialized at power-up and are retained during deep sleep.
-   */
-  .rtc_reserved (NOLOAD):
-  {
-    . = ALIGN(4);
-    _rtc_reserved_start = ABSOLUTE(.);
-    /* New data can only be added here to ensure existing data are not moved.
-       Because data have adhered to the end of the segment and code is relied on it.
-       >> put new data here << */
-
-    *(.rtc_timer_data_in_rtc_mem .rtc_timer_data_in_rtc_mem.*)
-    KEEP(*(.bootloader_data_rtc_mem .bootloader_data_rtc_mem.*))
-    _rtc_reserved_end = ABSOLUTE(.);
-  } > rtc_reserved_seg
-
-  _rtc_reserved_length = _rtc_reserved_end - _rtc_reserved_start;
-  ASSERT((_rtc_reserved_length <= LENGTH(rtc_reserved_seg)),
-          "RTC reserved segment data does not fit.")
 
   /* Get size of rtc slow data based on rtc_data_location alias */
   _rtc_slow_length = (ORIGIN(rtc_slow_seg) == ORIGIN(rtc_data_location))
@@ -215,6 +199,10 @@ SECTIONS
     *(.gnu.linkonce.s2.*)
     *(.jcr)
 
+    _esp_system_init_fn_array_start = ABSOLUTE(.);
+    KEEP (*(SORT(.esp_system_init_fn) SORT(.esp_system_init_fn.*)))
+    _esp_system_init_fn_array_end = ABSOLUTE(.);
+
     mapping[dram0_data]
 
     _data_end = ABSOLUTE(.);
@@ -241,6 +229,7 @@ SECTIONS
   {
     . = ALIGN (8);
     _bss_start = ABSOLUTE(.);
+    *(.ext_ram.bss*)
 
     mapping[dram0_bss]
 
@@ -265,7 +254,7 @@ SECTIONS
   .flash.text :
   {
     _stext = .;
-    _instruction_reserved_start = ABSOLUTE(.);  /* This is a symbol marking the flash.text start, this can be used for mmu driver to maintain virtual address */
+    _instruction_reserved_start = ABSOLUTE(.);
     _text_start = ABSOLUTE(.);
 
     mapping[flash_text]
@@ -284,7 +273,7 @@ SECTIONS
     . += _esp_flash_mmap_prefetch_pad_size;
 
     _text_end = ABSOLUTE(.);
-    _instruction_reserved_end = ABSOLUTE(.);  /* This is a symbol marking the flash.text end, this can be used for mmu driver to maintain virtual address */
+    _instruction_reserved_end = ABSOLUTE(.);
     _etext = .;
 
     /**
@@ -297,23 +286,23 @@ SECTIONS
 
   /**
    * This dummy section represents the .flash.text section but in default_rodata_seg.
-   * Thus, it must have its alignment and (at least) its size.
+   * Thus, it must have its alignement and (at least) its size.
    */
   .flash_rodata_dummy (NOLOAD):
   {
-    _flash_rodata_dummy_start = ABSOLUTE(.);
-    /* Start at the same alignment constraint than .flash.text */
+    _flash_rodata_dummy_start = .;
+    /* Start at the same alignement constraint than .flash.text */
     . = ALIGN(ALIGNOF(.flash.text));
     /* Create an empty gap as big as .flash.text section */
     . = . + SIZEOF(.flash.text);
-    /* Prepare the alignment of the section above. Few bytes (0x20) must be
+    /* Prepare the alignement of the section above. Few bytes (0x20) must be
      * added for the mapping header. */
-    . = ALIGN(_esp_mmu_block_size) + 0x20;
+    . = ALIGN(0x10000) + 0x20;
+    _rodata_reserved_start = .;
   } > default_rodata_seg
 
   .flash.appdesc : ALIGN(0x10)
   {
-    _rodata_reserved_start = ABSOLUTE(.);  /* This is a symbol marking the flash.rodata start, this can be used for mmu driver to maintain virtual address */
     _rodata_start = ABSOLUTE(.);
 
     *(.rodata_desc .rodata_desc.*)               /* Should be the first.  App version info.        DO NOT PUT ANYTHING BEFORE IT! */
@@ -364,10 +353,6 @@ SECTIONS
     soc_reserved_memory_region_start = ABSOLUTE(.);
     KEEP (*(.reserved_memory_address))
     soc_reserved_memory_region_end = ABSOLUTE(.);
-    /* System init functions registered via ESP_SYSTEM_INIT_FN */
-    _esp_system_init_fn_array_start = ABSOLUTE(.);
-    KEEP (*(SORT_BY_INIT_PRIORITY(.esp_system_init_fn.*)))
-    _esp_system_init_fn_array_end = ABSOLUTE(.);
     _rodata_end = ABSOLUTE(.);
     /* Literals are also RO data. */
     _lit4_start = ABSOLUTE(.);
@@ -382,53 +367,26 @@ SECTIONS
     *(.tbss)
     *(.tbss.*)
     _thread_local_end = ABSOLUTE(.);
+    _rodata_reserved_end = ABSOLUTE(.);
     . = ALIGN(4);
   } > default_rodata_seg
 
   _flash_rodata_align = ALIGNOF(.flash.rodata);
 
-  /*
-    This section is a place where we dump all the rodata which aren't used at runtime,
-    so as to avoid binary size increase
-  */
   .flash.rodata_noload (NOLOAD) :
   {
-    /*
-      This is a symbol marking the flash.rodata end, this can be used for mmu driver to maintain virtual address
-      We don't need to include the noload rodata in this section
-    */
-    _rodata_reserved_end = ABSOLUTE(.);
     . = ALIGN (4);
     mapping[rodata_noload]
   } > default_rodata_seg
 
-  /**
-   * This section is required to skip flash rodata sections, because `extern_ram_seg`
-   * and `drom0_0_seg` are on the same bus
-   */
-  .ext_ram.dummy (NOLOAD):
-  {
-    . = ORIGIN(extern_ram_seg) + (_rodata_reserved_end - _flash_rodata_dummy_start);
-    . = ALIGN (0x10000);
-  } > extern_ram_seg
-
-  /* This section holds .ext_ram.bss data, and will be put in PSRAM */
-  .ext_ram.bss (NOLOAD) :
-  {
-    _ext_ram_bss_start = ABSOLUTE(.);
-    mapping[extern_ram]
-    . = ALIGN(4);
-    _ext_ram_bss_end = ABSOLUTE(.);
-  } > extern_ram_seg
-
   /* Marks the end of IRAM code segment */
   .iram0.text_end (NOLOAD) :
   {
-    /* iram_end_test section exists for use by memprot unit tests only */
-    *(.iram_end_test)
     /* ESP32-S3 memprot requires 16B padding for possible CPU prefetch and 256B alignment for PMS split lines */
     . += _esp_memprot_prefetch_pad_size;
     . = ALIGN(_esp_memprot_align_size);
+    /* iram_end_test section exists for use by memprot unit tests only */
+    *(.iram_end_test)
     _iram_text_end = ABSOLUTE(.);
   } > iram0_0_seg
 
@@ -458,32 +416,12 @@ SECTIONS
   .dram0.heap_start (NOLOAD) :
   {
     . = ALIGN (8);
-    /* Lowest possible start address for the heap */
-    _heap_low_start = ABSOLUTE(.);
+    _heap_start = ABSOLUTE(.);
   } > dram0_0_seg
-
-  /** This section will be used by the debugger and disassembler to get more information
-    * about raw data present in the code.
-    * Indeed, it may be required to add some padding at some points in the code
-    * in order to align a branch/jump destination on a particular bound.
-    * Padding these instructions will generate null bytes that shall be
-    * interpreted as data, and not code by the debugger or disassembler.
-    * This section will only be present in the ELF file, not in the final binary
-    * For more details, check GCC-212
-    */
-  .xt.prop 0 :
-  {
-    KEEP (*(.xt.prop .gnu.linkonce.prop.*))
-  }
-
-  .xt.lit 0 :
-  {
-    KEEP (*(.xt.lit .gnu.linkonce.p.*))
-  }
 }
 
 ASSERT(((_iram_end - ORIGIN(iram0_0_seg)) <= LENGTH(iram0_0_seg)),
           "IRAM0 segment data does not fit.")
 
-ASSERT(((_heap_low_start - ORIGIN(dram0_0_seg)) <= LENGTH(dram0_0_seg)),
+ASSERT(((_heap_start - ORIGIN(dram0_0_seg)) <= LENGTH(dram0_0_seg)),
           "DRAM segment data does not fit.")

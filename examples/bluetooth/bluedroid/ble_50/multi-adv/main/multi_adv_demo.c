@@ -1,8 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
 
 /****************************************************************************
 *
@@ -64,7 +66,6 @@ esp_ble_gap_ext_adv_params_t ext_adv_params_1M = {
     .sid = 0,
     .scan_req_notif = false,
     .own_addr_type = BLE_ADDR_TYPE_RANDOM,
-    .tx_power = EXT_ADV_TX_PWR_NO_PREFERENCE,
 };
 
 esp_ble_gap_ext_adv_params_t ext_adv_params_2M = {
@@ -79,7 +80,6 @@ esp_ble_gap_ext_adv_params_t ext_adv_params_2M = {
     .sid = 1,
     .scan_req_notif = false,
     .own_addr_type = BLE_ADDR_TYPE_RANDOM,
-    .tx_power = EXT_ADV_TX_PWR_NO_PREFERENCE,
 };
 
 esp_ble_gap_ext_adv_params_t legacy_adv_params = {
@@ -94,7 +94,6 @@ esp_ble_gap_ext_adv_params_t legacy_adv_params = {
     .sid = 2,
     .scan_req_notif = false,
     .own_addr_type = BLE_ADDR_TYPE_RANDOM,
-    .tx_power = EXT_ADV_TX_PWR_NO_PREFERENCE,
 };
 
 esp_ble_gap_ext_adv_params_t ext_adv_params_coded = {
@@ -109,7 +108,6 @@ esp_ble_gap_ext_adv_params_t ext_adv_params_coded = {
     .sid = 3,
     .scan_req_notif = false,
     .own_addr_type = BLE_ADDR_TYPE_RANDOM,
-    .tx_power = EXT_ADV_TX_PWR_NO_PREFERENCE,
 };
 
 static uint8_t raw_adv_data_1m[] = {
@@ -248,7 +246,7 @@ void app_main(void)
     FUNC_SEND_WAIT_SEM(esp_ble_gap_config_ext_adv_data_raw(2, sizeof(legacy_adv_data), &legacy_adv_data[0]), test_sem);
     FUNC_SEND_WAIT_SEM(esp_ble_gap_config_ext_scan_rsp_data_raw(2, sizeof(legacy_scan_rsp_data), &legacy_scan_rsp_data[0]), test_sem);
 
-    // coded phy extend adv, Scannable advertising
+    // coded phy extend adv, Connectable advertising
     FUNC_SEND_WAIT_SEM(esp_ble_gap_ext_adv_set_params(3, &ext_adv_params_coded), test_sem);
     FUNC_SEND_WAIT_SEM(esp_ble_gap_ext_adv_set_rand_addr(3, addr_coded), test_sem);
     FUNC_SEND_WAIT_SEM(esp_ble_gap_config_ext_scan_rsp_data_raw(3, sizeof(raw_scan_rsp_data_coded), &raw_scan_rsp_data_coded[0]), test_sem);

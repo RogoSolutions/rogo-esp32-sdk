@@ -1,14 +1,24 @@
-/*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <string.h>
 
+#include "esp_netif_lwip_internal.h"
 
 #include "esp_netif.h"
 #include "esp_netif_private.h"
+#include "esp_netif_sta_list.h"
 
 #if CONFIG_ESP_NETIF_LOOPBACK
 
@@ -32,11 +42,6 @@ static bool s_netif_up = false;
  *
  *
  */
-
-#ifndef NETIF_MAX_HWADDR_LEN
-#define NETIF_MAX_HWADDR_LEN 6U
-#endif
-
 struct esp_netif_obj {
     // default interface addresses
     uint8_t mac[NETIF_MAX_HWADDR_LEN];
@@ -117,9 +122,9 @@ static esp_err_t esp_netif_init_configuration(esp_netif_t *esp_netif, const esp_
     // Configure general esp-netif properties
     memcpy(esp_netif->mac, cfg->base->mac, NETIF_MAX_HWADDR_LEN);
     if (cfg->base->ip_info == NULL) {
-        esp_netif->ip_info->ip.addr = 0;
-        esp_netif->ip_info->gw.addr = 0;
-        esp_netif->ip_info->netmask.addr = 0;
+        ip4_addr_set_zero(&esp_netif->ip_info->ip);
+        ip4_addr_set_zero(&esp_netif->ip_info->gw);
+        ip4_addr_set_zero(&esp_netif->ip_info->netmask);
     } else {
         memcpy(esp_netif->ip_info, cfg->base->ip_info, sizeof(esp_netif_ip_info_t));
     }
@@ -393,6 +398,11 @@ esp_err_t esp_netif_get_dns_info(esp_netif_t *esp_netif, esp_netif_dns_type_t ty
     return ESP_ERR_NOT_SUPPORTED;
 }
 
+esp_err_t esp_netif_get_sta_list(const wifi_sta_list_t *wifi_sta_list, esp_netif_sta_list_t *netif_sta_list)
+{
+    return ESP_ERR_NOT_SUPPORTED;
+}
+
 esp_err_t esp_netif_create_ip6_linklocal(esp_netif_t *esp_netif)
 {
     return ESP_ERR_NOT_SUPPORTED;
@@ -455,7 +465,7 @@ esp_err_t esp_netif_leave_ip6_multicast_group(esp_netif_t *esp_netif, const esp_
     return ESP_ERR_NOT_SUPPORTED;
 }
 
-esp_err_t esp_netif_add_ip6_address(esp_netif_t *esp_netif, const ip_event_add_ip6_t *addr)
+esp_err_t esp_netif_add_ip6_address(esp_netif_t *esp_netif, const esp_ip6_addr_t *addr, uint8_t preference)
 {
     return ESP_ERR_NOT_SUPPORTED;
 }

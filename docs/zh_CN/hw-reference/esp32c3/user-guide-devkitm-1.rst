@@ -60,14 +60,13 @@ ESP32-C3-DevKitM-1 是一款入门级开发板，使用以尺寸小而得名的 
    * - Boot Button（Boot 键）
      - 下载按键。按住 **Boot** 键的同时按一下 **Reset** 键进入“固件下载”模式，通过串口下载固件。
    * - Micro-USB Port（Micro-USB 接口）
-     - USB 接口。可用作开发板的供电电源或 PC 和 ESP32-C3FN4 芯片的通信接口。
+     - USB 接口。可用作开发板的供电电源或 PC 和 ESP32-C3FN4 芯片的通信接口。     
    * - Reset Button（Reset 键）
-     - 复位按键。
+     - 复位按键。 
    * - USB-to-UART Bridge（USB 至 UART 桥接器）
      - 单芯片 USB 至 UART 桥接器，可提供高达 3 Mbps 的传输速率。
    * - RGB LED
      - 可寻址 RGB 发光二极管，由 GPIO8 驱动。
-
 
 开始开发应用
 ------------
@@ -155,8 +154,7 @@ J1
 6     GND   G           接地
 7     RST   I           CHIP_PU
 8     GND   G           接地
-9     IO0   I/O/T       GPIO0, ADC1_CH0, XTAL_32K_P
-10    IO1   I/O/T       GPIO1, ADC1_CH1, XTAL_32K_N
+9     IO1   I/O/T       GPIO1, ADC1_CH1, XTAL_32K_N
 11    IO10  I/O/T       GPIO10, FSPICS0
 12    GND   G           接地
 13    5V    P           5 V 电源
@@ -187,14 +185,15 @@ J3
 ====  ====  ==========  ================================
 
 .. [1] P：电源；I：输入；O：输出；T：可设置为高阻。
-.. [2] GPIO2、GPIO8、GPIO9 为 ESP32-C3FN4 芯片的 Strapping 管脚。在芯片上电和系统复位过程中，Strapping 管脚根据管脚的二进制电压值控制芯片功能。Strapping 管脚的具体描述和应用，请参考 `ESP32-C3 技术规格书`_ 的 Strapping 管脚章节。
+.. [2] GPIO2、GPIO8、GPIO9 为 ESP32-C3FN4 芯片的 Strapping 管脚。在芯片上电和系统复位过程中，Strapping 管脚根据管脚的二进制电压值控制芯片功能。Strapping 管脚的具体描述和应用，请参考 `ESP32-C3 技术规格书`_ 的 Strapping 管脚章节。 
 
 管脚布局
 ^^^^^^^^
-.. figure:: ../../../_static/esp32-c3-devkitm-1-v1-pinout.png
+.. figure:: ../../../_static/esp32-c3-devkitm-1-v1-pinout.jpg
     :align: center
     :scale: 45%
     :alt: ESP32-C3-DevKitM-1 管脚布局（点击放大）
+    :figclass: align-center
 
     ESP32-C3-DevKitM-1 管脚布局（点击放大）
 
@@ -206,7 +205,7 @@ J3
 相关文档
 ========
 * `使用 ESP32-C3 构建安全高性价比的互联设备 <http://c3.espressif.com/>`_
-* `ESP32-C3 技术规格书`_ (PDF)
+* `ESP32-C3 技术规格书`_ (PDF) 
 * `ESP32-C3-MINI-1 规格书`_ (PDF)
 * `ESP32-C3-DevKitM-1 原理图`_ (PDF)
 * `ESP32-C3-DevKitM-1 PCB 布局图 <https://dl.espressif.com/dl/schematics/PCB_ESP32-C3-DEVKITM-1_V1_20200915AA.pdf>`_ (PDF)
@@ -215,9 +214,7 @@ J3
 
 有关本开发板的更多设计文档，请联系我们的商务部门 `sales@espressif.com <sales@espressif.com>`_。
 
+
 .. _ESP32-C3 技术规格书: https://www.espressif.com/sites/default/files/documentation/esp32-c3_datasheet_cn.pdf
 .. _ESP32-C3-MINI-1 规格书: https://www.espressif.com/sites/default/files/documentation/esp32-c3-mini-1_datasheet_cn.pdf
 .. _ESP32-C3-DevKitM-1 原理图: https://dl.espressif.com/dl/schematics/SCH_ESP32-C3-DEVKITM-1_V1_20200915A.pdf
-.. _ESP32-C3-DevKitM-1 PCB 布局图: https://dl.espressif.com/dl/schematics/PCB_ESP32-C3-DEVKITM-1_V1_20200915AA.pdf
-.. _ESP32-C3-DevKitM-1 尺寸图: https://dl.espressif.com/dl/schematics/DIMENSION_ESP32-C3-DEVKITM-1_V1_20200915AA.pdf
-.. _ESP32-C3-DevKitM-1 尺寸图源文件: https://dl.espressif.com/dl/schematics/DIMENSION_ESP32-C3-DEVKITM-1_V1_20200915AA.dxf

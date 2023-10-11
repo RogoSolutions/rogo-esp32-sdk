@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "esp_timer.h"
 #include "sdmmc_common.h"
 
 static const char* TAG = "sdmmc_cmd";
@@ -108,19 +107,6 @@ esp_err_t sdmmc_send_cmd_send_op_cond(sdmmc_card_t* card, uint32_t ocr, uint32_t
 {
     esp_err_t err;
 
-    /* If the host supports this, keep card clock enabled
-     * from the start of ACMD41 until the card is idle.
-     * (Ref. SD spec, section 4.4 "Clock control".)
-     */
-    if (card->host.set_cclk_always_on != NULL) {
-        err = card->host.set_cclk_always_on(card->host.slot, true);
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "%s: set_cclk_always_on (1) err=0x%x", __func__, err);
-            return err;
-        }
-        ESP_LOGV(TAG, "%s: keeping clock on during ACMD41", __func__);
-    }
-
     sdmmc_command_t cmd = {
             .arg = ocr,
             .flags = SCF_CMD_BCR | SCF_RSP_R3,
@@ -145,7 +131,7 @@ esp_err_t sdmmc_send_cmd_send_op_cond(sdmmc_card_t* card, uint32_t ocr, uint32_t
         if (err != ESP_OK) {
             if (--err_cnt == 0) {
                 ESP_LOGD(TAG, "%s: sdmmc_send_app_cmd err=0x%x", __func__, err);
-                goto done;
+                return err;
             } else {
                 ESP_LOGV(TAG, "%s: ignoring err=0x%x", __func__, err);
                 continue;
@@ -165,29 +151,13 @@ esp_err_t sdmmc_send_cmd_send_op_cond(sdmmc_card_t* card, uint32_t ocr, uint32_t
         }
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
-
     if (nretries == 0) {
-        err = ESP_ERR_TIMEOUT;
-        goto done;
+        return ESP_ERR_TIMEOUT;
     }
-
     if (ocrp) {
         *ocrp = MMC_R3(cmd.response);
     }
-
-    err = ESP_OK;
-done:
-
-    if (card->host.set_cclk_always_on != NULL) {
-        esp_err_t err_cclk_dis = card->host.set_cclk_always_on(card->host.slot, false);
-        if (err_cclk_dis != ESP_OK) {
-            ESP_LOGE(TAG, "%s: set_cclk_always_on (2) err=0x%x", __func__, err);
-            /* If we failed to disable clock, don't overwrite 'err' to return the original error */
-        }
-        ESP_LOGV(TAG, "%s: clock always-on mode disabled", __func__);
-    }
-
-    return err;
+    return ESP_OK;
 }
 
 esp_err_t sdmmc_send_cmd_read_ocr(sdmmc_card_t *card, uint32_t *ocrp)
@@ -377,11 +347,7 @@ esp_err_t sdmmc_send_cmd_send_status(sdmmc_card_t* card, uint32_t* out_status)
         return err;
     }
     if (out_status) {
-        if (host_is_spi(card)) {
-            *out_status = SD_SPI_R2(cmd.response);
-        } else {
-            *out_status = MMC_R1(cmd.response);
-        }
+        *out_status = MMC_R1(cmd.response);
     }
     return ESP_OK;
 }
@@ -389,10 +355,6 @@ esp_err_t sdmmc_send_cmd_send_status(sdmmc_card_t* card, uint32_t* out_status)
 esp_err_t sdmmc_write_sectors(sdmmc_card_t* card, const void* src,
         size_t start_block, size_t block_count)
 {
-    if (block_count == 0) {
-        return ESP_OK;
-    }
-
     esp_err_t err = ESP_OK;
     size_t block_size = card->csd.sector_size;
     if (esp_ptr_dma_capable(src) && (intptr_t)src % 4 == 0) {
@@ -452,49 +414,14 @@ esp_err_t sdmmc_write_sectors_dma(sdmmc_card_t* card, const void* src,
     }
     uint32_t status = 0;
     size_t count = 0;
-    int64_t yield_delay_us = 100 * 1000; // initially 100ms
-    int64_t t0 = esp_timer_get_time();
-    int64_t t1 = 0;
-    /* SD mode: wait for the card to become idle based on R1 status */
     while (!host_is_spi(card) && !(status & MMC_R1_READY_FOR_DATA)) {
-        t1 = esp_timer_get_time();
-        if (t1 - t0 > SDMMC_READY_FOR_DATA_TIMEOUT_US) {
-            ESP_LOGE(TAG, "write sectors dma - timeout");
-            return ESP_ERR_TIMEOUT;
-        }
-        if (t1 - t0 > yield_delay_us) {
-            yield_delay_us *= 2;
-            vTaskDelay(1);
-        }
+        // TODO: add some timeout here
         err = sdmmc_send_cmd_send_status(card, &status);
         if (err != ESP_OK) {
-            ESP_LOGE(TAG, "%s: sdmmc_send_cmd_send_status returned 0x%x", __func__, err);
             return err;
         }
-        if (++count % 16 == 0) {
+        if (++count % 10 == 0) {
             ESP_LOGV(TAG, "waiting for card to become ready (%d)", count);
-        }
-    }
-    /* SPI mode: although card busy indication is based on the busy token,
-     * SD spec recommends that the host checks the results of programming by sending
-     * SEND_STATUS command. Some of the conditions reported in SEND_STATUS are not
-     * reported via a data error token.
-     */
-    if (host_is_spi(card)) {
-        err = sdmmc_send_cmd_send_status(card, &status);
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "%s: sdmmc_send_cmd_send_status returned 0x%x", __func__, err);
-            return err;
-        }
-        if (status & SD_SPI_R2_CARD_LOCKED) {
-            ESP_LOGE(TAG, "%s: write failed, card is locked: r2=0x%04x",
-                     __func__, status);
-            return ESP_ERR_INVALID_STATE;
-        }
-        if (status != 0) {
-            ESP_LOGE(TAG, "%s: card status indicates an error after write operation: r2=0x%04x",
-                     __func__, status);
-            return ESP_ERR_INVALID_RESPONSE;
         }
     }
     return ESP_OK;
@@ -503,10 +430,6 @@ esp_err_t sdmmc_write_sectors_dma(sdmmc_card_t* card, const void* src,
 esp_err_t sdmmc_read_sectors(sdmmc_card_t* card, void* dst,
         size_t start_block, size_t block_count)
 {
-    if (block_count == 0) {
-        return ESP_OK;
-    }
-
     esp_err_t err = ESP_OK;
     size_t block_size = card->csd.sector_size;
     if (esp_ptr_dma_capable(dst) && (intptr_t)dst % 4 == 0) {
@@ -565,198 +488,17 @@ esp_err_t sdmmc_read_sectors_dma(sdmmc_card_t* card, void* dst,
     }
     uint32_t status = 0;
     size_t count = 0;
-    int64_t yield_delay_us = 100 * 1000; // initially 100ms
-    int64_t t0 = esp_timer_get_time();
-    int64_t t1 = 0;
-    /* SD mode: wait for the card to become idle based on R1 status */
     while (!host_is_spi(card) && !(status & MMC_R1_READY_FOR_DATA)) {
-        t1 = esp_timer_get_time();
-        if (t1 - t0 > SDMMC_READY_FOR_DATA_TIMEOUT_US) {
-            ESP_LOGE(TAG, "read sectors dma - timeout");
-            return ESP_ERR_TIMEOUT;
-        }
-        if (t1 - t0 > yield_delay_us) {
-            yield_delay_us *= 2;
-            vTaskDelay(1);
-        }
+        // TODO: add some timeout here
         err = sdmmc_send_cmd_send_status(card, &status);
         if (err != ESP_OK) {
-            ESP_LOGE(TAG, "%s: sdmmc_send_cmd_send_status returned 0x%x", __func__, err);
             return err;
         }
-        if (++count % 16 == 0) {
+        if (++count % 10 == 0) {
             ESP_LOGV(TAG, "waiting for card to become ready (%d)", count);
         }
     }
     return ESP_OK;
-}
-
-esp_err_t sdmmc_erase_sectors(sdmmc_card_t* card, size_t start_sector,
-        size_t sector_count, sdmmc_erase_arg_t arg)
-{
-    if (sector_count == 0) {
-        return ESP_OK;
-    }
-
-    if (start_sector + sector_count > card->csd.capacity) {
-        return ESP_ERR_INVALID_SIZE;
-    }
-
-    uint32_t cmd38_arg;
-    if (arg == SDMMC_ERASE_ARG) {
-        cmd38_arg = card->is_mmc ? SDMMC_MMC_TRIM_ARG : SDMMC_SD_ERASE_ARG;
-    } else {
-        cmd38_arg = card->is_mmc ? SDMMC_MMC_DISCARD_ARG : SDMMC_SD_DISCARD_ARG;
-    }
-
-    /* validate the CMD38 argument against card supported features */
-    if (card->is_mmc) {
-        if ((cmd38_arg == SDMMC_MMC_TRIM_ARG) && (sdmmc_can_trim(card) != ESP_OK)) {
-            return ESP_ERR_NOT_SUPPORTED;
-        }
-        if ((cmd38_arg == SDMMC_MMC_DISCARD_ARG) && (sdmmc_can_discard(card) != ESP_OK)) {
-            return ESP_ERR_NOT_SUPPORTED;
-        }
-    } else { // SD card
-        if ((cmd38_arg == SDMMC_SD_DISCARD_ARG) && (sdmmc_can_discard(card) != ESP_OK)) {
-            return ESP_ERR_NOT_SUPPORTED;
-        }
-    }
-
-    /* default as block unit address */
-    size_t addr_unit_mult = 1;
-
-    if (!(card->ocr & SD_OCR_SDHC_CAP)) {
-        addr_unit_mult = card->csd.sector_size;
-    }
-
-    /* prepare command to set the start address */
-    sdmmc_command_t cmd = {
-            .flags = SCF_CMD_AC | SCF_RSP_R1 | SCF_WAIT_BUSY,
-            .opcode = card->is_mmc ? MMC_ERASE_GROUP_START :
-                    SD_ERASE_GROUP_START,
-            .arg = (start_sector * addr_unit_mult),
-    };
-
-    esp_err_t err = sdmmc_send_cmd(card, &cmd);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "%s: sdmmc_send_cmd (ERASE_GROUP_START) returned 0x%x", __func__, err);
-        return err;
-    }
-
-    /* prepare command to set the end address */
-    cmd.opcode = card->is_mmc ? MMC_ERASE_GROUP_END : SD_ERASE_GROUP_END;
-    cmd.arg = ((start_sector + (sector_count - 1)) * addr_unit_mult);
-
-    err = sdmmc_send_cmd(card, &cmd);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "%s: sdmmc_send_cmd (ERASE_GROUP_END) returned 0x%x", __func__, err);
-        return err;
-    }
-
-    /* issue erase command */
-    memset((void *)&cmd, 0 , sizeof(sdmmc_command_t));
-    cmd.flags = SCF_CMD_AC | SCF_RSP_R1B | SCF_WAIT_BUSY;
-    cmd.opcode = MMC_ERASE;
-    cmd.arg = cmd38_arg;
-    cmd.timeout_ms = sdmmc_get_erase_timeout_ms(card, cmd38_arg, sector_count * card->csd.sector_size / 1024);
-
-    err = sdmmc_send_cmd(card, &cmd);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "%s: sdmmc_send_cmd (ERASE) returned 0x%x", __func__, err);
-        return err;
-    }
-
-    if (host_is_spi(card)) {
-        uint32_t status;
-        err = sdmmc_send_cmd_send_status(card, &status);
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "%s: sdmmc_send_cmd_send_status returned 0x%x", __func__, err);
-            return err;
-        }
-        if (status != 0) {
-            ESP_LOGE(TAG, "%s: card status indicates an error after erase operation: r2=0x%04x",
-                     __func__, status);
-            return ESP_ERR_INVALID_RESPONSE;
-        }
-    }
-
-    return ESP_OK;
-}
-
-esp_err_t sdmmc_can_discard(sdmmc_card_t* card)
-{
-    if ((card->is_mmc) && (card->ext_csd.rev >= EXT_CSD_REV_1_6)) {
-         return ESP_OK;
-    }
-    // SD card
-    if ((!card->is_mmc) && !host_is_spi(card) && (card->ssr.discard_support == 1)) {
-        return ESP_OK;
-    }
-    return ESP_FAIL;
-}
-
-esp_err_t sdmmc_can_trim(sdmmc_card_t* card)
-{
-    if ((card->is_mmc) && (card->ext_csd.sec_feature & EXT_CSD_SEC_GB_CL_EN)) {
-        return ESP_OK;
-    }
-    return ESP_FAIL;
-}
-
-esp_err_t sdmmc_mmc_can_sanitize(sdmmc_card_t* card)
-{
-    if ((card->is_mmc) && (card->ext_csd.sec_feature & EXT_CSD_SEC_SANITIZE)) {
-        return ESP_OK;
-    }
-    return ESP_FAIL;
-}
-
-esp_err_t sdmmc_mmc_sanitize(sdmmc_card_t* card, uint32_t timeout_ms)
-{
-    esp_err_t err;
-    uint8_t index = EXT_CSD_SANITIZE_START;
-    uint8_t set = EXT_CSD_CMD_SET_NORMAL;
-    uint8_t value = 0x01;
-
-    if (sdmmc_mmc_can_sanitize(card) != ESP_OK) {
-        return ESP_ERR_NOT_SUPPORTED;
-    }
-    /*
-     * A Sanitize operation is initiated by writing a value to the extended
-     * CSD[165] SANITIZE_START. While the device is performing the sanitize
-     * operation, the busy line is asserted.
-     * SWITCH command is used to write the EXT_CSD register.
-     */
-    sdmmc_command_t cmd = {
-            .opcode = MMC_SWITCH,
-            .arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) | (index << 16) | (value << 8) | set,
-            .flags = SCF_RSP_R1B | SCF_CMD_AC | SCF_WAIT_BUSY,
-            .timeout_ms = timeout_ms,
-    };
-    err = sdmmc_send_cmd(card, &cmd);
-    if (err == ESP_OK) {
-        //check response bit to see that switch was accepted
-        if (MMC_R1(cmd.response) & MMC_R1_SWITCH_ERROR) {
-            err = ESP_ERR_INVALID_RESPONSE;
-        }
-    }
-    return err;
-}
-
-esp_err_t sdmmc_full_erase(sdmmc_card_t* card)
-{
-    sdmmc_erase_arg_t arg = SDMMC_SD_ERASE_ARG; // erase by default for SD card
-    esp_err_t err;
-    if (card->is_mmc) {
-        arg = sdmmc_mmc_can_sanitize(card) == ESP_OK ? SDMMC_MMC_DISCARD_ARG: SDMMC_MMC_TRIM_ARG;
-    }
-    err = sdmmc_erase_sectors(card, 0, card->csd.capacity, arg);
-    if ((err == ESP_OK) && (arg == SDMMC_MMC_DISCARD_ARG)) {
-        uint32_t timeout_ms = sdmmc_get_erase_timeout_ms(card, SDMMC_MMC_DISCARD_ARG, card->csd.capacity * ((uint64_t) card->csd.sector_size) / 1024);
-        return sdmmc_mmc_sanitize(card, timeout_ms);
-    }
-    return err;
 }
 
 esp_err_t sdmmc_get_status(sdmmc_card_t* card)

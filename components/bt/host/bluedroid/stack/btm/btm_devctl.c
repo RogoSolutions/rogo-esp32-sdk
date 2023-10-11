@@ -266,7 +266,7 @@ void btm_dev_timeout (TIMER_LIST_ENT  *p_tle)
 ** Returns          void
 **
 *******************************************************************************/
-static void btm_decode_ext_features_page (UINT8 page_number, const BD_FEATURES p_features)
+static void btm_decode_ext_features_page (UINT8 page_number, const UINT8 *p_features)
 {
     BTM_TRACE_DEBUG ("btm_decode_ext_features_page page: %d", page_number);
     switch (page_number) {
@@ -662,13 +662,14 @@ tBTM_DEV_STATUS_CB *BTM_RegisterForDeviceStatusNotif (tBTM_DEV_STATUS_CB *p_cb)
 tBTM_STATUS BTM_VendorSpecificCommand(UINT16 opcode, UINT8 param_len,
                                       UINT8 *p_param_buf, tBTM_VSC_CMPL_CB *p_cb)
 {
-    BT_HDR *p_buf;
+    void *p_buf;
 
     BTM_TRACE_EVENT ("BTM: BTM_VendorSpecificCommand: Opcode: 0x%04X, ParamLen: %i.",
                      opcode, param_len);
 
     /* Allocate a buffer to hold HCI command plus the callback function */
-    if ((p_buf = HCI_GET_CMD_BUF(param_len)) != NULL) {
+    if ((p_buf = osi_malloc((UINT16)(sizeof(BT_HDR) + sizeof (tBTM_CMPL_CB *) +
+                                     param_len + HCIC_PREAMBLE_SIZE))) != NULL) {
         /* Send the HCI command (opcode will be OR'd with HCI_GRP_VENDOR_SPECIFIC) */
         btsnd_hcic_vendor_spec_cmd (p_buf, opcode, param_len, p_param_buf, (void *)p_cb);
 
@@ -898,14 +899,14 @@ tBTM_STATUS BTM_EnableTestMode(void)
     }
 
     /* put device to connectable mode */
-    if (BTM_SetConnectability(BTM_CONNECTABLE, BTM_DEFAULT_CONN_WINDOW,
-                               BTM_DEFAULT_CONN_INTERVAL) != BTM_SUCCESS) {
+    if (!BTM_SetConnectability(BTM_CONNECTABLE, BTM_DEFAULT_CONN_WINDOW,
+                               BTM_DEFAULT_CONN_INTERVAL) == BTM_SUCCESS) {
         return BTM_NO_RESOURCES;
     }
 
     /* put device to discoverable mode */
-    if (BTM_SetDiscoverability(BTM_GENERAL_DISCOVERABLE, BTM_DEFAULT_DISC_WINDOW,
-                                BTM_DEFAULT_DISC_INTERVAL) != BTM_SUCCESS) {
+    if (!BTM_SetDiscoverability(BTM_GENERAL_DISCOVERABLE, BTM_DEFAULT_DISC_WINDOW,
+                                BTM_DEFAULT_DISC_INTERVAL) == BTM_SUCCESS) {
         return BTM_NO_RESOURCES;
     }
 

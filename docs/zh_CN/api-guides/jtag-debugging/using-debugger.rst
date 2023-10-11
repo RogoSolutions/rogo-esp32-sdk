@@ -8,8 +8,6 @@
 * :ref:`jtag-debugging-using-debugger-command-line`
 * :ref:`jtag-debugging-with-idf-py`
 
-关于如何使用 VS Code 进行调试，请参阅文档 `使用 VS Code 调试 <https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/DEBUGGING.md>`__。
-
 
 .. _jtag-debugging-using-debugger-eclipse:
 
@@ -24,7 +22,7 @@
 
 首先，打开 Eclipse 并转到 “Help” > “Install New Software” 来安装 “GDB Hardware Debugging” 插件。
 
-安装完成后，按照以下步骤配置调试会话。请注意，一些配置参数是通用的，有些则针对特定项目。我们会通过配置 "blink" 示例项目的调试环境来进行展示，请先按照 `Eclipse Plugin <https://github.com/espressif/idf-eclipse-plugin/blob/master/README_CN.md>`_ 介绍的方法将该示例项目添加到 Eclipse 的工作空间。示例项目 :example:`get-started/blink` 的源代码可以在 ESP-IDF 仓库的 :idf:`examples` 目录下找到。
+安装完成后，按照以下步骤配置调试会话。请注意，一些配置参数是通用的，有些则针对特定项目。我们会通过配置 "blink" 示例项目的调试环境来进行展示，请先按照 :doc:`使用 Eclipse IDE 编译和烧写 <../../get-started/eclipse-setup>` 介绍的方法将该示例项目添加到 Eclipse 的工作空间。示例项目 :example:`get-started/blink` 的源代码可以在 ESP-IDF 仓库的 :idf:`examples` 目录下找到。
 
 1. 在 Eclipse 中，进入 `Run` > `Debug Configuration`，会出现一个新的窗口。在窗口的左侧窗格中，双击 “GDB Hardware Debugging”(或者选择 “GDB Hardware Debugging” 然后按下 “New” 按钮）来新建一个配置。
 
@@ -32,7 +30,7 @@
 
 3. 在下面的 “Main” 选项卡中， 点击 “Project:” 边上的 “Browse” 按钮，然后选择当前的 “blink” 项目。
 
-4. 在下一行的 “C/C++ Application:” 中，点击 “Browse” 按钮，选择 “blink.elf” 文件。如果 “blink.elf” 文件不存在，那么很有可能该项目还没有编译，请参考 `Eclipse Plugin <https://github.com/espressif/idf-eclipse-plugin/blob/master/README_CN.md>`_ 指南中的介绍。
+4. 在下一行的 “C/C++ Application:” 中，点击 “Browse” 按钮，选择 “blink.elf” 文件。如果 “blink.elf” 文件不存在，那么很有可能该项目还没有编译，请参考 :doc:`使用 Eclipse IDE 编辑和烧写 <../../get-started/eclipse-setup>` 指南中的介绍。
 
 5. 最后，在 “Build (if required) before launching” 下面点击 “Disable auto build”。
 
@@ -230,7 +228,7 @@
 
 4.  ``idf.py gdbgui``
 
-    启动 `gdbgui <https://www.gdbgui.com>`_，在浏览器中打开调试器的前端界面。请在运行安装脚本时添加 "--enable-gdbgui" 参数，即运行 ``install.sh --enable-gdbgui``，从而确保支持 “gdbgui” 选项。
+    启动 `gdbgui <https://www.gdbgui.com>`_，在浏览器中打开调试器的前端界面。
 
 
     上述这些命令也可以合并到一起使用，``idf.py`` 会自动将后台进程（比如 openocd）最先运行，交互式进程（比如 GDB，monitor）最后运行。

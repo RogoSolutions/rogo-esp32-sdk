@@ -1,15 +1,22 @@
-/*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2021 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <string.h>
 #include <sys/param.h>
 #include "esp_system.h"
-#include "spi_flash_mmap.h"
+#include "esp_spi_flash.h"
 #include "soc/soc_memory_layout.h"
-#include "esp_private/cache_utils.h"
 
 #define ASSERT_STR              "assert failed: "
 #define CACHE_DISABLED_STR      "<cached disabled>"
@@ -47,10 +54,7 @@ void __attribute__((noreturn)) __assert_func(const char *file, int line, const c
 
     itoa(line, lbuf, 10);
 
-#if !CONFIG_APP_BUILD_TYPE_PURE_RAM_APP
-    if (!spi_flash_cache_enabled())
-#endif
-    {
+    if (!spi_flash_cache_enabled()) {
        if (esp_ptr_in_drom(file)) {
            file = CACHE_DISABLED_STR;
        }

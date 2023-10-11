@@ -8,7 +8,7 @@ The purpose of this description is to provide quick summary on documentation sty
 Introduction
 ------------
 
-When documenting code for this repository, please follow `Doxygen style <https://www.doxygen.nl/manual/docblocks.html#specialblock>`_. You are doing it by inserting special commands, for instance ``@param``, into standard comments blocks, for example: ::
+When documenting code for this repository, please follow `Doxygen style <http://doxygen.nl/manual/docblocks.html#specialblock>`_. You are doing it by inserting special commands, for instance ``@param``, into standard comments blocks, for example: ::
 
     /**
      * @param ratio this is oxygen to air ratio
@@ -22,7 +22,7 @@ Typical comment block, that contains documentation of a function, looks like bel
     :align: center
     :alt: Sample inline code documentation
 
-Doxygen supports couple of formatting styles. It also gives you great flexibility on level of details to include in documentation. To get familiar with available features, please check data rich and very well organized `Doxygen Manual <https://www.doxygen.nl/manual/index.html>`_.
+Doxygen supports couple of formatting styles. It also gives you great flexibility on level of details to include in documentation. To get familiar with available features, please check data rich and very well organized `Doxygen Manual <http://doxygen.nl/manual/index.html>`_.
 
 
 Why we need it?
@@ -123,7 +123,7 @@ When writing codes, please follow the guidelines below:
 
    For practical example see :component_file:`nvs_flash/include/nvs.h`.
 
-4. You may want to go even further and skip some code like repetitive defines or enumerations. In such case, enclose the code within ``/** @cond */`` and ``/** @endcond */`` commands. Example of such implementation is provided in :component_file:`driver/gpio/include/driver/gpio.h`.
+4. You may want to go even further and skip some code like repetitive defines or enumerations. In such case, enclose the code within ``/** @cond */`` and ``/** @endcond */`` commands. Example of such implementation is provided in :component_file:`driver/include/driver/gpio.h`.
 
 5. Use markdown to make your documentation even more readable. You will add headers, links, tables and more. ::
 
@@ -183,7 +183,7 @@ or for specific target and language with::
 
     build-docs -t esp32 -l en build
 
-For more in-depth documentation about `esp-docs` features please see the documentation at `esp-docs <https://docs.espressif.com/projects/esp-docs/en/latest/>`_.
+For more in-depth documentation about `esp-docs` features please see the `esp-doc` documentation.
 
 Wrap up
 -------
@@ -204,4 +204,4 @@ Related Documents
 
 .. _interactive shell: http://interactive.blockdiag.com/?compression=deflate&src=eJxlUMFOwzAMvecrrO3aITYQQirlAIIzEseJQ5q4TUSIq8TVGIh_J2m7jbKc7Ge_5_dSO1Lv2soWvoVYgieNoMh7VGzJR9FJtugZ7lYQ0UcKEbYNOY36rRQHZHUPT68vV5tceGLbWCUzPfeaFFMoBZzecVc56vWwJFnWMmJ59CCZg617xpOFbTSyw0pmvT_HJ7hxtFNGBr6wvuu5SCkchcrZ1vAeXZomznh5YgTqfcpR02cBO6vZVDeXBRjMjKEcFRbLh8f18-Z2UUBDnqP9wmp9ncRmSSfND2ldGo2h_zse407g0Mxc1q7HzJ3-4jzYYTJjtQH3iSV-fgFzx50J
 
-.. _Breathe: https://breathe.readthedocs.io/en/latest/
+.. _Breathe: https://breathe.readthedocs.io

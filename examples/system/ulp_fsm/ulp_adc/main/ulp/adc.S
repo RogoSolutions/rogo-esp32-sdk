@@ -1,8 +1,3 @@
-/*
- * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
 /* ULP Example: using ADC in deep sleep
 
    This example code is in the Public Domain (or CC0 licensed, at your option.)
@@ -27,9 +22,9 @@
  */
 #include "soc/rtc_cntl_reg.h"
 #include "soc/soc_ulp.h"
-#include "example_config.h"
 
-	.set adc_channel, EXAMPLE_ADC_CHANNEL
+	/* ADC1 channel 6, GPIO34 */
+	.set adc_channel, 6
 
 	/* Configure the number of ADC samples to average on each measurement.
 	   For convenience, make it a power of 2. */

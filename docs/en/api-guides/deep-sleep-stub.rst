@@ -104,23 +104,14 @@ To reduce wake-up time use the `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP` K
 CRC Check For Wake Stubs
 ------------------------
 
-.. only:: SOC_PM_SUPPORT_DEEPSLEEP_CHECK_STUB_ONLY
+.. only:: SOC_PM_SUPPORT_DEEPSLEEP_VERIFY_STUB_ONLY
 
     During deep sleep, only the wake stubs area of RTC Fast memory is validated with CRC. When {IDF_TARGET_NAME} wakes up from deep sleep, the wake stubs area is validated again. If the validation passes, the wake stubs code will be executed. Otherwise, the normal initialization, bootloader, and esp-idf codes will be executed.
 
-.. only:: not SOC_PM_SUPPORT_DEEPSLEEP_CHECK_STUB_ONLY
+.. only:: not SOC_PM_SUPPORT_DEEPSLEEP_VERIFY_STUB_ONLY
 
     During deep sleep, all RTC Fast memory areas will be validated with CRC. When {IDF_TARGET_NAME} wakes up from deep sleep, the RTC fast memory will be validated with CRC again. If the validation passes, the wake stubs code will be executed. Otherwise, the normal initialization, bootloader and esp-idf codes will be executed.
 
 .. note::
 
     When the `CONFIG_ESP_SYSTEM_ALLOW_RTC_FAST_MEM_AS_HEAP` option is enabled, all the RTC fast memory except the wake stubs area is added to the heap.
-
-Example
--------
-
-.. only:: SOC_RTC_FAST_MEM_SUPPORTED
-
-ESP-IDF provides an example to show how to implement the Deep-sleep wake stub.
-
-- :example:`system/deep_sleep_wake_stub`

@@ -1,8 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
 
 #include "driver/uart.h"
 #include "freertos/xtensa_api.h"
@@ -25,7 +27,6 @@ static const uart_config_t uart_cfg = {
     .stop_bits = UART_STOP_BITS_1,
     .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
     .rx_flow_ctrl_thresh = 127,
-    .source_clk = UART_SCLK_DEFAULT,
 };
 
 extern void spp_msg_args_parser(char *buf, int len);
@@ -49,7 +50,7 @@ static void console_uart_task(void *pvParameters)
 
     for (;;) {
         //Waiting for UART event.
-        if (xQueueReceive(uart_queue, (void * )&event, (TickType_t)portMAX_DELAY)) {
+        if (xQueueReceive(uart_queue, (void * )&event, (portTickType)portMAX_DELAY)) {
             switch (event.type) {
                 //Event of UART receving data
                 case UART_DATA:

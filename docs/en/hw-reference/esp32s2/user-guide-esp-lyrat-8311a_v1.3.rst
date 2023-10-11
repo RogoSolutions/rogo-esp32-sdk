@@ -41,6 +41,7 @@ Overview
 
 The ESP-LyraT-8311A is mainly designed for audio applications. However, you can use your creativity to come up with any other use cases.
 
+
 Description of Components
 -------------------------
 
@@ -149,6 +150,7 @@ ESP-LyraT-8311A v1.2
 --------------------
 
 :doc:`Initial release <user-guide-esp-lyrat-8311a_v1.2>`
+
 
 Related Documents
 =================

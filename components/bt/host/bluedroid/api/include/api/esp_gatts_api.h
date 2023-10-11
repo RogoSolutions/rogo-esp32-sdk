@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef __ESP_GATTS_API_H__
 #define __ESP_GATTS_API_H__
@@ -191,8 +199,6 @@ typedef union {
         uint8_t link_role;              /*!< Link role : master role = 0  ; slave role = 1*/
         esp_bd_addr_t remote_bda;       /*!< Remote bluetooth device address */
         esp_gatt_conn_params_t conn_params; /*!< current Connection parameters */
-        esp_ble_addr_type_t ble_addr_type;  /*!< Remote BLE device address type */
-        uint16_t conn_handle;           /*!< HCI connection handle */
     } connect;                          /*!< Gatt server callback param of ESP_GATTS_CONNECT_EVT */
 
     /**
@@ -200,6 +206,7 @@ typedef union {
      */
     struct gatts_disconnect_evt_param {
         uint16_t conn_id;               /*!< Connection id */
+        uint8_t link_role;              /*!< Link role : master role = 0  ; slave role = 1*/
         esp_bd_addr_t remote_bda;       /*!< Remote bluetooth device address */
         esp_gatt_conn_reason_t reason;  /*!< Indicate the reason of disconnection */
     } disconnect;                       /*!< Gatt server callback param of ESP_GATTS_DISCONNECT_EVT */
@@ -353,7 +360,7 @@ esp_err_t esp_ble_gatts_create_service(esp_gatt_if_t gatts_if,
  */
 esp_err_t esp_ble_gatts_create_attr_tab(const esp_gatts_attr_db_t *gatts_attr_db,
                                             esp_gatt_if_t gatts_if,
-                                            uint16_t max_nb_attr,
+                                            uint8_t max_nb_attr,
                                             uint8_t srvc_inst_id);
 /**
  * @brief           This function is called to add an included service. This function have to be called between
@@ -464,7 +471,6 @@ esp_err_t esp_ble_gatts_stop_service(uint16_t service_handle);
 /**
  * @brief           Send indicate or notify to GATT client.
  *                  Set param need_confirm as false will send notification, otherwise indication.
- *                  Note: the size of indicate or notify data need less than MTU size,see "esp_ble_gattc_send_mtu_req".
  *
  * @param[in]       gatts_if: GATT server access interface
  * @param[in]       conn_id - connection id to indicate.
@@ -572,16 +578,6 @@ esp_err_t esp_ble_gatts_close(esp_gatt_if_t gatts_if, uint16_t conn_id);
  *
  */
 esp_err_t esp_ble_gatts_send_service_change_indication(esp_gatt_if_t gatts_if, esp_bd_addr_t remote_bda);
-
-/**
- * @brief           Print local database (GATT service table)
- *
- * @return
- *                  - ESP_OK : success
- *                  - other  : failed
- *
- */
-esp_err_t esp_ble_gatts_show_local_database(void);
 
 #ifdef __cplusplus
 }

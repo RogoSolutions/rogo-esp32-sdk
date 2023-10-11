@@ -34,9 +34,7 @@
 #include "gatt_int.h"
 #include "stack/l2c_api.h"
 #include "btm_int.h"
-
-extern tGATT_STATUS gap_proc_read(tGATTS_REQ_TYPE type, tGATT_READ_REQ *p_data, tGATTS_RSP *p_rsp);
-extern tGATT_STATUS gatt_proc_read(UINT16 conn_id, tGATTS_REQ_TYPE type, tGATT_READ_REQ *p_data, tGATTS_RSP *p_rsp);
+#include "common/bte_appl.h"
 
 /********************************************************************************
 **              L O C A L    F U N C T I O N     P R O T O T Y P E S            *
@@ -127,10 +125,14 @@ static tGATT_STATUS gatts_check_attr_readability(tGATT_ATTR16 *p_attr,
     tGATT_PERM      perm = p_attr->permission;
 
     UNUSED(offset);
+#if SMP_INCLUDED == TRUE
+    min_key_size = bte_appl_cfg.ble_appl_enc_key_size;
+#else
     min_key_size = (((perm & GATT_ENCRYPT_KEY_SIZE_MASK) >> 12));
     if (min_key_size != 0 ) {
         min_key_size += 6;
     }
+#endif
 
     if (!(perm & GATT_READ_ALLOWED)) {
         GATT_TRACE_ERROR( "GATT_READ_NOT_PERMIT\n");
@@ -769,66 +771,6 @@ tGATT_STATUS gatts_set_attribute_value(tGATT_SVC_DB *p_db, UINT16 attr_handle,
 
 /*******************************************************************************
 **
-** Function         gatts_get_attr_value_internal
-**
-** Description      This function get the attribute value in gap service and gatt service
-**
-** Parameter        attr_handle: the attribute handle
-**                  length: the attribute value length
-**                  value: the pointer to the data to be get to the attribute value in the database
-**
-** Returns          Status of the operation.
-**
-*******************************************************************************/
-static tGATT_STATUS gatts_get_attr_value_internal(UINT16 attr_handle, UINT16 *length, UINT8 **value)
-{
-    UINT8 i;
-    tGATT_READ_REQ read_req;
-    tGATT_STATUS status = GATT_NOT_FOUND;
-    tGATT_SR_REG *p_rcb = gatt_cb.sr_reg;
-    UINT8 service_uuid[LEN_UUID_128] = {0};
-
-    // find the service by handle
-    for (i = 0; i < GATT_MAX_SR_PROFILES; i++, p_rcb++) {
-        if (p_rcb->in_use && p_rcb->s_hdl <= attr_handle && p_rcb->e_hdl >= attr_handle) {
-            break;
-        }
-    }
-
-    // service cb not found
-    if (i == GATT_MAX_SR_PROFILES) {
-        return status;
-    }
-
-    if (p_rcb->app_uuid.len != LEN_UUID_128) {
-        return status;
-    }
-
-    memset(&read_req, 0, sizeof(tGATT_READ_REQ));
-    read_req.handle = attr_handle;
-
-    // read gatt service attribute value
-    memset(service_uuid, 0x81, LEN_UUID_128);
-    if (!memcmp(p_rcb->app_uuid.uu.uuid128, service_uuid, LEN_UUID_128)) {
-        status = gatt_proc_read(0, GATTS_REQ_TYPE_READ, &read_req, &gatt_cb.rsp);
-    }
-
-    // read gap service attribute value
-    memset(service_uuid, 0x82, LEN_UUID_128);
-    if (!memcmp(p_rcb->app_uuid.uu.uuid128, service_uuid, LEN_UUID_128)) {
-        status = gap_proc_read(GATTS_REQ_TYPE_READ, &read_req, &gatt_cb.rsp);
-    }
-
-    if (status == GATT_SUCCESS) {
-        *length = gatt_cb.rsp.attr_value.len;
-        *value = gatt_cb.rsp.attr_value.value;
-    }
-
-    return status;
-}
-
-/*******************************************************************************
-**
 ** Function         gatts_get_attribute_value
 **
 ** Description      This function get the attribute value in the database
@@ -868,11 +810,7 @@ tGATT_STATUS gatts_get_attribute_value(tGATT_SVC_DB *p_db, UINT16 attr_handle,
         return GATT_INVALID_PDU;
     }
 
-    if (gatts_get_attr_value_internal(attr_handle, length, value) == GATT_SUCCESS) {
-        return GATT_SUCCESS;
-    }
-
-    p_cur = (tGATT_ATTR16 *) p_db->p_attr_list;
+    p_cur    =  (tGATT_ATTR16 *) p_db->p_attr_list;
 
     while (p_cur != NULL) {
         if (p_cur->handle == attr_handle) {
@@ -1038,7 +976,7 @@ tGATT_STATUS gatts_write_attr_value_by_handle(tGATT_SVC_DB *p_db,
                     memcpy(p_attr->p_value->attr_val.attr_val + offset, p_value, len);
                     p_attr->p_value->attr_val.attr_len = len + offset;
                     return GATT_SUCCESS;
-                } else if (p_attr->p_value && p_attr->p_value->attr_val.attr_max_len < offset + len){
+                } else if (p_attr->p_value->attr_val.attr_max_len < offset + len){
                     GATT_TRACE_DEBUG("Remote device try to write with a length larger then attribute's max length\n");
                     return GATT_INVALID_ATTR_LEN;
                 } else if ((p_attr->p_value == NULL) || (p_attr->p_value->attr_val.attr_val == NULL)){
@@ -1139,10 +1077,14 @@ tGATT_STATUS gatts_write_attr_perm_check (tGATT_SVC_DB *p_db, UINT8 op_code,
         while (p_attr != NULL) {
             if (p_attr->handle == handle) {
                 perm = p_attr->permission;
+            #if SMP_INCLUDED == TRUE
+                min_key_size = bte_appl_cfg.ble_appl_enc_key_size;
+            #else
                 min_key_size = (((perm & GATT_ENCRYPT_KEY_SIZE_MASK) >> 12));
                 if (min_key_size != 0 ) {
                     min_key_size += 6;
                 }
+            #endif
                 GATT_TRACE_DEBUG( "gatts_write_attr_perm_check p_attr->permission =0x%04x min_key_size==0x%04x",
                                   p_attr->permission,
                                   min_key_size);

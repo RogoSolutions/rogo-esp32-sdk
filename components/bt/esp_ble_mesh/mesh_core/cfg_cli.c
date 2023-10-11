@@ -685,8 +685,7 @@ static int send_msg_with_none(bt_mesh_client_common_param_t *param, uint32_t op)
     return bt_mesh_client_send_msg(param, &msg, true, timeout_handler);
 }
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+// Ninh.D.H 21.06.2023
 static int send_msg_with_rogo(bt_mesh_client_rogo_param_t *param, uint32_t op)
 {
     BLE_MESH_MODEL_BUF_DEFINE(msg, op, 0);
@@ -695,7 +694,6 @@ static int send_msg_with_rogo(bt_mesh_client_rogo_param_t *param, uint32_t op)
 
     return bt_mesh_client_rogo_send_msg(param, &msg, true, timeout_handler);
 }
-/***********************************************************************************************/
 
 static int send_msg_with_u8(bt_mesh_client_common_param_t *param, uint32_t op, uint8_t val)
 {
@@ -1014,14 +1012,12 @@ int bt_mesh_cfg_node_reset(bt_mesh_client_common_param_t *param)
     return send_msg_with_none(param, OP_NODE_RESET);
 }
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+// Ninh.D.H 20.06.2023
 int bt_mesh_cfg_rogo_node_reset(bt_mesh_client_rogo_param_t *param)
 {
     ESP_LOGW("MESH", "ROGO mesh node reset");
     return send_msg_with_rogo(param, OP_NODE_RESET);
 }
-/************************************************************************************************/
 
 int bt_mesh_cfg_mod_pub_va_set(bt_mesh_client_common_param_t *param,
                                uint16_t elem_addr, uint16_t mod_id,

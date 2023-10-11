@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2020 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 /*******************************************************************************
  * NOTICE
@@ -113,7 +121,7 @@ static inline void hmac_ll_write_block_512(const uint32_t *block)
 {
     const size_t REG_WIDTH = sizeof(uint32_t);
     for (size_t i = 0; i < SHA256_BLOCK_SZ / REG_WIDTH; i++) {
-        REG_WRITE(HMAC_WR_MESSAGE_MEM + (i * REG_WIDTH), block[i]);
+        REG_WRITE(HMAC_WDATA_BASE + (i * REG_WIDTH), block[i]);
     }
 
     REG_WRITE(HMAC_SET_MESSAGE_ONE_REG, 1);
@@ -126,7 +134,7 @@ static inline void hmac_ll_read_result_256(uint32_t *result)
 {
     const size_t REG_WIDTH = sizeof(uint32_t);
     for (size_t i = 0; i < SHA256_DIGEST_SZ / REG_WIDTH; i++) {
-        result[i] = REG_READ(HMAC_RD_RESULT_MEM + (i * REG_WIDTH));
+        result[i] = REG_READ(HMAC_RDATA_BASE + (i * REG_WIDTH));
     }
 }
 
@@ -151,7 +159,7 @@ static inline void hmac_ll_msg_padding(void)
  * @brief Signals that all blocks have been written and a padding block will automatically be applied by hardware.
  *
  * Only applies if the message length is a multiple of 512 bits.
- * See the chip TRM HMAC chapter for more details.
+ * See ESP32H2 TRM HMAC chapter for more details.
  */
 static inline void hmac_ll_msg_end(void)
 {

@@ -43,7 +43,7 @@ The Flash related configurations are under ``Serial flasher config`` menu.
 Configure the PSRAM
 ^^^^^^^^^^^^^^^^^^^
 
-To enable PSRAM, please enable the :ref:`CONFIG_SPIRAM` under ``Component config / Hardware Settings`` menu. Then all the PSRAM related configurations will be visible under ``SPI RAM config`` menu.
+To enable PSRAM, please enable the :ref:`CONFIG_{IDF_TARGET_CFG_PREFIX}_SPIRAM_SUPPORT` under ``Component config / {IDF_TARGET_NAME}-Specific`` menu. Then all the PSRAM related configurations will be visible under ``SPI RAM config`` menu.
 
 1. PSRAM type used on the board. Select a type in :ref:`CONFIG_SPIRAM_MODE` for Quad or Octal PSRAM.
 2. PSRAM speed. Select a PSRAM frequency in :ref:`CONFIG_SPIRAM_SPEED`.
@@ -74,34 +74,20 @@ All Supported Modes and Speeds
 
     For MSPI DDR mode, the data are sampled on both the positive edge and the negative edge. e.g.: if a Flash is set to 80 MHz and DDR mode, then the final speed of the Flash is 160 MHz. This is faster than the Flash setting to 120 Mhz and STR mode.
 
-.. important::
-
-    120 MHz DDR mode is an experimental feature. You will only see it when:
-
-    - :ref:`CONFIG_IDF_EXPERIMENTAL_FEATURES` is enabled
-
-    With above step, you will find 120 MHz option is visible.
-
-    Risks:
-
-    If your chip powers on at a certain temperature, then after the temperature increases or decreases over 20 celsius degree, the accesses to / from PSRAM / Flash will crash randomly. Flash access crash will lead to program crash.
-
-    Note 20 celsius degree is not a totally correct number. This value may changes among chips.
 
 F8R8 Hardware
 ^^^^^^^^^^^^^
 
-======= =============== ======= =============
+======= =============== ======= ============
  Group   Flash mode      Group   PSRAM mode
-======= =============== ======= =============
- A       120 MHz DDR     A       120 MHz DDR
- A       120 MHz SDR     A
+======= =============== ======= ============
+ A       120 MHz SDR     A       N.A.
  B       80 MHz DDR      B       80 MHz DDR
  C       80 MHz SDR      C       40 MHz DDR
  C       40 MHz DDR      C
  C       < 40 MHz        C
  D                       D       disable
-======= =============== ======= =============
+======= =============== ======= ============
 
 1. Flash mode in group A works with PSRAM mode in group A/D
 2. Flash mode in group B/C works with PSRAM mode in group B/C/D
@@ -113,7 +99,7 @@ F4R8 Hardware
 ======= =============== ======= ============
  Group   Flash mode      Group   PSRAM mode
 ======= =============== ======= ============
- A       120 MHz SDR     A       120MHz DDR
+ A       120 MHz SDR     A       N.A.
  B       80 MHz  SDR     B       80MHz DDR
  C       40 MHz  SDR     C       40MHz DDR
  C       20 MHz  SDR     C
@@ -149,34 +135,22 @@ Error handling
 
 1. If a board with Octal Flash resets before the second-stage bootloader:
 
-    .. code-block:: c
+.. code-block:: c
 
-        ESP-ROM:esp32s3-20210327
-        Build:Mar 27 2021
-        rst:0x7 (TG0WDT_SYS_RST),boot:0x18 (SPI_FAST_FLASH_BOOT)
-        Saved PC:0x400454d5
-        SPIWP:0xee
-        mode:DOUT, clock div:1
-        load:0x3fcd0108,len:0x171c
-        ets_loader.c 78
+    ESP-ROM:esp32s3-20210327
+    Build:Mar 27 2021
+    rst:0x7 (TG0WDT_SYS_RST),boot:0x18 (SPI_FAST_FLASH_BOOT)
+    Saved PC:0x400454d5
+    SPIWP:0xee
+    mode:DOUT, clock div:1
+    load:0x3fcd0108,len:0x171c
+    ets_loader.c 78
 
-   this may mean that the necessary efuses are not correctly burnt. Please check the eFuse bits of the chip using command ``espefuse.py summary``.
+it may mean that the necessary efuses are not correctly burnt. please check the eFuse bits of the chip using command ``espefuse.py summary``.
 
-   The ROM bootloader relies on an eFuse bit ``FLASH_TYPE`` to reset the Flash into the default mode (SPI mode). If this bit is not burnt and the flash is working in OPI mode, ROM bootloader may not be able to read from the flash and load the following images.
+The 1st bootloader relies on an eFuse bit ``FLASH_TYPE`` to reset the Flash into the default mode (SPI mode). If this bit is not burnt and the flash is working in OPI mode, 1st bootloader may not be able to read from the flash and load the following images.
 
-2. If you enabled :ref:`CONFIG_ESPTOOLPY_OCT_FLASH`, and there's an error log saying:
-
-    .. code-block:: c
-
-        Octal Flash option selected, but EFUSE not configured!
-
-   this means:
-
-   - either you're using a board with a Quad Flash
-   - or you're using a board with an Octal Flash, but the eFuse bit ``FLASH_TYPE`` isn't burnt. Espressif guarantees this bit during module manufacturing, but if the module is manufactured by others, this may happen.
-
-
-Here is a method to burn the eFuse bit:
+Run this command to burn the eFuse bit:
 
 .. code-block:: python
 

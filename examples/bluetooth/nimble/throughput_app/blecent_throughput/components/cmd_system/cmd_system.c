@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
 */
@@ -9,9 +9,9 @@
 #include <ctype.h>
 #include "esp_log.h"
 #include "esp_console.h"
-#include "esp_chip_info.h"
+#include "esp_system.h"
 #include "esp_sleep.h"
-#include "esp_flash.h"
+#include "esp_spi_flash.h"
 #include "driver/rtc_io.h"
 #include "driver/uart.h"
 #include "argtable3/argtable3.h"
@@ -53,22 +53,17 @@ void register_system(void)
 static int get_version(int argc, char **argv)
 {
     esp_chip_info_t info;
-    uint32_t flash_size;
     esp_chip_info(&info);
-    if(esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
-        printf("Get flash size failed");
-        return 1;
-    }
     printf("IDF Version:%s\r\n", esp_get_idf_version());
     printf("Chip info:\r\n");
     printf("\tmodel:%s\r\n", info.model == CHIP_ESP32 ? "ESP32" : "Unknow");
     printf("\tcores:%d\r\n", info.cores);
-    printf("\tfeature:%s%s%s%s%" PRIu32 "%s\r\n",
+    printf("\tfeature:%s%s%s%s%d%s\r\n",
            info.features & CHIP_FEATURE_WIFI_BGN ? "/802.11bgn" : "",
            info.features & CHIP_FEATURE_BLE ? "/BLE" : "",
            info.features & CHIP_FEATURE_BT ? "/BT" : "",
            info.features & CHIP_FEATURE_EMB_FLASH ? "/Embedded-Flash:" : "/External-Flash:",
-           flash_size / (1024 * 1024), " MB");
+           spi_flash_get_chip_size() / (1024 * 1024), " MB");
     printf("\trevision number:%d\r\n", info.revision);
     return 0;
 }
@@ -107,7 +102,7 @@ static void register_restart(void)
 
 static int free_mem(int argc, char **argv)
 {
-    printf("%" PRIu32 "\n", esp_get_free_heap_size());
+    printf("%d\n", esp_get_free_heap_size());
     return 0;
 }
 
@@ -126,7 +121,7 @@ static void register_free(void)
 static int heap_size(int argc, char **argv)
 {
     uint32_t heap_size = heap_caps_get_minimum_free_size(MALLOC_CAP_DEFAULT);
-    ESP_LOGI(TAG, "min heap size: %" PRIu32 , heap_size);
+    ESP_LOGI(TAG, "min heap size: %u", heap_size);
     return 0;
 }
 
@@ -216,16 +211,10 @@ static int deep_sleep(int argc, char **argv)
         ESP_LOGI(TAG, "Enabling wakeup on GPIO%d, wakeup on %s level",
                  io_num, level ? "HIGH" : "LOW");
 
-#if SOC_PM_SUPPORT_EXT1_WAKEUP
         ESP_ERROR_CHECK( esp_sleep_enable_ext1_wakeup(1ULL << io_num, level) );
-#endif
     }
-
-#if CONFIG_IDF_TARGET_ESP32
     rtc_gpio_isolate(GPIO_NUM_12);
-#endif
     esp_deep_sleep_start();
-    return 1;
 }
 
 static void register_deep_sleep(void)

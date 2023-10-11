@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2017-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2017 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Provides strong definition for system time functions relied upon
 // by core components.
@@ -25,10 +33,6 @@
 #include "esp32s3/rtc.h"
 #elif CONFIG_IDF_TARGET_ESP32C3
 #include "esp32c3/rtc.h"
-#elif CONFIG_IDF_TARGET_ESP32C2
-#include "esp32c2/rtc.h"
-#elif CONFIG_IDF_TARGET_ESP32C6
-#include "esp32c6/rtc.h"
 #elif CONFIG_IDF_TARGET_ESP32H2
 #include "esp32h2/rtc.h"
 #endif
@@ -43,7 +47,7 @@ void esp_timer_impl_init_system_time(void)
 {
     s_correction_us = esp_rtc_get_time_us() - g_startup_time - esp_timer_impl_get_time();
 #if defined(CONFIG_ESP_TIME_FUNCS_USE_ESP_TIMER) && defined(CONFIG_ESP_TIME_FUNCS_USE_RTC_TIMER)
-    esp_err_t err = esp_register_shutdown_handler(esp_sync_timekeeping_timers);
+    esp_err_t err = esp_register_shutdown_handler(esp_sync_counters_rtc_and_frc);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "Register shutdown handler failed, err = 0x%x", err);
     }

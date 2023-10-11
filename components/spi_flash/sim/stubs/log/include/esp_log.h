@@ -9,7 +9,6 @@
 #pragma once
 
 #include <stdint.h>
-#include <stdbool.h>
 #include <stdio.h>
 
 #include "sdkconfig.h"
@@ -17,6 +16,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define strlcpy(a, b, c)
+#define strlcat(a, b, c)
 
 #define heap_caps_malloc(a, b)  NULL
 #define MALLOC_CAP_INTERNAL     0
@@ -40,8 +42,8 @@ typedef enum {
 #define LOG_COLOR_V
 #define LOG_RESET_COLOR
 
-#undef ESP_STATIC_ASSERT
-#define ESP_STATIC_ASSERT(cond, message)
+#undef _Static_assert
+#define _Static_assert(cond, message)
 
 uint32_t esp_log_timestamp(void);
 void esp_log_write(esp_log_level_t level, const char* tag, const char* format, ...) __attribute__ ((format (printf, 3, 4)));
@@ -58,7 +60,9 @@ void esp_log_write(esp_log_level_t level, const char* tag, const char* format, .
 
 #define ESP_LOGV( tag, format, ... )  if (LOG_LOCAL_LEVEL >= ESP_LOG_VERBOSE) { esp_log_write(ESP_LOG_VERBOSE, tag, LOG_FORMAT(V, format), esp_log_timestamp(), tag, ##__VA_ARGS__); }
 
-#define esp_flash_encryption_enabled() false
+// Assume that flash encryption is not enabled. Put here since in partition.c
+// esp_log.h is included later than esp_flash_encrypt.h.
+#define esp_flash_encryption_enabled()      false
 
 #ifdef __cplusplus
 }

@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2020 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 /*******************************************************************************
  * NOTICE
@@ -21,12 +29,8 @@
 
 #include "soc/spi_periph.h"
 #include "soc/spi_mem_struct.h"
-#include "hal/assert.h"
 #include "hal/spi_types.h"
 #include "hal/spi_flash_types.h"
-#include "soc/pcr_struct.h"
-#include "soc/clk_tree_defs.h"
-#include "hal/misc.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,7 +39,15 @@ extern "C" {
 #define spimem_flash_ll_get_hw(host_id)  (((host_id)==SPI1_HOST ?  &SPIMEM1 : NULL ))
 #define spimem_flash_ll_hw_get_id(dev)   ((dev) == (void*)&SPIMEM1? SPI1_HOST: -1)
 
-typedef typeof(SPIMEM1.clock.val) spimem_flash_ll_clock_reg_t;
+typedef typeof(SPIMEM1.clock) spimem_flash_ll_clock_reg_t;
+
+//Supported clock register values
+#define SPIMEM_FLASH_LL_CLKREG_VAL_5MHZ   ((spimem_flash_ll_clock_reg_t){.val=0x000F070F})   ///< Clock set to 5 MHz
+#define SPIMEM_FLASH_LL_CLKREG_VAL_10MHZ  ((spimem_flash_ll_clock_reg_t){.val=0x00070307})   ///< Clock set to 10 MHz
+#define SPIMEM_FLASH_LL_CLKREG_VAL_20MHZ  ((spimem_flash_ll_clock_reg_t){.val=0x00030103})   ///< Clock set to 20 MHz
+#define SPIMEM_FLASH_LL_CLKREG_VAL_26MHZ  ((spimem_flash_ll_clock_reg_t){.val=0x00020002})   ///< Clock set to 26 MHz
+#define SPIMEM_FLASH_LL_CLKREG_VAL_40MHZ  ((spimem_flash_ll_clock_reg_t){.val=0x00010001})   ///< Clock set to 40 MHz
+#define SPIMEM_FLASH_LL_CLKREG_VAL_80MHZ  ((spimem_flash_ll_clock_reg_t){.val=0x80000000})   ///< Clock set to 80 MHz
 
 /*------------------------------------------------------------------------------
  * Control
@@ -115,7 +127,7 @@ static inline void spimem_flash_ll_resume(spi_mem_dev_t *dev)
 }
 
 /**
- * Initialize auto suspend mode, and esp32H2 doesn't support disable auto-suspend.
+ * Initialize auto suspend mode, and esp32h2 doesn't support disable auto-suspend.
  *
  * @param dev Beginning address of the peripheral registers.
  * @param auto_sus Enable/disable Flash Auto-Suspend.
@@ -158,7 +170,7 @@ static inline void spimem_flash_ll_suspend_cmd_setup(spi_mem_dev_t *dev, uint32_
  */
 static inline void spimem_flash_ll_resume_cmd_setup(spi_mem_dev_t *dev, uint32_t res_cmd)
 {
-    HAL_FORCE_MODIFY_U32_REG_FIELD(dev->sus_status, flash_per_command, res_cmd);
+    HAL_FORCE_MODIFY_U32_REG_FIELD(dev->flash_sus_cmd, flash_per_command, res_cmd);
 }
 
 /**
@@ -332,7 +344,7 @@ static inline void spimem_flash_ll_user_start(spi_mem_dev_t *dev)
  */
 static inline bool spimem_flash_ll_host_idle(const spi_mem_dev_t *dev)
 {
-    return dev->cmd.mst_st == 0;
+    return dev->fsm.spi0_mst_st == 0;
 }
 
 /**
@@ -401,27 +413,6 @@ static inline void spimem_flash_ll_set_read_mode(spi_mem_dev_t *dev, esp_flash_i
     dev->ctrl = ctrl;
 }
 
-__attribute__((always_inline))
-static inline void spimem_flash_ll_set_clock_source(soc_periph_mspi_clk_src_t clk_src)
-{
-    switch (clk_src) {
-    case MSPI_CLK_SRC_XTAL:
-        PCR.mspi_conf.mspi_clk_sel = 0;
-        break;
-    case MSPI_CLK_SRC_RC_FAST:
-        PCR.mspi_conf.mspi_clk_sel = 1;
-        break;
-    case MSPI_CLK_SRC_PLL_F64M:
-        PCR.mspi_conf.mspi_clk_sel = 2;
-        break;
-    case MSPI_CLK_SRC_PLL_F48M:
-        PCR.mspi_conf.mspi_clk_sel = 3;
-        break;
-    default:
-        HAL_ASSERT(false);
-    }
-}
-
 /**
  * Set clock frequency to work at.
  *
@@ -430,7 +421,7 @@ static inline void spimem_flash_ll_set_clock_source(soc_periph_mspi_clk_src_t cl
  */
 static inline void spimem_flash_ll_set_clock(spi_mem_dev_t *dev, spimem_flash_ll_clock_reg_t *clock_val)
 {
-    dev->clock.val = *clock_val;
+    dev->clock = *clock_val;
 }
 
 /**
@@ -499,18 +490,6 @@ static inline void spimem_flash_ll_set_addr_bitlen(spi_mem_dev_t *dev, uint32_t 
 }
 
 /**
- * Set extra address for bits M0-M7 in DIO/QIO mode.
- *
- * @param dev Beginning address of the peripheral registers.
- * @param extra_addr extra address(M0-M7) to send.
- */
-static inline void spimem_flash_ll_set_extra_address(spi_mem_dev_t *dev, uint32_t extra_addr)
-{
-    dev->cache_fctrl.usr_addr_4byte = 0;
-    dev->rd_status.wb_mode = extra_addr;
-}
-
-/**
  * Set the address to send. Should be called before commands that requires the address e.g. erase sector, read, write...
  *
  * @param dev Beginning address of the peripheral registers.
@@ -546,6 +525,20 @@ static inline void spimem_flash_ll_set_dummy(spi_mem_dev_t *dev, uint32_t dummy_
 }
 
 /**
+ * Set D/Q output level during dummy phase
+ *
+ * @param dev Beginning address of the peripheral registers.
+ * @param out_en whether to enable IO output for dummy phase
+ * @param out_level dummy output level
+ */
+static inline void spimem_flash_ll_set_dummy_out(spi_mem_dev_t *dev, uint32_t out_en, uint32_t out_lev)
+{
+    dev->ctrl.fdummy_out = out_en;
+    dev->ctrl.q_pol = out_lev;
+    dev->ctrl.d_pol = out_lev;
+}
+
+/**
  * Set CS hold time.
  *
  * @param dev Beginning address of the peripheral registers.
@@ -561,55 +554,6 @@ static inline void spimem_flash_ll_set_cs_setup(spi_mem_dev_t *dev, uint32_t cs_
 {
     dev->user.cs_setup = (cs_setup_time > 0 ? 1 : 0);
     dev->ctrl2.cs_setup_time = cs_setup_time - 1;
-}
-
-/**
- * Get the spi flash source clock frequency. Used for calculating
- * the divider parameters.
- *
- * @param None
- *
- * @return the frequency of spi flash clock source.(MHz)
- */
-static inline uint8_t spimem_flash_ll_get_source_freq_mhz(void)
-{
-    uint8_t clock_val = 0;
-    switch (PCR.mspi_conf.mspi_clk_sel) {
-    case 0:
-        clock_val = 32;
-        break;
-    case 1:
-        clock_val = 8;
-        break;
-    case 2:
-        clock_val = 64;
-        break;
-    case 3:
-        clock_val = 32;
-        break;
-    default:
-        HAL_ASSERT(false);
-    }
-    return clock_val;
-}
-
-/**
- * Calculate spi_flash clock frequency division parameters for register.
- *
- * @param clkdiv frequency division factor
- *
- * @return Register setting for the given clock division factor.
- */
-static inline uint32_t spimem_flash_ll_calculate_clock_reg(uint8_t clkdiv)
-{
-    uint32_t div_parameter;
-    // See comments of `clock` in `spi_mem_struct.h`
-    if (clkdiv == 1) {
-        div_parameter = (1 << 31);
-    } else {
-        div_parameter = ((clkdiv - 1) | (((clkdiv - 1) / 2 & 0xff) << 8 ) | (((clkdiv - 1) & 0xff) << 16));
-    }
-    return div_parameter;
 }
 
 #ifdef __cplusplus

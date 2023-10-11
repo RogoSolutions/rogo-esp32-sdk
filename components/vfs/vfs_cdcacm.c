@@ -125,16 +125,15 @@ static int cdcacm_read_char(void)
     }
 }
 
-static ssize_t cdcacm_data_length_in_buffer(void)
+static bool cdcacm_data_in_buffer(void)
 {
-    ssize_t len = esp_usb_console_available_for_read();
-    if (len < 0) {
-        len = 0;
-    }
     if (s_peek_char != NONE) {
-        len += 1;
+        return true;
     }
-    return len;
+    if (esp_usb_console_read_available()) {
+        return true;
+    }
+    return false;
 }
 
 /* Push back a character; it will be returned by next call to cdcacm_read_char */
@@ -151,7 +150,7 @@ static ssize_t cdcacm_read(int fd, void *data, size_t size)
     ssize_t received = 0;
     _lock_acquire_recursive(&s_read_lock);
 
-    while (cdcacm_data_length_in_buffer() < size) {
+    while (!cdcacm_data_in_buffer()) {
         if (!s_blocking) {
             errno = EWOULDBLOCK;
             _lock_release_recursive(&s_read_lock);
@@ -272,7 +271,7 @@ static int cdcacm_fcntl(int fd, int cmd, int arg)
     assert(fd == 0);
     int result;
     if (cmd == F_GETFL) {
-        result = O_RDWR;
+        result = 0;
         if (!s_blocking) {
             result |= O_NONBLOCK;
         }

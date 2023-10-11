@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <inttypes.h>
 #include <freertos/FreeRTOS.h>
 #include <esp_system.h>
 #include <esp_log.h>
@@ -24,7 +23,6 @@ static simple_ble_cfg_t *g_ble_cfg_p;
 static uint16_t *g_gatt_table_map;
 
 static uint8_t adv_config_done;
-static esp_bd_addr_t s_cached_remote_bda = {0x0,};
 #define adv_config_flag      (1 << 0)
 #define scan_rsp_config_flag (1 << 1)
 
@@ -135,7 +133,6 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         g_ble_cfg_p->connect_fn(event, gatts_if, param);
         esp_ble_conn_update_params_t conn_params = {0};
         memcpy(conn_params.bda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
-	memcpy(s_cached_remote_bda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
         /* For the iOS system, please refer the official Apple documents about BLE connection parameters restrictions. */
         conn_params.latency = 0;
         conn_params.max_int = 0x20;    // max_int = 0x20*1.25ms = 40ms
@@ -146,7 +143,6 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     case ESP_GATTS_DISCONNECT_EVT:
         ESP_LOGD(TAG, "ESP_GATTS_DISCONNECT_EVT, reason = %d", param->disconnect.reason);
         g_ble_cfg_p->disconnect_fn(event, gatts_if, param);
-        memset(s_cached_remote_bda, 0, sizeof(esp_bd_addr_t));
         esp_ble_gap_start_advertising(&g_ble_cfg_p->adv_params);
         break;
     case ESP_GATTS_CREAT_ATTR_TAB_EVT: {
@@ -210,7 +206,7 @@ esp_err_t simple_ble_deinit(void)
 esp_err_t simple_ble_start(simple_ble_cfg_t *cfg)
 {
     g_ble_cfg_p = cfg;
-    ESP_LOGD(TAG, "Free mem at start of simple_ble_init %" PRIu32, esp_get_free_heap_size());
+    ESP_LOGD(TAG, "Free mem at start of simple_ble_init %d", esp_get_free_heap_size());
     esp_err_t ret;
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
@@ -268,7 +264,7 @@ esp_err_t simple_ble_start(simple_ble_cfg_t *cfg)
     if (local_mtu_ret) {
         ESP_LOGE(TAG, "set local  MTU failed, error code = 0x%x", local_mtu_ret);
     }
-    ESP_LOGD(TAG, "Free mem at end of simple_ble_init %" PRIu32, esp_get_free_heap_size());
+    ESP_LOGD(TAG, "Free mem at end of simple_ble_init %d", esp_get_free_heap_size());
 
     /* set the security iocap & auth_req & key size & init key response key parameters to the stack*/
     esp_ble_auth_req_t auth_req= ESP_LE_AUTH_REQ_MITM;
@@ -295,7 +291,7 @@ esp_err_t simple_ble_start(simple_ble_cfg_t *cfg)
 esp_err_t simple_ble_stop(void)
 {
     esp_err_t err;
-    ESP_LOGD(TAG, "Free mem at start of simple_ble_stop %" PRIu32, esp_get_free_heap_size());
+    ESP_LOGD(TAG, "Free mem at start of simple_ble_stop %d", esp_get_free_heap_size());
     err = esp_bluedroid_disable();
     if (err != ESP_OK) {
         return ESP_FAIL;
@@ -321,13 +317,6 @@ esp_err_t simple_ble_stop(void)
     }
     ESP_LOGD(TAG, "esp_bt_controller_deinit called successfully");
 
-    ESP_LOGD(TAG, "Free mem at end of simple_ble_stop %" PRIu32, esp_get_free_heap_size());
+    ESP_LOGD(TAG, "Free mem at end of simple_ble_stop %d", esp_get_free_heap_size());
     return ESP_OK;
 }
-
-#ifdef CONFIG_WIFI_PROV_DISCONNECT_AFTER_PROV
-esp_err_t simple_ble_disconnect(void)
-{
-    return esp_ble_gap_disconnect(s_cached_remote_bda);
-}
-#endif

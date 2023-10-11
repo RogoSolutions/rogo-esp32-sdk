@@ -1,8 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,7 +27,7 @@
 #include "esp_console.h"
 #include "app_hf_msg_set.h"
 
-#define BT_HF_AG_TAG    "HF_AG_DEMO_MAIN"
+#define BT_HF_AG_TAG            "HF_AG_DEMO_MAIN"
 
 /* event for handler "hf_ag_hdl_stack_up */
 enum {
@@ -44,10 +46,10 @@ static void bt_hf_hdl_stack_evt(uint16_t event, void *p_param)
             char *dev_name = "ESP_HFP_AG";
             esp_bt_dev_set_device_name(dev_name);
 
-            esp_hf_ag_register_callback(bt_app_hf_cb);
+            esp_bt_hf_register_callback(bt_app_hf_cb);
 
             // init and register for HFP_AG functions
-            esp_hf_ag_init();
+            esp_bt_hf_init(hf_peer_addr);
 
             /*
             * Set default parameters for Legacy Pairing

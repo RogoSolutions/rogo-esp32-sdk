@@ -1,36 +1,38 @@
-/*
- * SPDX-FileCopyrightText: 2010-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2010-2020 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 #include "sdkconfig.h"
 #include "soc/soc.h"
 #ifndef CONFIG_IDF_TARGET_ESP32
 #include "soc/system_reg.h"
 #endif // not CONFIG_IDF_TARGET_ESP32
 #include "soc/rtc.h"
-#if CONFIG_IDF_TARGET_ESP32
-#include "esp32/rom/rtc.h"
-#elif CONFIG_IDF_TARGET_ESP32S2
-#include "esp32s2/rom/rtc.h"
-#elif CONFIG_IDF_TARGET_ESP32S3
-#include "esp32s3/rom/rtc.h"
-#elif CONFIG_IDF_TARGET_ESP32C3
-#include "esp32c3/rom/rtc.h"
-#elif CONFIG_IDF_TARGET_ESP32C2
-#include "esp32c2/rom/rtc.h"
-#elif CONFIG_IDF_TARGET_ESP32C6
-#include "esp32c6/rom/rtc.h"
-#include "esp_private/esp_pmu.h"
-#elif CONFIG_IDF_TARGET_ESP32H2
-#include "esp32h2/rom/rtc.h"
-#endif
+#include "soc/rtc_cntl_reg.h"
 #include "esp_log.h"
 #include "esp_rom_sys.h"
 #include "esp_rom_uart.h"
 #include "esp_attr.h"
 
 static const char *TAG = "fpga";
+
+#ifdef CONFIG_IDF_TARGET_ESP32
+#include "esp32/rom/rtc.h"
+#endif
+#ifdef CONFIG_IDF_TARGET_ESP32S2
+#include "esp32s2/rom/rtc.h"
+#endif
+
+extern void ets_update_cpu_frequency(uint32_t ticks_per_us);
 
 static void s_warn(void)
 {
@@ -45,14 +47,16 @@ void bootloader_clock_configure(void)
     uint32_t xtal_freq_mhz = 40;
 #ifdef CONFIG_IDF_TARGET_ESP32S2
     uint32_t apb_freq_hz = 20000000;
+#elif CONFIG_IDF_TARGET_ESP32S2H2
+    uint32_t apb_freq_hz = 32000000;
 #else
-    uint32_t apb_freq_hz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * 1000000;
+    uint32_t apb_freq_hz = 40000000;
 #endif // CONFIG_IDF_TARGET_ESP32S2
-    esp_rom_set_cpu_ticks_per_us(apb_freq_hz / 1000000);
+    ets_update_cpu_frequency(apb_freq_hz / 1000000);
 #ifdef RTC_APB_FREQ_REG
     REG_WRITE(RTC_APB_FREQ_REG, (apb_freq_hz >> 12) | ((apb_freq_hz >> 12) << 16));
 #endif
-    REG_WRITE(RTC_XTAL_FREQ_REG, (xtal_freq_mhz) | ((xtal_freq_mhz) << 16));
+    REG_WRITE(RTC_CNTL_STORE4_REG, (xtal_freq_mhz) | ((xtal_freq_mhz) << 16));
 }
 
 /* Placed in IRAM since test_apps expects it to be */
@@ -67,9 +71,6 @@ void IRAM_ATTR bootloader_fill_random(void *buffer, size_t length)
 void esp_clk_init(void)
 {
     s_warn();
-#if SOC_PMU_SUPPORTED
-    pmu_init();
-#endif
 }
 
 void esp_perip_clk_init(void)

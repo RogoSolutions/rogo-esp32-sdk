@@ -152,13 +152,11 @@ typedef struct {
 typedef enum{
     BTM_WHITELIST_REMOVE     = 0X00,
     BTM_WHITELIST_ADD        = 0X01,
-    BTM_WHITELIST_CLEAR      = 0x02,
 }tBTM_WL_OPERATION;
 
 
 typedef void (tBTM_DEV_STATUS_CB) (tBTM_DEV_STATUS status);
 
-typedef void (tBTM_GET_DEV_NAME_CBACK) (UINT8 status, char *name);
 
 /* Callback function for when a vendor specific event occurs. The length and
 ** array of returned parameter bytes are included. This asynchronous event
@@ -191,7 +189,7 @@ typedef void (tBTM_SET_PKT_DATA_LENGTH_CBACK) (UINT8 status, tBTM_LE_SET_PKT_DAT
 
 typedef void (tBTM_SET_RAND_ADDR_CBACK) (UINT8 status);
 
-typedef void (tBTM_UPDATE_WHITELIST_CBACK) (UINT8 status, tBTM_WL_OPERATION wl_opration);
+typedef void (tBTM_ADD_WHITELIST_CBACK) (UINT8 status, tBTM_WL_OPERATION wl_opration);
 
 typedef void (tBTM_SET_LOCAL_PRIVACY_CBACK) (UINT8 status);
 
@@ -827,37 +825,6 @@ typedef struct {
     INT8        tx_power;
 } tBTM_INQ_TXPWR_RESULTS;
 
-
-enum {
-    BTM_ACL_CONN_CMPL_EVT,
-    BTM_ACL_DISCONN_CMPL_EVT
-};
-typedef UINT8 tBTM_ACL_LINK_STAT_EVENT;
-
-typedef struct {
-    UINT8                   status;   /* The status of ACL connection complete */
-    UINT16                  handle;   /* The ACL connection handle */
-    BD_ADDR                 bd_addr;  /* Peer Bluetooth device address */
-} tBTM_ACL_CONN_CMPL_DATA;
-
-typedef struct {
-    UINT8                   reason;   /* The reason for ACL disconnection complete */
-    UINT16                  handle;   /* The ACL connection handle */
-    BD_ADDR                 bd_addr;  /* Peer Bluetooth device address */
-} tBTM_ACL_DISCONN_CMPL_DATA;
-
-typedef struct {
-    tBTM_ACL_LINK_STAT_EVENT       event;          /* The event reported */
-    union {
-        tBTM_ACL_CONN_CMPL_DATA     conn_cmpl;     /* The data associated with BTM_ACL_CONN_CMPL_EVT */
-        tBTM_ACL_DISCONN_CMPL_DATA  disconn_cmpl;  /* The data associated with BTM_ACL_DISCONN_CMPL_EVT */
-    } link_act;
-} tBTM_ACL_LINK_STAT_EVENT_DATA;
-
-/* Callback function for reporting ACL link related events to upper
-*/
-typedef void (tBTM_ACL_LINK_STAT_CB) (tBTM_ACL_LINK_STAT_EVENT_DATA *p_data);
-
 enum {
     BTM_BL_CONN_EVT,
     BTM_BL_DISCN_EVT,
@@ -1062,17 +1029,6 @@ enum {
 };
 typedef UINT8 tBTM_SCO_DATA_FLAG;
 
-/* Count the number of SCO Data Packet Status */
-typedef struct {
-    UINT32 rx_total;
-    UINT32 rx_correct;
-    UINT32 rx_err;
-    UINT32 rx_none;
-    UINT32 rx_lost;
-    UINT32 tx_total;
-    UINT32 tx_discarded;
-} tBTM_SCO_PKT_STAT_NUMS;
-
 /***************************
 **  SCO Callback Functions
 ****************************/
@@ -1220,7 +1176,7 @@ typedef void (tBTM_ESCO_CBACK) (tBTM_ESCO_EVT event, tBTM_ESCO_EVT_DATA *p_data)
 #define BTM_LKEY_TYPE_UNAUTH_COMB_P_256 HCI_LKEY_TYPE_UNAUTH_COMB_P_256
 #define BTM_LKEY_TYPE_AUTH_COMB_P_256   HCI_LKEY_TYPE_AUTH_COMB_P_256
 
-#define BTM_LTK_DERIVED_LKEY_OFFSET 0x20    /* "easy" requirements for Link Key (LK) derived from Long Term Key */
+#define BTM_LTK_DERIVED_LKEY_OFFSET 0x20    /* "easy" requirements for LK derived from LTK */
 #define BTM_LKEY_TYPE_IGNORE        0xff    /* used when event is response from
                                                hci return link keys request */
 
@@ -1499,6 +1455,7 @@ typedef UINT8 tBTM_IO_CAP;
 #define BTM_BLE_RESPONDER_KEY_SIZE 15
 #define BTM_BLE_MAX_KEY_SIZE       16
 #define BTM_BLE_MIN_KEY_SIZE       7
+#define BTM_BLE_APPL_ENC_KEY_SIZE  7
 
 typedef UINT8 tBTM_AUTH_REQ;
 
@@ -1777,7 +1734,6 @@ typedef union {
 #if BLE_INCLUDED == TRUE && SMP_INCLUDED == TRUE
     tBTM_LE_COMPLT      complt;     /* BTM_LE_COMPLT_EVT      */
     tSMP_OOB_DATA_TYPE  req_oob_type;
-    tSMP_LOC_OOB_DATA   local_oob_data;
 #endif
     tBTM_LE_KEY         key;
 } tBTM_LE_EVT_DATA;
@@ -2952,18 +2908,6 @@ tBTM_STATUS BTM_ReadLinkQuality (BD_ADDR remote_bda, tBTM_CMPL_CB *p_cb);
 //extern
 tBTM_STATUS BTM_RegBusyLevelNotif (tBTM_BL_CHANGE_CB *p_cb, UINT8 *p_level,
                                    tBTM_BL_EVENT_MASK evt_mask);
-
-/*******************************************************************************
-**
-** Function         BTM_RegAclLinkStatNotif
-**
-** Description      This function is called to register a callback to receive
-**                  ACL link related events.
-**
-** Returns          BTM_SUCCESS if successfully registered, otherwise error
-**
-*******************************************************************************/
-tBTM_STATUS BTM_RegAclLinkStatNotif(tBTM_ACL_LINK_STAT_CB *p_cb);
 
 /*******************************************************************************
 **
@@ -4200,17 +4144,6 @@ tBTM_STATUS BTM_SetAfhChannels (AFH_CHANNELS channels, tBTM_CMPL_CB *p_afh_chann
 **
 *******************************************************************************/
 tBTM_STATUS BTM_BleSetChannels (BLE_CHANNELS channels, tBTM_CMPL_CB *p_ble_channels_cmpl_cback);
-
-/*******************************************************************************
-**
-** Function         BTM_PktStatNumsGet
-**
-** Description      This function is called to get the number of packet status struct
-**
-** Returns          void
-**
-*******************************************************************************/
-void BTM_PktStatNumsGet(UINT16 sync_conn_handle, tBTM_SCO_PKT_STAT_NUMS *pkt_nums);
 
 #ifdef __cplusplus
 }

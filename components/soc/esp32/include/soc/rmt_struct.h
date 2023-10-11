@@ -1,9 +1,18 @@
-/*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-#pragma once
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#ifndef _SOC_RMT_STRUCT_H_
+#define _SOC_RMT_STRUCT_H_
 
 #include <stdint.h>
 
@@ -11,11 +20,11 @@
 extern "C" {
 #endif
 
-typedef struct rmt_dev_t {
-    volatile uint32_t data_ch[8];                       /*The R/W ram address for channel0-7 by apb fifo access.
+typedef volatile struct rmt_dev_s {
+    uint32_t data_ch[8];                                /*The R/W ram address for channel0-7 by apb fifo access.
                                                         Note that in some circumstances, data read from the FIFO may get lost. As RMT memory area accesses using the RMTMEM method do not have this issue
                                                         and provide all the functionality that the FIFO register has, it is encouraged to use that instead.*/
-    volatile struct {
+    struct {
         union {
             struct {
                 uint32_t div_cnt:        8;             /*This register is used to configure the  frequency divider's factor in channel0-7.*/
@@ -48,9 +57,9 @@ typedef struct rmt_dev_t {
             uint32_t val;
         } conf1;
     } conf_ch[8];
-    volatile uint32_t status_ch[8];                     /*The status for channel0-7*/
-    volatile uint32_t apb_mem_addr_ch[8];               /*The ram relative address in channel0-7 by apb fifo access (using fifo is discouraged, please see the note above at data_ch[] item)*/
-    volatile union {
+    uint32_t status_ch[8];                              /*The status for channel0-7*/
+    uint32_t apb_mem_addr_ch[8];                        /*The ram relative address in channel0-7 by apb fifo access (using fifo is discouraged, please see the note above at data_ch[] item)*/
+    union {
         struct {
             uint32_t ch0_tx_end:       1;               /*The interrupt raw bit for channel 0 turns to high level when the transmit process is done.*/
             uint32_t ch0_rx_end:       1;               /*The interrupt raw bit for channel 0 turns to high level when the receive process is done.*/
@@ -87,7 +96,7 @@ typedef struct rmt_dev_t {
         };
         uint32_t val;
     } int_raw;
-    volatile union {
+    union {
         struct {
             uint32_t ch0_tx_end:       1;                /*The interrupt  state bit for channel 0's mt_ch0_tx_end_int_raw when mt_ch0_tx_end_int_ena is set to 0.*/
             uint32_t ch0_rx_end:       1;                /*The interrupt  state bit for channel 0's rmt_ch0_rx_end_int_raw when  rmt_ch0_rx_end_int_ena is set to 0.*/
@@ -124,7 +133,7 @@ typedef struct rmt_dev_t {
         };
         uint32_t val;
     } int_st;
-    volatile union {
+    union {
         struct {
             uint32_t ch0_tx_end:       1;               /*Set this bit to enable rmt_ch0_tx_end_int_st.*/
             uint32_t ch0_rx_end:       1;               /*Set this bit to enable rmt_ch0_rx_end_int_st.*/
@@ -161,7 +170,7 @@ typedef struct rmt_dev_t {
         };
         uint32_t val;
     } int_ena;
-    volatile union {
+    union {
         struct {
             uint32_t ch0_tx_end:       1;               /*Set this bit to clear the rmt_ch0_rx_end_int_raw..*/
             uint32_t ch0_rx_end:       1;               /*Set this bit to clear the rmt_ch0_tx_end_int_raw.*/
@@ -198,21 +207,21 @@ typedef struct rmt_dev_t {
         };
         uint32_t val;
     } int_clr;
-    volatile union {
+    union {
         struct {
             uint32_t low: 16;                           /*This register is used to configure carrier wave's low level value for channel0-7.*/
-            uint32_t high: 16;                          /*This register is used to configure carrier wave's high level value for channel0-7.*/
+            uint32_t high:16;                           /*This register is used to configure carrier wave's high level value for channel0-7.*/
         };
         uint32_t val;
     } carrier_duty_ch[8];
-    volatile union {
+    union {
         struct {
             uint32_t limit: 9;                          /*When channel0-7 sends more than reg_rmt_tx_lim_ch0 data then channel0-7 produce the relative interrupt.*/
             uint32_t reserved9: 23;
         };
         uint32_t val;
     } tx_lim_ch[8];
-    volatile union {
+    union {
         struct {
             uint32_t fifo_mask:  1;                     /*Set this bit to enable RMTMEM and disable apb fifo access (using fifo is discouraged, please see the note above at data_ch[] item)*/
             uint32_t mem_tx_wrap_en: 1;                 /*when data need to be send is more than channel's mem can store  then set this bit to enable reuse of mem this bit is used together with reg_rmt_tx_lim_chn.*/
@@ -222,11 +231,32 @@ typedef struct rmt_dev_t {
     } apb_conf;
     uint32_t reserved_f4;
     uint32_t reserved_f8;
-    volatile uint32_t date;                             /*This is the version register.*/
+    uint32_t date;                                      /*This is the version register.*/
 } rmt_dev_t;
-
 extern rmt_dev_t RMT;
+
+typedef struct rmt_item32_s {
+    union {
+        struct {
+            uint32_t duration0 :15;
+            uint32_t level0 :1;
+            uint32_t duration1 :15;
+            uint32_t level1 :1;
+        };
+        uint32_t val;
+    };
+} rmt_item32_t;
+
+//Allow access to RMT memory using RMTMEM.chan[0].data32[8]
+typedef volatile struct rmt_mem_s {
+    struct {
+        rmt_item32_t data32[64];
+    } chan[8];
+} rmt_mem_t;
+extern rmt_mem_t RMTMEM;
 
 #ifdef __cplusplus
 }
 #endif
+
+#endif  /* _SOC_RMT_STRUCT_H_ */

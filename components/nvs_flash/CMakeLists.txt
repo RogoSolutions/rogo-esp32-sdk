@@ -14,10 +14,8 @@ set(srcs "src/nvs_api.cpp"
          "src/nvs_types.cpp")
 
 idf_component_register(SRCS "${srcs}"
-                    REQUIRES "esp_partition"
-                    PRIV_REQUIRES spi_flash
+                    REQUIRES "spi_flash"
                     INCLUDE_DIRS "include"
-                    "../spi_flash/include"
                     PRIV_INCLUDE_DIRS "private_include")
 
 # If we use the linux target, we need to redirect the crc functions to the linux
@@ -27,20 +25,19 @@ if(${target} STREQUAL "linux")
         message(FATAL_ERROR "NVS currently doesn't support encryption if built for Linux.")
     endif()
     target_compile_options(${COMPONENT_LIB} PUBLIC "-DLINUX_TARGET")
-    target_compile_options(${COMPONENT_LIB} PUBLIC --coverage)
-    target_link_libraries(${COMPONENT_LIB} PUBLIC --coverage)
-
-    find_library(LIB_BSD bsd)
-    if(LIB_BSD)
-        target_link_libraries(${COMPONENT_LIB} PRIVATE ${LIB_BSD})
-    elseif(NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
-        message(WARNING "Missing LIBBSD library. Install libbsd-dev package and/or check linker directories.")
-    endif()
+else()
+    # TODO: this is a workaround until IDF-2085 is fixed
+    idf_component_get_property(mbedtls_lib mbedtls COMPONENT_LIB)
+    target_link_libraries(${COMPONENT_LIB} PUBLIC ${mbedtls_lib})
 endif()
 
 if(CONFIG_NVS_ENCRYPTION)
     target_sources(${COMPONENT_LIB} PRIVATE "src/nvs_encrypted_partition.cpp")
-    target_link_libraries(${COMPONENT_LIB} PRIVATE idf::mbedtls)
+    idf_component_get_property(mbedtls_lib mbedtls COMPONENT_LIB)
+    target_link_libraries(${COMPONENT_LIB} PUBLIC ${mbedtls_lib})
 endif()
 
-target_compile_options(${COMPONENT_LIB} PRIVATE "-Wno-format")
+if(${target} STREQUAL "linux")
+    target_compile_options(${COMPONENT_LIB} PUBLIC --coverage)
+    target_link_libraries(${COMPONENT_LIB} PUBLIC --coverage)
+endif()

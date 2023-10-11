@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2018-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2018-2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <stdio.h>
 #include <unistd.h>
@@ -22,7 +30,7 @@
 typedef struct {
     int fd;
     int delay_ms;
-    SemaphoreHandle_t sem;
+    xSemaphoreHandle sem;
 } test_task_param_t;
 
 typedef struct {
@@ -32,7 +40,7 @@ typedef struct {
     int maxfds;
     struct timeval *tv;
     int select_ret;
-    SemaphoreHandle_t sem;
+    xSemaphoreHandle sem;
 } test_select_task_param_t;
 
 static const char message[] = "Hello world!";
@@ -95,7 +103,7 @@ static void uart1_init(void)
         .parity    = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
+        .source_clk = UART_SCLK_APB,
     };
     uart_driver_install(UART_NUM_1, 256, 256, 0, NULL, 0);
     uart_param_config(UART_NUM_1, &uart_config);
@@ -141,7 +149,6 @@ static void deinit(int uart_fd, int socket_fd)
     close(socket_fd);
 }
 
-#if !CONFIG_IDF_TARGET_ESP32H2 // IDF-6782
 TEST_CASE("UART can do select()", "[vfs]")
 {
     int uart_fd;
@@ -259,7 +266,6 @@ TEST_CASE("UART can do poll()", "[vfs]")
 
     deinit(uart_fd, socket_fd);
 }
-#endif
 
 TEST_CASE("socket can do select()", "[vfs]")
 {
@@ -444,7 +450,6 @@ static void inline start_select_task(test_select_task_param_t *param)
     xTaskCreate(select_task, "select_task", 4*1024, (void *) param, 5, NULL);
 }
 
-#if !CONFIG_IDF_TARGET_ESP32H2 // IDF-6782
 TEST_CASE("concurrent selects work", "[vfs]")
 {
     int uart_fd, socket_fd;
@@ -546,7 +551,6 @@ TEST_CASE("concurrent selects work", "[vfs]")
     deinit(uart_fd, socket_fd);
     close(dummy_socket_fd);
 }
-#endif
 
 TEST_CASE("select() works with concurrent mount", "[vfs][fatfs]")
 {
@@ -587,7 +591,7 @@ TEST_CASE("select() works with concurrent mount", "[vfs][fatfs]")
     start_select_task(&param);
     vTaskDelay(10 / portTICK_PERIOD_MS); //make sure the task has started and waits in select()
 
-    TEST_ESP_OK(esp_vfs_fat_spiflash_mount_rw_wl("/spiflash", NULL, &mount_config, &test_wl_handle));
+    TEST_ESP_OK(esp_vfs_fat_spiflash_mount("/spiflash", NULL, &mount_config, &test_wl_handle));
 
     TEST_ASSERT_EQUAL(pdTRUE, xSemaphoreTake(param.sem, 1500 / portTICK_PERIOD_MS));
 
@@ -600,7 +604,7 @@ TEST_CASE("select() works with concurrent mount", "[vfs][fatfs]")
     start_select_task(&param);
     vTaskDelay(10 / portTICK_PERIOD_MS); //make sure the task has started and waits in select()
 
-    TEST_ESP_OK(esp_vfs_fat_spiflash_unmount_rw_wl("/spiflash", test_wl_handle));
+    TEST_ESP_OK(esp_vfs_fat_spiflash_unmount("/spiflash", test_wl_handle));
 
     TEST_ASSERT_EQUAL(pdTRUE, xSemaphoreTake(param.sem, 1500 / portTICK_PERIOD_MS));
 

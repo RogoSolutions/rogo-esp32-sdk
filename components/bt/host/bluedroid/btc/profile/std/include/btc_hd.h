@@ -39,15 +39,7 @@ typedef enum {
     BTC_HD_UNPLUG_EVT,
 } BTC_HD_EVT;
 
-typedef enum {
-    BTC_HD_DISABLED = 0,
-    BTC_HD_ENABLED,
-    BTC_HD_DISABLING,
-    BTC_HD_CONNECTING,
-    BTC_HD_CONNECTED,
-    BTC_HD_DISCONNECTING,
-    BTC_HD_DISCONNECTED,
-} BTC_HD_STATUS;
+typedef enum { BTC_HD_DISABLED = 0, BTC_HD_ENABLED, BTC_HD_DISABLING } BTC_HD_STATUS;
 
 /* BTIF-HD control block */
 typedef struct {
@@ -102,7 +94,6 @@ void btc_hd_cb_handler(btc_msg_t *msg);
 // extern void btc_hd_service_registration();
 
 void btc_hd_arg_deep_copy(btc_msg_t *msg, void *p_dest, void *p_src);
-void btc_hd_cb_arg_deep_free(btc_msg_t *msg);
 
 #ifdef __cplusplus
 }

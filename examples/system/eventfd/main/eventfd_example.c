@@ -9,18 +9,22 @@
 
 #include <stdio.h>
 #include <sys/select.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+
+#include "driver/timer.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_vfs.h"
 #include "esp_vfs_dev.h"
 #include "esp_vfs_eventfd.h"
-#include "esp_timer.h"
-#include "driver/gptimer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "hal/timer_types.h"
 
-#define TIMER_RESOLUTION      1000000 // 1MHz, 1 tick = 1us
-#define TIMER_INTERVAL_US     2500000 // 2.5s
+#define TIMER_DIVIDER         16
+#define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)
+#define MS_PER_S              1000
+#define TIMER_INTERVAL_SEC    2.5
+#define TEST_WITHOUT_RELOAD   0
 #define PROGRESS_INTERVAL_MS  3500
 #define TIMER_SIGNAL          1
 #define PROGRESS_SIGNAL       2
@@ -33,10 +37,22 @@ static const char *TAG = "eventfd_example";
 static int s_timer_fd;
 static int s_progress_fd;
 static TaskHandle_t s_worker_handle;
-static gptimer_handle_t s_gptimer;
 
-static bool eventfd_timer_isr_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
+static bool eventfd_timer_isr_callback(void *arg)
 {
+    int timer_idx = (int) arg;
+
+    uint32_t timer_intr = timer_group_get_intr_status_in_isr(TIMER_GROUP_0);
+    uint64_t timer_counter_value = timer_group_get_counter_value_in_isr(TIMER_GROUP_0, timer_idx);
+
+    if (timer_intr & TIMER_INTR_T0) {
+        timer_group_clr_intr_status_in_isr(TIMER_GROUP_0, TIMER_0);
+        timer_counter_value += (uint64_t) (TIMER_INTERVAL_SEC * TIMER_SCALE);
+        timer_group_set_alarm_value_in_isr(TIMER_GROUP_0, timer_idx, timer_counter_value);
+    }
+
+    timer_group_enable_alarm_in_isr(TIMER_GROUP_0, timer_idx);
+
     uint64_t signal = TIMER_SIGNAL;
     ssize_t val = write(s_timer_fd, &signal, sizeof(signal));
     assert(val == sizeof(signal));
@@ -44,27 +60,24 @@ static bool eventfd_timer_isr_callback(gptimer_handle_t timer, const gptimer_ala
     return true;
 }
 
-static void eventfd_timer_init(void)
+static void eventfd_timer_init(int timer_idx, double timer_interval_sec)
 {
-    gptimer_config_t timer_config = {
-        .clk_src = GPTIMER_CLK_SRC_DEFAULT,
-        .direction = GPTIMER_COUNT_UP,
-        .resolution_hz = TIMER_RESOLUTION,
+    timer_config_t config = {
+        .divider = TIMER_DIVIDER,
+        .counter_dir = TIMER_COUNT_UP,
+        .counter_en = TIMER_PAUSE,
+        .alarm_en = TIMER_ALARM_EN,
+        .auto_reload = true,
     };
-    ESP_ERROR_CHECK(gptimer_new_timer(&timer_config, &s_gptimer));
+    ESP_ERROR_CHECK(timer_init(TIMER_GROUP_0, timer_idx, &config));
 
-    gptimer_alarm_config_t alarm_config = {
-        .reload_count = 0,
-        .alarm_count = TIMER_INTERVAL_US,
-        .flags.auto_reload_on_alarm = true,
-    };
-    gptimer_event_callbacks_t cbs = {
-        .on_alarm = eventfd_timer_isr_callback,
-    };
-    ESP_ERROR_CHECK(gptimer_register_event_callbacks(s_gptimer, &cbs, NULL));
-    ESP_ERROR_CHECK(gptimer_set_alarm_action(s_gptimer, &alarm_config));
-    ESP_ERROR_CHECK(gptimer_enable(s_gptimer));
-    ESP_ERROR_CHECK(gptimer_start(s_gptimer));
+    ESP_ERROR_CHECK(timer_set_counter_value(TIMER_GROUP_0, timer_idx, 0x00000000ULL));
+
+    ESP_ERROR_CHECK(timer_set_alarm_value(TIMER_GROUP_0, timer_idx, timer_interval_sec * TIMER_SCALE));
+    ESP_ERROR_CHECK(timer_enable_intr(TIMER_GROUP_0, timer_idx));
+    ESP_ERROR_CHECK(timer_isr_callback_add(TIMER_GROUP_0, timer_idx, &eventfd_timer_isr_callback, (void*) timer_idx, 0));
+
+    ESP_ERROR_CHECK(timer_start(TIMER_GROUP_0, timer_idx));
 }
 
 static void worker_task(void *arg)
@@ -150,9 +163,7 @@ static void collector_task(void *arg)
         }
     }
 
-    gptimer_stop(s_gptimer);
-    gptimer_disable(s_gptimer);
-    gptimer_del_timer(s_gptimer);
+    timer_deinit(TIMER_GROUP_0, TIMER_0);
     close(s_timer_fd);
     close(s_progress_fd);
     esp_vfs_eventfd_unregister();
@@ -161,7 +172,7 @@ static void collector_task(void *arg)
 
 void app_main(void)
 {
-    eventfd_timer_init();
+    eventfd_timer_init(TIMER_0, TIMER_INTERVAL_SEC);
     /* Save the handle for this task as we will need to notify it */
     xTaskCreate(worker_task, "worker_task", 4 * 1024, NULL, 5, &s_worker_handle);
     xTaskCreate(collector_task, "collector_task", 4 * 1024, NULL, 5, NULL);

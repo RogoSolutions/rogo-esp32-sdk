@@ -7,6 +7,7 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 /* BLE */
+#include "esp_nimble_hci.h"
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
 #include "host/ble_hs.h"
@@ -124,8 +125,8 @@ static int blecent_write(uint16_t conn_handle, uint16_t val_handle,
 		goto label;
 	    }
 	    else if (rc != 0) {
-            	ESP_LOGE(tag, "Error: Failed to write characteristic; rc=%d\n",rc);
-            	goto err;
+		ESP_LOGE(tag, "Error: Failed to write characteristic; rc=%d\n",rc);
+		goto err;
         }
 
         end_time = esp_timer_get_time();
@@ -420,7 +421,7 @@ blecent_should_connect(const struct ble_gap_disc_desc *disc)
 
     rc = ble_hs_adv_parse_fields(&fields, disc->data, disc->length_data);
     if (rc != 0) {
-        return 0;
+        return rc;
     }
 
     if (strlen(CONFIG_EXAMPLE_PEER_ADDR) && (strncmp(CONFIG_EXAMPLE_PEER_ADDR, "ADDR_ANY", strlen("ADDR_ANY")) != 0)) {
@@ -722,12 +723,9 @@ app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+    ESP_ERROR_CHECK(esp_nimble_hci_and_controller_init());
 
-    ret = nimble_port_init();
-    if (ret != ESP_OK) {
-        ESP_LOGE(tag, "Failed to init nimble %d ", ret);
-        return;
-    }
+    nimble_port_init();
 
     /* Configure the host. */
     ble_hs_cfg.reset_cb = blecent_on_reset;

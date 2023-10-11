@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2020 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 #pragma once
 
 #include <stdbool.h>
@@ -61,7 +69,7 @@ static inline void sha_ll_continue_dma(esp_sha_type sha_type)
 /**
  * @brief Load the current hash digest to digest register
  *
- * @note Happens automatically on ESP32H2
+ * @note Happens automatically on ESP32S3
  *
  * @param sha_type The SHA algorithm type
  */
@@ -78,7 +86,7 @@ static inline void sha_ll_load(esp_sha_type sha_type)
  */
 static inline void sha_ll_set_block_num(size_t num_blocks)
 {
-    REG_WRITE(SHA_DMA_BLOCK_NUM_REG, num_blocks);
+    REG_WRITE(SHA_BLOCK_NUM_REG, num_blocks);
 }
 
 /**
@@ -101,7 +109,7 @@ static inline bool sha_ll_busy(void)
 static inline void sha_ll_fill_text_block(const void *input_text, size_t block_word_len)
 {
     uint32_t *data_words = (uint32_t *)input_text;
-    uint32_t *reg_addr_buf = (uint32_t *)(SHA_M_MEM_REG);
+    uint32_t *reg_addr_buf = (uint32_t *)(SHA_TEXT_BASE);
 
     for (int i = 0; i < block_word_len; i++) {
         REG_WRITE(&reg_addr_buf[i], data_words[i]);
@@ -121,7 +129,7 @@ static inline void sha_ll_read_digest(esp_sha_type sha_type, void *digest_state,
     const size_t REG_WIDTH = sizeof(uint32_t);
 
     for (size_t i = 0; i < digest_word_len; i++) {
-        digest_state_words[i] = REG_READ(SHA_H_MEM_REG + (i * REG_WIDTH));
+        digest_state_words[i] = REG_READ(SHA_H_BASE + (i * REG_WIDTH));
     }
 
 }
@@ -136,7 +144,7 @@ static inline void sha_ll_read_digest(esp_sha_type sha_type, void *digest_state,
 static inline void sha_ll_write_digest(esp_sha_type sha_type, void *digest_state, size_t digest_word_len)
 {
     uint32_t *digest_state_words = (uint32_t *)digest_state;
-    uint32_t *reg_addr_buf = (uint32_t *)(SHA_H_MEM_REG);
+    uint32_t *reg_addr_buf = (uint32_t *)(SHA_H_BASE);
 
     for (int i = 0; i < digest_word_len; i++) {
         REG_WRITE(&reg_addr_buf[i], digest_state_words[i]);

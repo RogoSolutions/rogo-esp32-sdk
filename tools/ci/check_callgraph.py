@@ -1,17 +1,32 @@
 #!/usr/bin/env python
 #
 # Based on cally.py (https://github.com/chaudron/cally/), Copyright 2018, Eelco Chaudron
-# SPDX-FileCopyrightText: 2020-2022 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2020 Espressif Systems (Shanghai) PTE LTD
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import argparse
 import os
 import re
 from functools import partial
-from typing import BinaryIO, Callable, Dict, Generator, List, Optional, Tuple
 
 import elftools
 from elftools.elf import elffile
+
+try:
+    from typing import BinaryIO, Callable, Dict, Generator, List, Optional, Tuple
+except ImportError:
+    pass
 
 FUNCTION_REGEX = re.compile(
     r'^;; Function (?P<mangle>.*)\s+\((?P<function>\S+)(,.*)?\).*$'
@@ -21,29 +36,29 @@ SYMBOL_REF_REGEX = re.compile(r'^.*\(symbol_ref[^()]*\("(?P<target>.*)"\).*$')
 
 
 class RtlFunction(object):
-    def __init__(self, name: str, rtl_filename: str, tu_filename: str) -> None:
+    def __init__(self, name, rtl_filename, tu_filename):
         self.name = name
         self.rtl_filename = rtl_filename
         self.tu_filename = tu_filename
-        self.calls: List[str] = list()
-        self.refs: List[str] = list()
+        self.calls = list()  # type: List[str]
+        self.refs = list()  # type: List[str]
         self.sym = None
 
 
 class SectionAddressRange(object):
-    def __init__(self, name: str, addr: int, size: int) -> None:
+    def __init__(self, name, addr, size):  # type: (str, int, int) -> None
         self.name = name
         self.low = addr
         self.high = addr + size
 
-    def __str__(self) -> str:
+    def __str__(self):
         return '{}: 0x{:08x} - 0x{:08x}'.format(self.name, self.low, self.high)
 
-    def contains_address(self, addr: int) -> bool:
+    def contains_address(self, addr):
         return self.low <= addr < self.high
 
 
-TARGET_SECTIONS: Dict[str, List[SectionAddressRange]] = {
+TARGET_SECTIONS = {
     'esp32': [
         SectionAddressRange('.rom.text', 0x40000000, 0x70000),
         SectionAddressRange('.rom.rodata', 0x3ff96000, 0x9018)
@@ -56,20 +71,20 @@ TARGET_SECTIONS: Dict[str, List[SectionAddressRange]] = {
         SectionAddressRange('.rom.text', 0x40000000, 0x568d0),
         SectionAddressRange('.rom.rodata', 0x3ff071c0, 0x8e30)
     ]
-}
+}  # type: Dict[str, List[SectionAddressRange]]
 
 
 class Symbol(object):
-    def __init__(self, name: str, addr: int, local: bool, filename: Optional[str], section: Optional[str]) -> None:
+    def __init__(self, name, addr, local, filename, section):  # type: (str, int, bool, Optional[str], Optional[str]) -> None
         self.name = name
         self.addr = addr
         self.local = local
         self.filename = filename
         self.section = section
-        self.refers_to: List[Symbol] = list()
-        self.referred_from: List[Symbol] = list()
+        self.refers_to = list()  # type: List[Symbol]
+        self.referred_from = list()  # type: List[Symbol]
 
-    def __str__(self) -> str:
+    def __str__(self):
         return '{} @0x{:08x} [{}]{} {}'.format(
             self.name,
             self.addr,
@@ -80,11 +95,11 @@ class Symbol(object):
 
 
 class Reference(object):
-    def __init__(self, from_sym: Symbol, to_sym: Symbol) -> None:
+    def __init__(self, from_sym, to_sym):  # type: (Symbol, Symbol) -> None
         self.from_sym = from_sym
         self.to_sym = to_sym
 
-    def __str__(self) -> str:
+    def __str__(self):
         return '{} @0x{:08x} ({}) -> {} @0x{:08x} ({})'.format(
             self.from_sym.name,
             self.from_sym.addr,
@@ -95,19 +110,14 @@ class Reference(object):
         )
 
 
-class IgnorePair():
-    def __init__(self, pair: str) -> None:
-        self.symbol, self.function_call = pair.split('/')
-
-
 class ElfInfo(object):
-    def __init__(self, elf_file: BinaryIO) -> None:
+    def __init__(self, elf_file):  # type: (BinaryIO) -> None
         self.elf_file = elf_file
         self.elf_obj = elffile.ELFFile(self.elf_file)
         self.section_ranges = self._load_sections()
         self.symbols = self._load_symbols()
 
-    def _load_symbols(self) -> List[Symbol]:
+    def _load_symbols(self):  # type: () -> List[Symbol]
         symbols = []
         for s in self.elf_obj.iter_sections():
             if not isinstance(s, elftools.elf.sections.SymbolTableSection):
@@ -131,7 +141,7 @@ class ElfInfo(object):
                     )
         return symbols
 
-    def _load_sections(self) -> List[SectionAddressRange]:
+    def _load_sections(self):  # type: () -> List[SectionAddressRange]
         result = []
         for segment in self.elf_obj.iter_segments():
             if segment['p_type'] == 'PT_LOAD':
@@ -150,22 +160,22 @@ class ElfInfo(object):
 
         return result
 
-    def symbols_by_name(self, name: str) -> List['Symbol']:
+    def symbols_by_name(self, name):  # type: (str) -> List[Symbol]
         res = []
         for sym in self.symbols:
             if sym.name == name:
                 res.append(sym)
         return res
 
-    def section_for_addr(self, sym_addr: int) -> Optional[str]:
+    def section_for_addr(self, sym_addr):  # type: (int) -> Optional[str]
         for sar in self.section_ranges:
             if sar.contains_address(sym_addr):
                 return sar.name
         return None
 
 
-def load_rtl_file(rtl_filename: str, tu_filename: str, functions: List[RtlFunction], ignore_pairs: List[IgnorePair]) -> None:
-    last_function: Optional[RtlFunction] = None
+def load_rtl_file(rtl_filename, tu_filename, functions):  # type: (str, str, List[RtlFunction]) -> None
+    last_function = None  # type: Optional[RtlFunction]
     for line in open(rtl_filename):
         # Find function definition
         match = re.match(FUNCTION_REGEX, line)
@@ -180,17 +190,6 @@ def load_rtl_file(rtl_filename: str, tu_filename: str, functions: List[RtlFuncti
             match = re.match(CALL_REGEX, line)
             if match:
                 target = match.group('target')
-
-                # if target matches on of the IgnorePair function_call attributes, remove
-                # the last occurrence of the associated symbol from the last_function.refs list.
-                call_matching_pairs = [pair for pair in ignore_pairs if pair.function_call == target]
-                if call_matching_pairs and last_function and last_function.refs:
-                    for pair in call_matching_pairs:
-                        ignored_symbols = [ref for ref in last_function.refs if pair.symbol in ref]
-                        if ignored_symbols:
-                            last_ref = ignored_symbols.pop()
-                            last_function.refs = [ref for ref in last_function.refs if last_ref != ref]
-
                 if target not in last_function.calls:
                     last_function.calls.append(target)
                 continue
@@ -204,7 +203,7 @@ def load_rtl_file(rtl_filename: str, tu_filename: str, functions: List[RtlFuncti
                 continue
 
 
-def rtl_filename_matches_sym_filename(rtl_filename: str, symbol_filename: str) -> bool:
+def rtl_filename_matches_sym_filename(rtl_filename, symbol_filename):  # type: (str, str) -> bool
     # Symbol file names (from ELF debug info) are short source file names, without path: "cpu_start.c".
     # RTL file names are paths relative to the build directory, e.g.:
     # "build/esp-idf/esp_system/CMakeFiles/__idf_esp_system.dir/port/cpu_start.c.234r.expand"
@@ -223,7 +222,7 @@ class SymbolNotFound(RuntimeError):
     pass
 
 
-def find_symbol_by_name(name: str, elfinfo: ElfInfo, local_func_matcher: Callable[[Symbol], bool]) -> Optional[Symbol]:
+def find_symbol_by_name(name, elfinfo, local_func_matcher):  # type: (str, ElfInfo, Callable[[Symbol], bool]) -> Optional[Symbol]
     """
     Find an ELF symbol for the given name.
     local_func_matcher is a callback function which checks is the candidate local symbol is suitable.
@@ -250,7 +249,7 @@ def find_symbol_by_name(name: str, elfinfo: ElfInfo, local_func_matcher: Callabl
         return local_candidate or global_candidate
 
 
-def match_local_source_func(rtl_filename: str, sym: Symbol) -> bool:
+def match_local_source_func(rtl_filename, sym):  # type: (str, Symbol) -> bool
     """
     Helper for match_rtl_funcs_to_symbols, checks if local symbol sym is a good candidate for the
     reference source (caller), based on the RTL file name.
@@ -259,7 +258,7 @@ def match_local_source_func(rtl_filename: str, sym: Symbol) -> bool:
     return rtl_filename_matches_sym_filename(rtl_filename, sym.filename)
 
 
-def match_local_target_func(rtl_filename: str, sym_from: Symbol, sym: Symbol) -> bool:
+def match_local_target_func(rtl_filename, sym_from, sym):  # type: (str, Symbol, Symbol) -> bool
     """
     Helper for match_rtl_funcs_to_symbols, checks if local symbol sym is a good candidate for the
     reference target (callee or referenced data), based on RTL filename of the source symbol
@@ -275,9 +274,9 @@ def match_local_target_func(rtl_filename: str, sym_from: Symbol, sym: Symbol) ->
         return rtl_filename_matches_sym_filename(rtl_filename, sym.filename)
 
 
-def match_rtl_funcs_to_symbols(rtl_functions: List[RtlFunction], elfinfo: ElfInfo) -> Tuple[List[Symbol], List[Reference]]:
-    symbols: List[Symbol] = []
-    refs: List[Reference] = []
+def match_rtl_funcs_to_symbols(rtl_functions, elfinfo):  # type: (List[RtlFunction], ElfInfo) -> Tuple[List[Symbol], List[Reference]]
+    symbols = []  # type: List[Symbol]
+    refs = []  # type: List[Reference]
 
     # General idea:
     # - iterate over RTL functions.
@@ -320,17 +319,17 @@ def match_rtl_funcs_to_symbols(rtl_functions: List[RtlFunction], elfinfo: ElfInf
     return symbols, refs
 
 
-def get_symbols_and_refs(rtl_list: List[str], elf_file: BinaryIO, ignore_pairs: List[IgnorePair]) -> Tuple[List[Symbol], List[Reference]]:
+def get_symbols_and_refs(rtl_list, elf_file):  # type: (List[str], BinaryIO) -> Tuple[List[Symbol], List[Reference]]
     elfinfo = ElfInfo(elf_file)
 
-    rtl_functions: List[RtlFunction] = []
+    rtl_functions = []  # type: List[RtlFunction]
     for file_name in rtl_list:
-        load_rtl_file(file_name, file_name, rtl_functions, ignore_pairs)
+        load_rtl_file(file_name, file_name, rtl_functions)
 
     return match_rtl_funcs_to_symbols(rtl_functions, elfinfo)
 
 
-def list_refs_from_to_sections(refs: List[Reference], from_sections: List[str], to_sections: List[str]) -> int:
+def list_refs_from_to_sections(refs, from_sections, to_sections):  # type: (List[Reference], List[str], List[str]) -> int
     found = 0
     for ref in refs:
         if (not from_sections or ref.from_sym.section in from_sections) and \
@@ -340,7 +339,7 @@ def list_refs_from_to_sections(refs: List[Reference], from_sections: List[str], 
     return found
 
 
-def find_files_recursive(root_path: str, ext: str) -> Generator[str, None, None]:
+def find_files_recursive(root_path, ext):  # type: (str, str) -> Generator[str, None, None]
     for root, _, files in os.walk(root_path):
         for basename in files:
             if basename.endswith(ext):
@@ -348,7 +347,7 @@ def find_files_recursive(root_path: str, ext: str) -> Generator[str, None, None]
                 yield filename
 
 
-def main() -> None:
+def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -378,10 +377,6 @@ def main() -> None:
         '--to-sections', help='comma-separated list of target sections'
     )
     find_refs_parser.add_argument(
-        '--ignore-symbols', help='comma-separated list of symbol/function_name pairs. \
-                                  This will force the parser to ignore the symbol preceding the call to function_name'
-    )
-    find_refs_parser.add_argument(
         '--exit-code',
         action='store_true',
         help='If set, exits with non-zero code when any references found',
@@ -395,7 +390,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.rtl_list:
         with open(args.rtl_list, 'r') as rtl_list_file:
-            rtl_list = [line.strip() for line in rtl_list_file]
+            rtl_list = [line.strip for line in rtl_list_file]
     else:
         if not args.rtl_dir:
             raise RuntimeError('Either --rtl-list or --rtl-dir must be specified')
@@ -404,11 +399,7 @@ def main() -> None:
     if not rtl_list:
         raise RuntimeError('No RTL files specified')
 
-    ignore_pairs = []
-    for pair in args.ignore_symbols.split(',') if args.ignore_symbols else []:
-        ignore_pairs.append(IgnorePair(pair))
-
-    _, refs = get_symbols_and_refs(rtl_list, args.elf_file, ignore_pairs)
+    _, refs = get_symbols_and_refs(rtl_list, args.elf_file)
 
     if args.action == 'find-refs':
         from_sections = args.from_sections.split(',') if args.from_sections else []

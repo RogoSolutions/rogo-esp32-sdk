@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
 #
 # A script similar to GNU envsubst, but filters out
 # some CI related variables.
@@ -9,7 +7,7 @@ import os
 import sys
 
 
-def main() -> None:
+def main():
     # Sanitize environment variables
     vars_to_remove = []
     for var_name in os.environ.keys():

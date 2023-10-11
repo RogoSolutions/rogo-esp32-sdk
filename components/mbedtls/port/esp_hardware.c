@@ -1,16 +1,15 @@
-/*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-#include <mbedtls/build_info.h>
+#if !defined(MBEDTLS_CONFIG_FILE)
+#include "mbedtls/config.h"
+#else
+#include MBEDTLS_CONFIG_FILE
+#endif
 
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "esp_random.h"
+#include <esp_system.h>
 
-#include <entropy_poll.h>
+#include "mbedtls/entropy_poll.h"
 
 #ifndef MBEDTLS_ENTROPY_HARDWARE_ALT
 #error "MBEDTLS_ENTROPY_HARDWARE_ALT should always be set in ESP-IDF"

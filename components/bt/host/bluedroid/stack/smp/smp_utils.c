@@ -1031,8 +1031,6 @@ void smp_proc_pairing_cmpl(tSMP_CB *p_cb)
 #endif  ///BLE_INCLUDED == TRUE
 
     smp_reset_control_value(p_cb);
-    // TODO: clear local oob data when start advertising
-    smp_clear_local_oob_data();
 
     if (p_callback) {
         (*p_callback) (SMP_COMPLT_EVT, pairing_bda, &evt_data);

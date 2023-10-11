@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#pragma once
+#ifndef _SOC_PERIPH_DEFS_H_
+#define _SOC_PERIPH_DEFS_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,7 +43,6 @@ typedef enum {
     PERIPH_SHA_DMA_MODULE,
     PERIPH_DEDIC_GPIO_MODULE,
     PERIPH_SARADC_MODULE,
-    PERIPH_TEMPSENSOR_MODULE,
     PERIPH_MODULE_MAX
 } periph_module_t;
 
@@ -143,8 +143,11 @@ typedef enum {
     ETS_DCACHE_SYNC_INTR_SOURCE,                /**< interrupt of data cache sync done, LEVEL*/
     ETS_ICACHE_SYNC_INTR_SOURCE,                /**< interrupt of instruction cache sync done, LEVEL*/
     ETS_MAX_INTR_SOURCE,                        /**< number of interrupt sources */
+
 } periph_interrput_t;
 
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* _SOC_PERIPH_DEFS_H_ */

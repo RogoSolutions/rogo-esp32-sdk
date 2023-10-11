@@ -1,12 +1,22 @@
-/*
- * SPDX-FileCopyrightText: 2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2021 Espressif Systems (Shanghai)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // The LL layer of the USB-serial-jtag controller
 
 #pragma once
+
+#include "hal/misc.h"
 #include "soc/usb_serial_jtag_reg.h"
 #include "soc/usb_serial_jtag_struct.h"
 
@@ -29,7 +39,7 @@ typedef enum {
     USB_SERIAL_JTAG_INTR_TOKEN_REC_IN_EP1       = (1 << 8),
     USB_SERIAL_JTAG_INTR_BUS_RESET              = (1 << 9),
     USB_SERIAL_JTAG_INTR_EP1_ZERO_PAYLOAD       = (1 << 10),
-} usb_serial_jtag_ll_intr_t;
+} usb_serial_jtag_intr_t;
 
 /**
  * @brief  Enable the USB_SERIAL_JTAG interrupt based on the given mask.
@@ -66,23 +76,13 @@ static inline uint32_t usb_serial_jtag_ll_get_intsts_mask(void)
 }
 
 /**
- * @brief  Get the USB_SERIAL_JTAG raw interrupt status.
- *
- * @return The USB_SERIAL_JTAG raw interrupt status.
- */
-static inline __attribute__((always_inline)) uint32_t usb_serial_jtag_ll_get_intraw_mask(void)
-{
-    return USB_SERIAL_JTAG.int_raw.val;
-}
-
-/**
  * @brief  Clear the USB_SERIAL_JTAG interrupt status based on the given mask.
  *
  * @param  mask The bitmap of the interrupts need to be cleared.
  *
  * @return None
  */
-static inline __attribute__((always_inline)) void usb_serial_jtag_ll_clr_intsts_mask(uint32_t mask)
+static inline void usb_serial_jtag_ll_clr_intsts_mask(uint32_t mask)
 {
     USB_SERIAL_JTAG.int_clr.val = mask;
 }
@@ -110,7 +110,7 @@ static inline int usb_serial_jtag_ll_read_rxfifo(uint8_t *buf, uint32_t rd_len)
     int i;
     for (i = 0; i < (int)rd_len; i++) {
         if (!USB_SERIAL_JTAG.ep1_conf.serial_out_ep_data_avail) break;
-        buf[i] = USB_SERIAL_JTAG.ep1.rdwr_byte;
+        buf[i] = HAL_FORCE_READ_U32_REG_FIELD(USB_SERIAL_JTAG.ep1, rdwr_byte);
     }
     return i;
 }
@@ -129,7 +129,7 @@ static inline int usb_serial_jtag_ll_write_txfifo(const uint8_t *buf, uint32_t w
     int i;
     for (i = 0; i < (int)wr_len; i++) {
         if (!USB_SERIAL_JTAG.ep1_conf.serial_in_ep_data_free) break;
-        USB_SERIAL_JTAG.ep1.rdwr_byte = buf[i];
+        HAL_FORCE_MODIFY_U32_REG_FIELD(USB_SERIAL_JTAG.ep1, rdwr_byte, buf[i]);
     }
     return i;
 }
@@ -157,9 +157,6 @@ static inline int usb_serial_jtag_ll_txfifo_writable(void)
 /**
  * @brief  Flushes the TX buffer, that is, make it available for the
  *         host to pick up.
- *
- * @note  When fifo is full (with 64 byte), HW will flush the buffer automatically.
- *        It won't be executed if there is nothing in the fifo.
  *
  * @return na
  */

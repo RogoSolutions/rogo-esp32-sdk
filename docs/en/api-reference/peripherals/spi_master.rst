@@ -7,10 +7,11 @@ SPI Master driver is a program that controls {IDF_TARGET_NAME}'s SPI peripherals
 Overview of {IDF_TARGET_NAME}'s SPI peripherals
 -----------------------------------------------
 
+{IDF_TARGET_MAX_PERIPH_NUM:default="4", esp32c3="3"}
 {IDF_TARGET_SPI2_CS_NUM:default="6", esp32="3"}
 {IDF_TARGET_SPI3_CS_NUM:default="3"}
 
-{IDF_TARGET_NAME} integrates {IDF_TARGET_SOC_SPI_PERIPH_NUM} SPI peripherals.
+{IDF_TARGET_NAME} integrates {IDF_TARGET_MAX_PERIPH_NUM} SPI peripherals.
 
 - SPI0 and SPI1 are used internally to access the {IDF_TARGET_NAME}'s attached flash memory. Both controllers share the same SPI bus signals, and there is an arbiter to determine which can access the bus.
 
@@ -31,7 +32,7 @@ Overview of {IDF_TARGET_NAME}'s SPI peripherals
 
     - SPI2 and SPI3 are general purpose SPI controllers. They are open to users. SPI2 and SPI3 have independent signal buses with the same respective names. SPI2 has {IDF_TARGET_SPI2_CS_NUM} CS lines. SPI3 has {IDF_TARGET_SPI3_CS_NUM} CS lines.  Each CS line can be used to drive one SPI slave.
 
-.. only:: esp32c3 or esp32c2 or esp32c6 or esp32h2
+.. only:: esp32c3
 
     - SPI2 is a general purpose SPI controller. It has an independent signal bus with the same name. The bus has {IDF_TARGET_SPI2_CS_NUM} CS lines to drive up to {IDF_TARGET_SPI2_CS_NUM} SPI slaves.
 
@@ -77,7 +78,7 @@ The SPI master driver governs communications of Hosts with Devices. The driver s
 
     The SPI master driver has the concept of multiple Devices connected to a single bus (sharing a single {IDF_TARGET_NAME} SPI peripheral). As long as each Device is accessed by only one task, the driver is thread safe. However, if multiple tasks try to access the same SPI Device, the driver is **not thread-safe**. In this case, it is recommended to either:
 
-    - Refactor your application so that each SPI peripheral is only accessed by a single task at a time. You can use :cpp:member:`spi_bus_config_t::isr_cpu_id` to register the SPI ISR to the same core as SPI peripheral related tasks to ensure thread safety.
+    - Refactor your application so that each SPI peripheral is only accessed by a single task at a time.
     - Add a mutex lock around the shared Device using :c:macro:`xSemaphoreCreateMutex`.
 
 .. toctree::
@@ -97,8 +98,8 @@ Phase           Description
 ==============  =========================================================================================================
 **Command**     In this phase, a command (0-16 bit) is written to the bus by the Host.
 **Address**     In this phase, an address (0-{IDF_TARGET_ADDR_LEN} bit) is transmitted over the bus by the Host.
-**Dummy**       This phase is configurable and is used to meet the timing requirements.
 **Write**       Host sends data to a Device. This data follows the optional command and address phases and is indistinguishable from them at the electrical level.
+**Dummy**       This phase is configurable and is used to meet the timing requirements.
 **Read**        Device sends data to its Host.
 ==============  =========================================================================================================
 
@@ -117,11 +118,11 @@ An SPI Host can send full-duplex transactions, during which the read and write p
 
 While the member :cpp:member:`spi_transaction_t::rxlength` only determines the length of data received into the buffer.
 
-In half-duplex transactions, the read and write phases are not simultaneous (one direction at a time). The lengths of the write and read phases are determined by :cpp:member:`spi_transaction_t::length` and :cpp:member:`spi_transaction_t::rxlength` respectively.
+In half-duplex transactions, the read and write phases are not simultaneous (one direction at a time). The lengths of the write and read phases are determined by :cpp:member:`length` and :cpp:member:`rxlength` members of the struct :cpp:type:`spi_transaction_t` respectively.
 
-The command and address phases are optional, as not every SPI device requires a command and/or address. This is reflected in the Device's configuration: if :cpp:member:`spi_device_interface_config_t::command_bits` and/or :cpp:member:`spi_device_interface_config_t::address_bits` are set to zero, no command or address phase will occur.
+The command and address phases are optional, as not every SPI device requires a command and/or address. This is reflected in the Device's configuration: if :cpp:member:`command_bits` and/or :cpp:member:`address_bits` are set to zero, no command or address phase will occur.
 
-The read and write phases can also be optional, as not every transaction requires both writing and reading data. If :cpp:member:`spi_transaction_t::rx_buffer` is NULL and :c:macro:`SPI_TRANS_USE_RXDATA` is not set, the read phase is skipped. If :cpp:member:`spi_transaction_t::tx_buffer` is NULL and :c:macro:`SPI_TRANS_USE_TXDATA` is not set, the write phase is skipped.
+The read and write phases can also be optional, as not every transaction requires both writing and reading data. If :cpp:member:`rx_buffer` is NULL and :cpp:type:`SPI_TRANS_USE_RXDATA` is not set, the read phase is skipped. If :cpp:member:`tx_buffer` is NULL and :cpp:type:`SPI_TRANS_USE_TXDATA` is not set, the write phase is skipped.
 
 The driver supports two types of transactions: the interrupt transactions and polling transactions. The programmer can choose to use a different transaction type per Device. If your Device requires both transaction types, see :ref:`mixed_transactions`.
 
@@ -204,9 +205,9 @@ Supported line modes for {IDF_TARGET_NAME} are listed as follows, to make use of
 Command and Address Phases
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-During the command and address phases, the members :cpp:member:`spi_transaction_t::cmd` and :cpp:member:`spi_transaction_t::addr` are sent to the bus, nothing is read at this time. The default lengths of the command and address phases are set in :cpp:type:`spi_device_interface_config_t` by calling :cpp:func:`spi_bus_add_device`. If the flags :c:macro:`SPI_TRANS_VARIABLE_CMD` and :c:macro:`SPI_TRANS_VARIABLE_ADDR` in the member :cpp:member:`spi_transaction_t::flags` are not set, the driver automatically sets the length of these phases to default values during Device initialization.
+During the command and address phases, the members :cpp:member:`cmd` and :cpp:member:`addr` in the struct :cpp:type:`spi_transaction_t` are sent to the bus, nothing is read at this time. The default lengths of the command and address phases are set in :cpp:type:`spi_device_interface_config_t` by calling :cpp:func:`spi_bus_add_device`. If the flags :cpp:type:`SPI_TRANS_VARIABLE_CMD` and :cpp:type:`SPI_TRANS_VARIABLE_ADDR` in the member :cpp:member:`spi_transaction_t::flags` are not set, the driver automatically sets the length of these phases to default values during Device initialization.
 
-If the lengths of the command and address phases need to be variable, declare the struct :cpp:type:`spi_transaction_ext_t`, set the flags :c:macro:`SPI_TRANS_VARIABLE_CMD` and/or :c:macro:`SPI_TRANS_VARIABLE_ADDR` in the member :cpp:member:`spi_transaction_ext_t::base` and configure the rest of base as usual. Then the length of each phase will be equal to :cpp:member:`spi_transaction_ext_t::command_bits` and :cpp:member:`spi_transaction_ext_t::address_bits` set in the struct :cpp:type:`spi_transaction_ext_t`.
+If the lengths of the command and address phases need to be variable, declare the struct :cpp:type:`spi_transaction_ext_t`, set the flags :cpp:type:`SPI_TRANS_VARIABLE_CMD` and/or :cpp:type:`SPI_TRANS_VARIABLE_ADDR` in the member :cpp:member:`spi_transaction_ext_t::base` and configure the rest of base as usual. Then the length of each phase will be equal to :cpp:member:`command_bits` and :cpp:member:`address_bits` set in the struct :cpp:type:`spi_transaction_ext_t`.
 
 If the command and address phase need to be as the same number of lines as data phase, you need to set `SPI_TRANS_MULTILINE_CMD` and/or `SPI_TRANS_MULTILINE_ADDR` to the `flags` member in the struct :cpp:type:`spi_transaction_t`. Also see :ref:`transaction-line-mode`.
 
@@ -214,7 +215,7 @@ If the command and address phase need to be as the same number of lines as data 
 Write and Read Phases
 ^^^^^^^^^^^^^^^^^^^^^
 
-Normally, the data that needs to be transferred to or from a Device will be read from or written to a chunk of memory indicated by the members :cpp:member:`spi_transaction_t::rx_buffer` and :cpp:member:`spi_transaction_t::tx_buffer`. If DMA is enabled for transfers, the buffers are required to be:
+Normally, the data that needs to be transferred to or from a Device will be read from or written to a chunk of memory indicated by the members :cpp:member:`rx_buffer` and :cpp:member:`tx_buffer` of the structure :cpp:type:`spi_transaction_t`. If DMA is enabled for transfers, the buffers are required to be:
 
   1. Allocated in DMA-capable internal memory. If :ref:`external PSRAM is enabled<dma-capable-memory>`, this means using ``pvPortMallocCaps(size, MALLOC_CAP_DMA)``.
   2. 32-bit aligned (staring from a 32-bit boundary and having a length of multiples of 4 bytes).
@@ -229,7 +230,7 @@ If using more than one data lines to transmit, please set `SPI_DEVICE_HALFDUPLEX
 
         Half-duplex transactions with both read and write phases are not supported when using DMA. For details and workarounds, see :ref:`spi_known_issues`.
 
-.. only:: esp32s3 or esp32c3 or esp32c2 or esp32c6 or esp32h2
+.. only:: esp32s3 or esp32c3
 
     .. note::
 
@@ -286,7 +287,7 @@ The example code for the SPI master driver can be found in the :example:`periphe
 Transactions with Data Not Exceeding 32 Bits
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-When the transaction data size is equal to or less than 32 bits, it will be sub-optimal to allocate a buffer for the data. The data can be directly stored in the transaction struct instead. For transmitted data, it can be achieved by using the :cpp:member:`spi_transaction_t::tx_data` member and setting the :c:macro:`SPI_TRANS_USE_TXDATA` flag on the transmission. For received data, use :cpp:member:`spi_transaction_t::rx_data` and set :c:macro:`SPI_TRANS_USE_RXDATA`. In both cases, do not touch the :cpp:member:`spi_transaction_t::tx_buffer` or :cpp:member:`spi_transaction_t::rx_buffer` members, because they use the same memory locations as :cpp:member:`spi_transaction_t::tx_data` and :cpp:member:`spi_transaction_t::rx_data`.
+When the transaction data size is equal to or less than 32 bits, it will be sub-optimal to allocate a buffer for the data. The data can be directly stored in the transaction struct instead. For transmitted data, it can be achieved by using the :cpp:member:`tx_data` member and setting the :cpp:type:`SPI_TRANS_USE_TXDATA` flag on the transmission. For received data, use :cpp:member:`rx_data` and set :cpp:type:`SPI_TRANS_USE_RXDATA`. In both cases, do not touch the :cpp:member:`tx_buffer` or :cpp:member:`rx_buffer` members, because they use the same memory locations as :cpp:member:`tx_data` and :cpp:member:`rx_data`.
 
 
 Transactions with Integers Other Than ``uint8_t``
@@ -384,10 +385,8 @@ To have better control of the calling sequence of functions, send mixed transact
     Please also see the example :example:`peripherals/spi_master/hd_eeprom`.
 
 
-GPIO Matrix and IO_MUX
-^^^^^^^^^^^^^^^^^^^^^^
-
-.. only:: esp32
+    GPIO Matrix and IO_MUX
+    ----------------------
 
     Most of ESP32's peripheral signals have direct connection to their dedicated IO_MUX pins. However, the signals can also be routed to any other available pins using the less direct GPIO matrix. If at least one signal is routed through the GPIO matrix, then all signals will be routed through it.
 
@@ -407,7 +406,7 @@ GPIO Matrix and IO_MUX
     +          +------+------+
     |          | GPIO Number |
     +==========+======+======+
-    | CS0 [1]_ | 15   | 5    |
+    | CS0*     | 15   | 5    |
     +----------+------+------+
     | SCLK     | 14   | 18   |
     +----------+------+------+
@@ -420,41 +419,8 @@ GPIO Matrix and IO_MUX
     | QUADHD   | 4    | 21   |
     +----------+------+------+
 
-.. only:: not esp32
+    * Only the first Device attached to the bus can use the CS0 pin.
 
-    {IDF_TARGET_SPI2_IOMUX_PIN_CS:default="N/A",   esp32s2="10", esp32s3="10", esp32c2="10", esp32c3="10", esp32c6="16", esp32h2="1"}
-    {IDF_TARGET_SPI2_IOMUX_PIN_CLK:default="N/A",  esp32s2="12", esp32s3="12", esp32c2="6",  esp32c3="6",  esp32c6="6",  esp32h2="4"}
-    {IDF_TARGET_SPI2_IOMUX_PIN_MOSI:default="N/A", esp32s2="11"  esp32s3="11", esp32c2="7"   esp32c3="7",  esp32c6="7",  esp32h2="5"}
-    {IDF_TARGET_SPI2_IOMUX_PIN_MISO:default="N/A", esp32s2="13"  esp32s3="13", esp32c2="2"   esp32c3="2",  esp32c6="2",  esp32h2="0"}
-    {IDF_TARGET_SPI2_IOMUX_PIN_HD:default="N/A",   esp32s2="9"   esp32s3="9",  esp32c2="4"   esp32c3="4",  esp32c6="4",  esp32h2="3"}
-    {IDF_TARGET_SPI2_IOMUX_PIN_WP:default="N/A",   esp32s2="14"  esp32s3="14", esp32c2="5"   esp32c3="5",  esp32c6="5",  esp32h2="2"}
-
-    Most of chip's peripheral signals have direct connection to their dedicated IO_MUX pins. However, the signals can also be routed to any other available pins using the less direct GPIO matrix. If at least one signal is routed through the GPIO matrix, then all signals will be routed through it.
-
-    When an SPI Host is set to 80MHz or lower frequencies, routing SPI pins via GPIO matrix will behave the same comparing to routing them via IOMUX.
-
-    The IO_MUX pins for SPI buses are given below.
-
-    .. list-table::
-       :widths: 40 30
-       :header-rows: 1
-
-       * - Pin Name
-         - GPIO Number (SPI2)
-       * - CS0 [1]_
-         - {IDF_TARGET_SPI2_IOMUX_PIN_CS}
-       * - SCLK
-         - {IDF_TARGET_SPI2_IOMUX_PIN_CLK}
-       * - MISO
-         - {IDF_TARGET_SPI2_IOMUX_PIN_MISO}
-       * - MOSI
-         - {IDF_TARGET_SPI2_IOMUX_PIN_MOSI}
-       * - QUADWP
-         - {IDF_TARGET_SPI2_IOMUX_PIN_WP}
-       * - QUADHD
-         - {IDF_TARGET_SPI2_IOMUX_PIN_HD}
-
-.. [1] Only the first Device attached to the bus can use the CS0 pin.
 
 .. _speed_considerations:
 
@@ -473,10 +439,10 @@ The main parameter that determines the transfer speed for large transactions is 
 Transaction Duration
 ^^^^^^^^^^^^^^^^^^^^
 
-{IDF_TARGET_TRANS_TIME_INTR_DMA:default="N/A", esp32="28", esp32s2="23", esp32c3="28", esp32s3="26", esp32c2="42", esp32c6="34", esp32h2="58"}
-{IDF_TARGET_TRANS_TIME_POLL_DMA:default="N/A", esp32="10", esp32s2="9",  esp32c3="10", esp32s3="11", esp32c2="17", esp32c6="17", esp32h2="28"}
-{IDF_TARGET_TRANS_TIME_INTR_CPU:default="N/A", esp32="25", esp32s2="22", esp32c3="27", esp32s3="24", esp32c2="40", esp32c6="32", esp32h2="54"}
-{IDF_TARGET_TRANS_TIME_POLL_CPU:default="N/A", esp32="8",  esp32s2="8",  esp32c3="9",  esp32s3="9",  esp32c2="15", esp32c6="15", esp32h2="24"}
+{IDF_TARGET_TRANS_TIME_INTR_DMA:default="28", esp32="28", esp32s2="23", esp32c3="28", esp32s3="26"}
+{IDF_TARGET_TRANS_TIME_POLL_DMA:default="10", esp32="10", esp32s2="9", esp32c3="10", esp32s3="11"}
+{IDF_TARGET_TRANS_TIME_INTR_CPU:default="25", esp32="25", esp32s2="22", esp32c3="27", esp32s3="24"}
+{IDF_TARGET_TRANS_TIME_POLL_CPU:default="8", esp32="8", esp32s2="8", esp32c3="9", esp32s3="9"}
 
 Transaction duration includes setting up SPI peripheral registers, copying data to FIFOs or setting up DMA links, and the time for SPI transaction.
 
@@ -493,45 +459,10 @@ Typical transaction duration for one byte of data are given below.
 - Polling Transaction via DMA: {IDF_TARGET_TRANS_TIME_POLL_DMA} µs.
 - Polling Transaction via CPU: {IDF_TARGET_TRANS_TIME_POLL_CPU} µs.
 
-Note that these data are tested with :ref:`CONFIG_SPI_MASTER_ISR_IN_IRAM` enabled. SPI transaction related code are placed in the internal memory. If this option is turned off (for example, for internal memory optimization), the transaction duration may be affected.
-
 SPI Clock Frequency
 ^^^^^^^^^^^^^^^^^^^
 
-Clock source of the GPSPI peripherals can be selected by setting :cpp:member:`spi_device_handle_t::cfg::clock_source`. You can refer to :cpp:type:`spi_clock_source_t` to know the supported clock sources.
-By default driver will set :cpp:member:`spi_device_handle_t::cfg::clock_source` to `SPI_CLK_SRC_DEFAULT`. This usually stands for the highest frequency among GPSPI clock sources. Its value will be different among chips.
-
-Actual clock frequency of a device may not be exactly equal to the number you set, it will be re-calculated by the driver to the nearest hardware compatible number, and not larger than the clock frequency of the clock source. You can call :cpp:func:`spi_device_get_actual_freq` to know the actual frequency computed by the driver.
-
-Theoretical maximum transfer speed of Write or Read phase can be calculated according to the table below:
-
-.. only:: not SOC_SPI_SUPPORT_OCT
-
-    +--------------------------------+------------------------+
-    | Line Width of Write/Read phase |      Speed (Bps)       |
-    +================================+========================+
-    |            1-Line              |  *SPI Frequency / 8*   |
-    +--------------------------------+------------------------+
-    |            2-Line              |  *SPI Frequency / 4*   |
-    +--------------------------------+------------------------+
-    |            4-Line              |  *SPI Frequency / 2*   |
-    +--------------------------------+------------------------+
-
-.. only:: SOC_SPI_SUPPORT_OCT
-
-    +--------------------------------+------------------------+
-    | Line Width of Write/Read phase |      Speed (Bps)       |
-    +================================+========================+
-    |            1-Line              |  *SPI Frequency / 8*   |
-    +--------------------------------+------------------------+
-    |            2-Line              |  *SPI Frequency / 4*   |
-    +--------------------------------+------------------------+
-    |            4-Line              |  *SPI Frequency / 2*   |
-    +--------------------------------+------------------------+
-    |            8-Line              |  *SPI Frequency*       |
-    +--------------------------------+------------------------+
-
-The transfer speed calculation of other phases(command, address, dummy) are similar.
+Transferring each byte takes eight times the clock period *8/fspi*.
 
 .. only:: esp32
 
@@ -541,10 +472,6 @@ Cache Miss
 ^^^^^^^^^^
 
 The default config puts only the ISR into the IRAM. Other SPI related functions, including the driver itself and the callback, might suffer from cache misses and will need to wait until the code is read from flash. Select :ref:`CONFIG_SPI_MASTER_IN_IRAM` to put the whole SPI driver into IRAM and put the entire callback(s) and its callee functions into IRAM to prevent cache misses.
-
-.. note::
-
-    SPI driver implementation is based on FreeRTOS APIs, to use :ref:`CONFIG_SPI_MASTER_IN_IRAM`, you should not enable :ref:`CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH`.
 
 For an interrupt transaction, the overall cost is *20+8n/Fspi[MHz]* [us] for n bytes transferred in one transaction. Hence, the transferring speed is: *n/(20+8n/Fspi)*. An example of transferring speed at 8 MHz clock speed is given in the following table.
 
@@ -566,7 +493,7 @@ For an interrupt transaction, the overall cost is *20+8n/Fspi[MHz]* [us] for n b
 
 When a transaction length is short, the cost of transaction interval is high. If possible, try to squash several short transactions into one transaction to achieve a higher transfer speed.
 
-Please note that the ISR is disabled during flash operation by default. To keep sending transactions during flash operations, enable :ref:`CONFIG_SPI_MASTER_ISR_IN_IRAM` and set :c:macro:`ESP_INTR_FLAG_IRAM` in the member :cpp:member:`spi_bus_config_t::intr_flags`. In this case, all the transactions queued before starting flash operations will be handled by the ISR in parallel. Also note that the callback of each Device and their callee functions should be in IRAM, or your callback will crash due to cache miss. For more details, see :ref:`iram-safe-interrupt-handlers`.
+Please note that the ISR is disabled during flash operation by default. To keep sending transactions during flash operations, enable :ref:`CONFIG_SPI_MASTER_ISR_IN_IRAM` and set :cpp:class:`ESP_INTR_FLAG_IRAM` in the member :cpp:member:`spi_bus_config_t::intr_flags`. In this case, all the transactions queued before starting flash operations will be handled by the ISR in parallel. Also note that the callback of each Device and their callee functions should be in IRAM, or your callback will crash due to cache miss. For more details, see :ref:`iram-safe-interrupt-handlers`.
 
 
 .. only:: esp32
@@ -582,11 +509,13 @@ Please note that the ISR is disabled during flash operation by default. To keep 
         :scale: 40 %
         :align: center
 
-    .. wavedrom:: /../_static/diagrams/spi/miso_timing_waveform.json
+    .. wavedrom does not support rendering pdflatex till now(1.3.1), so we use the png here
+
+    .. image:: /../_static/miso_timing_waveform.png
 
     The maximum allowed frequency is dependent on:
 
-    - :cpp:member:`spi_device_interface_config_t::input_delay_ns` - maximum data valid time on the MISO bus after a clock cycle on SCLK starts
+    - ``input_delay_ns`` - maximum data valid time on the MISO bus after a clock cycle on SCLK starts
     - If the IO_MUX pin or the GPIO Matrix is used
 
     When the GPIO matrix is used, the maximum allowed frequency is reduced to about 33~77% in comparison to the existing *input delay*. To retain a higher frequency, you have to use the IO_MUX pins or the *dummy bit workaround*. You can obtain the maximum reading frequency of the master by using the function :cpp:func:`spi_get_freq_limit`.
@@ -611,7 +540,7 @@ Please note that the ISR is disabled during flash operation by default. To keep 
 
     :cpp:member:`spi_device_interface_config_t::flags`
 
-    The SPI master driver still works even if the :cpp:member:`spi_device_interface_config_t::input_delay_ns` in the structure :cpp:type:`spi_device_interface_config_t` is set to 0. However, setting an accurate value helps to:
+    The SPI master driver still works even if the :cpp:member:`input_delay_ns` in the structure :cpp:type:`spi_device_interface_config_t` is set to 0. However, setting an accurate value helps to:
 
     - Calculate the frequency limit for full-duplex transactions
     - Compensate the timing correctly with dummy bits for half-duplex transactions

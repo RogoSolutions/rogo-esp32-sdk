@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -19,12 +19,10 @@
 #include "esp_core_dump_common.h"
 #include "esp_core_dump_port.h"
 #include "esp_debug_helpers.h"
-#include "esp_cpu_utils.h"
 
 const static DRAM_ATTR char TAG[] __attribute__((unused)) = "esp_core_dump_port";
 
 #define min(a,b) ((a) < (b) ? (a) : (b))
-#define max(a,b) ((a) < (b) ? (b) : (a))
 
 #define COREDUMP_EM_XTENSA                  0x5E
 #define COREDUMP_INVALID_CAUSE_VALUE        0xFFFF
@@ -157,12 +155,7 @@ static void *esp_core_dump_get_fake_stack(uint32_t *stk_len)
 
 static core_dump_reg_pair_t *esp_core_dump_get_epc_regs(core_dump_reg_pair_t* src)
 {
-#pragma GCC diagnostic push
-#if     __GNUC__ >= 9
-#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-#endif
     uint32_t* reg_ptr = (uint32_t*)src;
-#pragma GCC diagnostic pop
     // get InterruptException program counter registers
     COREDUMP_GET_EPC(EPC_1, reg_ptr);
     COREDUMP_GET_EPC(EPC_2, reg_ptr);
@@ -176,12 +169,7 @@ static core_dump_reg_pair_t *esp_core_dump_get_epc_regs(core_dump_reg_pair_t* sr
 
 static core_dump_reg_pair_t *esp_core_dump_get_eps_regs(core_dump_reg_pair_t* src)
 {
-#pragma GCC diagnostic push
-#if     __GNUC__ >= 9
-#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-#endif
     uint32_t* reg_ptr = (uint32_t*)src;
-#pragma GCC diagnostic pop
     // get InterruptException processor state registers
     COREDUMP_GET_EPS(EPS_2, reg_ptr);
     COREDUMP_GET_EPS(EPS_3, reg_ptr);
@@ -336,10 +324,10 @@ bool esp_core_dump_check_stack(core_dump_task_header_t *task)
  */
 bool esp_core_dump_mem_seg_is_sane(uint32_t addr, uint32_t sz)
 {
+    //TODO: external SRAM not supported yet
     return (esp_ptr_in_dram((void *)addr) && esp_ptr_in_dram((void *)(addr+sz-1)))
         || (esp_ptr_in_rtc_slow((void *)addr) && esp_ptr_in_rtc_slow((void *)(addr+sz-1)))
         || (esp_ptr_in_rtc_dram_fast((void *)addr) && esp_ptr_in_rtc_dram_fast((void *)(addr+sz-1)))
-        || (esp_ptr_external_ram((void *)addr) && esp_ptr_external_ram((void *)(addr+sz-1)))
         || (esp_ptr_in_iram((void *)addr) && esp_ptr_in_iram((void *)(addr+sz-1)));
 }
 
@@ -350,9 +338,8 @@ bool esp_core_dump_mem_seg_is_sane(uint32_t addr, uint32_t sz)
 uint32_t esp_core_dump_get_stack(core_dump_task_header_t *task,
                                  uint32_t* stk_vaddr, uint32_t* stk_paddr)
 {
+    const uint32_t stack_len = abs(task->stack_start - task->stack_end);
     const uint32_t stack_addr = min(task->stack_start, task->stack_end);
-    const uint32_t stack_addr2 = max(task->stack_start, task->stack_end);
-    const uint32_t stack_len = stack_addr2 - stack_addr;
 
     ESP_COREDUMP_DEBUG_ASSERT(stk_paddr != NULL && stk_vaddr != NULL);
 
@@ -413,7 +400,7 @@ bool esp_core_dump_check_task(core_dump_task_header_t *task)
                                         sol_frame->a1);
         } else {
     // to avoid warning that 'exc_frame' is unused when ESP_COREDUMP_LOG_PROCESS does nothing
-    #if CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH && CONFIG_ESP_COREDUMP_LOGS
+    #if CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH
             XtExcFrame *exc_frame = (XtExcFrame *)task->stack_start;
             ESP_COREDUMP_LOG_PROCESS("Task (TCB:%x) EXIT/PC/PS/A0/SP %x %x %x %x %x",
                                         task->tcb_addr,

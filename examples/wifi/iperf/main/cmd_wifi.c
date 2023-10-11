@@ -9,7 +9,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <inttypes.h>
 #include "esp_log.h"
 #include "esp_console.h"
 #include "argtable3/argtable3.h"
@@ -19,11 +18,8 @@
 #include "esp_wifi.h"
 #include "esp_netif.h"
 #include "esp_event.h"
-#include "esp_mac.h"
 #include "iperf.h"
 #include "esp_coexist.h"
-#include "wifi_cmd.h"
-#include "esp_wifi_he.h"
 
 typedef struct {
     struct arg_str *ip;
@@ -38,6 +34,7 @@ typedef struct {
     struct arg_lit *abort;
     struct arg_end *end;
 } wifi_iperf_t;
+static wifi_iperf_t iperf_args;
 
 typedef struct {
     struct arg_str *ssid;
@@ -50,16 +47,15 @@ typedef struct {
     struct arg_end *end;
 } wifi_scan_arg_t;
 
-static wifi_iperf_t iperf_args;
 static wifi_args_t sta_args;
 static wifi_scan_arg_t scan_args;
 static wifi_args_t ap_args;
 static bool reconnect = true;
 static const char *TAG = "cmd_wifi";
-esp_netif_t *netif_ap = NULL;
-esp_netif_t *netif_sta = NULL;
+static esp_netif_t *netif_ap = NULL;
+static esp_netif_t *netif_sta = NULL;
 
-EventGroupHandle_t wifi_event_group;
+static EventGroupHandle_t wifi_event_group;
 const int CONNECTED_BIT = BIT0;
 const int DISCONNECTED_BIT = BIT1;
 
@@ -84,30 +80,7 @@ static void scan_done_handler(void *arg, esp_event_base_t event_base,
 
     if (esp_wifi_scan_get_ap_records(&sta_number, (wifi_ap_record_t *)ap_list_buffer) == ESP_OK) {
         for (i = 0; i < sta_number; i++) {
-#if CONFIG_SOC_WIFI_HE_SUPPORT
-            char ssid_rssi[46] = { 0, };
-            sprintf(ssid_rssi, "[%s][rssi=%d]", ap_list_buffer[i].ssid, ap_list_buffer[i].rssi);
-            if (ap_list_buffer[i].phy_11ax) {
-                ESP_LOGW(TAG,
-                         "[%2d]%45s authmode:0x%x, channel:%2d[%d], phymode:%4s, "MACSTR", bssid-index:%d, bss_color:%d, disabled:%d",
-                         i, ssid_rssi, ap_list_buffer[i].authmode,
-                         ap_list_buffer[i].primary, ap_list_buffer[i].second,
-                         ap_list_buffer[i].phy_11ax ? "11ax" : (ap_list_buffer[i].phy_11n ? "11n" :
-                                 (ap_list_buffer[i].phy_11g ? "11g" : (ap_list_buffer[i].phy_11b ? "11b" : ""))),
-                         MAC2STR(ap_list_buffer[i].bssid), ap_list_buffer[i].he_ap.bssid_index,
-                         ap_list_buffer[i].he_ap.bss_color, ap_list_buffer[i].he_ap.bss_color_disabled);
-            } else {
-                ESP_LOGI(TAG,
-                         "[%2d]%45s authmode:0x%x, channel:%2d[%d], phymode:%4s, "MACSTR"",
-                         i, ssid_rssi, ap_list_buffer[i].authmode,
-                         ap_list_buffer[i].primary, ap_list_buffer[i].second,
-                         ap_list_buffer[i].phy_11ax ? "11ax" : (ap_list_buffer[i].phy_11n ? "11n" :
-                                 (ap_list_buffer[i].phy_11g ? "11g" : (ap_list_buffer[i].phy_11b ? "11b" : ""))),
-                         MAC2STR(ap_list_buffer[i].bssid));
-            }
-#else
             ESP_LOGI(TAG, "[%s][rssi=%d]", ap_list_buffer[i].ssid, ap_list_buffer[i].rssi);
-#endif
         }
     }
     free(ap_list_buffer);
@@ -133,6 +106,7 @@ static void disconnect_handler(void *arg, esp_event_base_t event_base,
     xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
     xEventGroupSetBits(wifi_event_group, DISCONNECTED_BIT);
 }
+
 
 void initialise_wifi(void)
 {
@@ -173,35 +147,17 @@ void initialise_wifi(void)
 
 #if CONFIG_EXTERNAL_COEX_ENABLE
     esp_external_coex_gpio_set_t gpio_pin;
-    gpio_pin.request = 1;
-    gpio_pin.priority = 2;
-    gpio_pin.grant = 3;
-#if SOC_EXTERNAL_COEX_LEADER_TX_LINE
-    gpio_pin.tx_line = 4;
+    gpio_pin.in_pin0  = 1;
+    gpio_pin.in_pin1  = 2;
+    gpio_pin.out_pin0 = 3;
+
+    ESP_ERROR_CHECK( esp_enable_extern_coex_gpio_pin(EXTERN_COEX_WIRE_3, gpio_pin) );
 #endif
 
-    esp_external_coex_set_work_mode(EXTERNAL_COEX_LEADER_ROLE);
-#if SOC_EXTERNAL_COEX_LEADER_TX_LINE
-    ESP_ERROR_CHECK(esp_enable_extern_coex_gpio_pin(EXTERN_COEX_WIRE_4, gpio_pin));
-#else
-    ESP_ERROR_CHECK(esp_enable_extern_coex_gpio_pin(EXTERN_COEX_WIRE_3, gpio_pin));
-#endif /* SOC_EXTERNAL_COEX_LEADER_TX_LINE */
-#endif /* CONFIG_EXTERNAL_COEX_ENABLE */
-
-#if CONFIG_ESP_WIFI_ENABLE_WIFI_RX_STATS
-#if CONFIG_ESP_WIFI_ENABLE_WIFI_RX_MU_STATS
-    esp_wifi_enable_rx_statistics(true, true);
-#else
-    esp_wifi_enable_rx_statistics(true, false);
-#endif
-#endif
-#if CONFIG_ESP_WIFI_ENABLE_WIFI_TX_STATS
-    esp_wifi_enable_tx_statistics(ESP_WIFI_ACI_BE, true);
-#endif
     initialized = true;
 }
 
-static bool wifi_cmd_sta_join(const char *ssid, const char *pass, bool enable_he_mcs9)
+static bool wifi_cmd_sta_join(const char *ssid, const char *pass)
 {
     int bits = xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, 0, 1, 0);
 
@@ -212,15 +168,11 @@ static bool wifi_cmd_sta_join(const char *ssid, const char *pass, bool enable_he
         strlcpy((char *) wifi_config.sta.password, pass, sizeof(wifi_config.sta.password));
     }
 
-    if (enable_he_mcs9 == true) {
-        wifi_config.sta.he_mcs9_enabled = 1;
-    }
-
     if (bits & CONNECTED_BIT) {
         reconnect = false;
         xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
         ESP_ERROR_CHECK( esp_wifi_disconnect() );
-        xEventGroupWaitBits(wifi_event_group, DISCONNECTED_BIT, 0, 1, portTICK_PERIOD_MS);
+        xEventGroupWaitBits(wifi_event_group, DISCONNECTED_BIT, 0, 1, portTICK_RATE_MS);
     }
 
     reconnect = true;
@@ -228,7 +180,7 @@ static bool wifi_cmd_sta_join(const char *ssid, const char *pass, bool enable_he
     ESP_ERROR_CHECK( esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
     esp_wifi_connect();
 
-    xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, 0, 1, 5000 / portTICK_PERIOD_MS);
+    xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, 0, 1, 5000 / portTICK_RATE_MS);
 
     return true;
 }
@@ -243,47 +195,7 @@ static int wifi_cmd_sta(int argc, char **argv)
     }
 
     ESP_LOGI(TAG, "sta connecting to '%s'", sta_args.ssid->sval[0]);
-    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
-    wifi_cmd_sta_join(sta_args.ssid->sval[0], sta_args.password->sval[0], false);
-    return 0;
-}
-
-static int wifi_cmd_sta40(int argc, char **argv)
-{
-    int nerrors = arg_parse(argc, argv, (void **) &sta_args);
-
-    if (nerrors != 0) {
-        arg_print_errors(stderr, sta_args.end, argv[0]);
-        return 1;
-    }
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_protocol(0, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N));
-    ESP_ERROR_CHECK(esp_wifi_set_bandwidth(0, WIFI_BW_HT40));
-    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
-
-    ESP_LOGI(TAG, "sta connecting to '%s'", sta_args.ssid->sval[0]);
-    wifi_cmd_sta_join(sta_args.ssid->sval[0], sta_args.password->sval[0], false);
-    return 0;
-}
-
-static int wifi_cmd_sta_mcs89(int argc, char **argv)
-{
-#if CONFIG_SOC_WIFI_HE_SUPPORT
-    int nerrors = arg_parse(argc, argv, (void **) &sta_args);
-    if (nerrors != 0) {
-        arg_print_errors(stderr, sta_args.end, argv[0]);
-        return 1;
-    }
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_protocol(0, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N | WIFI_PROTOCOL_11AX));
-    ESP_ERROR_CHECK(esp_wifi_set_bandwidth(0, WIFI_BW_HT20));
-    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
-
-    ESP_LOGI(TAG, "sta connecting to '%s'", sta_args.ssid->sval[0]);
-    wifi_cmd_sta_join(sta_args.ssid->sval[0], sta_args.password->sval[0], true);
-#else
-    ESP_LOGW(TAG, "HE-MCS[0, 9] is not supported");
-#endif
+    wifi_cmd_sta_join(sta_args.ssid->sval[0], sta_args.password->sval[0]);
     return 0;
 }
 
@@ -502,9 +414,7 @@ static int wifi_cmd_iperf(int argc, char **argv)
     }
 
 
-    ESP_LOGI(TAG, "mode=%s-%s sip=%" PRId32 ".%" PRId32 ".%" PRId32 ".%" PRId32 ":%d,\
-             dip=%" PRId32 ".%" PRId32 ".%" PRId32 ".%" PRId32 ":%d,\
-             interval=%" PRId32 ", time=%" PRId32 "",
+    ESP_LOGI(TAG, "mode=%s-%s sip=%d.%d.%d.%d:%d, dip=%d.%d.%d.%d:%d, interval=%d, time=%d",
              cfg.flag & IPERF_FLAG_TCP ? "tcp" : "udp",
              cfg.flag & IPERF_FLAG_SERVER ? "server" : "client",
              cfg.source_ip4 & 0xFF, (cfg.source_ip4 >> 8) & 0xFF, (cfg.source_ip4 >> 16) & 0xFF,
@@ -533,26 +443,6 @@ void register_wifi(void)
     };
 
     ESP_ERROR_CHECK( esp_console_cmd_register(&sta_cmd) );
-
-    const esp_console_cmd_t sta40_cmd = {
-        .command = "sta40",
-        .help = "WiFi is station mode, set protocol to bgn and cbw to 40MHz, join a specified AP",
-        .hint = NULL,
-        .func = &wifi_cmd_sta40,
-        .argtable = &sta_args
-    };
-
-    ESP_ERROR_CHECK( esp_console_cmd_register(&sta40_cmd) );
-
-    const esp_console_cmd_t stamcs89_cmd = {
-        .command = "stamcs89",
-        .help = "WiFi is station mode, set protocol to ax and mcs set to HE-MCS[0,9], join a specified AP",
-        .hint = NULL,
-        .func = &wifi_cmd_sta_mcs89,
-        .argtable = &sta_args
-    };
-
-    ESP_ERROR_CHECK( esp_console_cmd_register(&stamcs89_cmd) );
 
     scan_args.ssid = arg_str0(NULL, NULL, "<ssid>", "SSID of AP want to be scanned");
     scan_args.end = arg_end(1);
@@ -610,7 +500,4 @@ void register_wifi(void)
     };
 
     ESP_ERROR_CHECK( esp_console_cmd_register(&iperf_cmd) );
-
-    register_wifi_cmd();
-    register_wifi_stats();
 }

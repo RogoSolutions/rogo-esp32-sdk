@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -14,13 +14,13 @@
 #include "esp_private/panic_reason.h"
 #include "soc/soc.h"
 
-#include "esp_private/cache_err_int.h"
+#include "cache_err_int.h"
 
 #include "sdkconfig.h"
 
 #if !CONFIG_IDF_TARGET_ESP32
 #include "soc/extmem_reg.h"
-#include "soc/ext_mem_defs.h"
+#include "soc/cache_memory.h"
 #include "soc/rtc_cntl_reg.h"
 #if CONFIG_ESP_SYSTEM_MEMPROT_FEATURE
 #ifdef CONFIG_IDF_TARGET_ESP32S2
@@ -146,7 +146,7 @@ static void print_debug_exception_details(const void *f)
             }
 #endif
 
-            const char *name = pcTaskGetName(xTaskGetCurrentTaskHandleForCPU(core));
+            const char *name = pcTaskGetTaskName(xTaskGetCurrentTaskHandleForCPU(core));
             panic_print_str("Stack canary watchpoint triggered (");
             panic_print_str(name);
             panic_print_str(") ");
@@ -261,7 +261,7 @@ static inline void print_cache_err_details(const void *f)
 static inline void print_memprot_err_details(const void *f)
 {
     uint32_t *fault_addr;
-    uint32_t op_type = MEMPROT_OP_INVALID, op_subtype;
+    uint32_t op_type, op_subtype;
     const char *operation_type;
 
     mem_type_prot_t mem_type = esp_memprot_get_active_intr_memtype();

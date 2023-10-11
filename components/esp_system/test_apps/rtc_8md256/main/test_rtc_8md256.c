@@ -8,13 +8,11 @@
 #include <string.h>
 #include "esp_sleep.h"
 #include "unity.h"
-#include "unity_test_utils.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/uart.h"
-#include "freertos/FreeRTOS.h"
 #include "soc/soc_caps.h"
-
 
 static const char TAG[] = "rtc_8m";
 
@@ -90,3 +88,8 @@ TEST_CASE("Can use 8MD256 as RTC clock source in lightsleep (force rtc_periph)",
     test_lightsleep(true);
 }
 #endif
+
+void app_main(void)
+{
+    unity_run_menu();
+}

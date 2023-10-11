@@ -100,7 +100,7 @@ The following code-blocks demonstrates a High Priority Interrupt IPC callback wr
     The number of scratch registers available for use is sufficient for most simple use cases. But if your callback requires more scratch registers, ``void *arg`` can point to a buffer that is used as a register save area. The callback can then save and restore more registers. See the :example:`system/ipc/ipc_isr`.
 
 .. note::
-    For more examples of High Priority Interrupt IPC callbacks, see :idf_file:`components/esp_system/port/arch/xtensa/esp_ipc_isr_routines.S` and :`components/esp_system/test/test_ipc_isr.S`
+    For more examples of High Priority Interrupt IPC callbacks, see :idf_file:`components/esp_ipc/src/esp_ipc_isr/esp_ipc_isr_routines.S` and :`components/esp_system/test/test_ipc_isr.S`
 
 The High Priority Interrupt IPC API also provides the following convenience functions that can stall/resume the target CPU. These API utilize the High Priority Interrupt IPC, but supply their own internal callbacks:
 
