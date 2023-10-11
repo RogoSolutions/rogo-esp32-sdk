@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -8,26 +8,23 @@
 #include <esp_wifi.h>
 #include "esp_log.h"
 #include "esp_private/wifi.h"
-#include "esp_private/adc_share_hw_ctrl.h"
-#include "esp_private/sleep_modem.h"
 #include "esp_pm.h"
 #include "esp_sleep.h"
 #include "esp_private/pm_impl.h"
-#include "esp_private/esp_clk.h"
+#include "soc/rtc.h"
 #include "esp_wpa.h"
 #include "esp_netif.h"
+#include "tcpip_adapter_compatible/tcpip_adapter_compat.h"
+#include "driver/adc2_wifi_private.h"
 #include "esp_coexist_internal.h"
 #include "esp_phy_init.h"
-#include "esp_private/phy.h"
-#ifdef CONFIG_ESP_WIFI_NAN_ENABLE
-#include "apps_private/wifi_apps_private.h"
-#endif
+#include "phy.h"
 
-#if (CONFIG_ESP_WIFI_RX_BA_WIN > CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM)
+#if (CONFIG_ESP32_WIFI_RX_BA_WIN > CONFIG_ESP32_WIFI_DYNAMIC_RX_BUFFER_NUM)
 #error "WiFi configuration check: WARNING, WIFI_RX_BA_WIN should not be larger than WIFI_DYNAMIC_RX_BUFFER_NUM!"
 #endif
 
-#if (CONFIG_ESP_WIFI_RX_BA_WIN > (CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM << 1))
+#if (CONFIG_ESP32_WIFI_RX_BA_WIN > (CONFIG_ESP32_WIFI_STATIC_RX_BUFFER_NUM << 1))
 #error "WiFi configuration check: WARNING, WIFI_RX_BA_WIN should not be larger than double of the WIFI_STATIC_RX_BUFFER_NUM!"
 #endif
 
@@ -45,10 +42,10 @@ wifi_mac_time_update_cb_t s_wifi_mac_time_update_cb = NULL;
 
 /* Set additional WiFi features and capabilities */
 uint64_t g_wifi_feature_caps =
-#if CONFIG_ESP_WIFI_ENABLE_WPA3_SAE
+#if CONFIG_ESP32_WIFI_ENABLE_WPA3_SAE
     CONFIG_FEATURE_WPA3_SAE_BIT |
 #endif
-#if CONFIG_SPIRAM
+#if (CONFIG_ESP32_SPIRAM_SUPPORT || CONFIG_ESP32S2_SPIRAM_SUPPORT || CONFIG_ESP32S3_SPIRAM_SUPPORT)
     CONFIG_FEATURE_CACHE_TX_BUF_BIT |
 #endif
 #if CONFIG_ESP_WIFI_FTM_INITIATOR_SUPPORT
@@ -59,28 +56,6 @@ uint64_t g_wifi_feature_caps =
 #endif
 0;
 
-#if SOC_PM_SUPPORT_PMU_MODEM_STATE
-# define WIFI_BEACON_MONITOR_CONFIG_DEFAULT(ena)   { \
-    .enable = (ena), \
-    .loss_timeout = CONFIG_ESP_WIFI_SLP_BEACON_LOST_TIMEOUT, \
-    .loss_threshold = CONFIG_ESP_WIFI_SLP_BEACON_LOST_THRESHOLD, \
-    .delta_intr_early = 0, \
-    .delta_loss_timeout = 0, \
-    .beacon_abort = 1, \
-    .broadcast_wakeup = 1, \
-    .tsf_time_sync_deviation = 5, \
-    .modem_state_consecutive = 10, \
-    .rf_ctrl_wait_cycle = 20 \
-}
-#else
-# define WIFI_BEACON_MONITOR_CONFIG_DEFAULT(ena)   { \
-    .enable = (ena), \
-    .loss_timeout = CONFIG_ESP_WIFI_SLP_BEACON_LOST_TIMEOUT, \
-    .loss_threshold = CONFIG_ESP_WIFI_SLP_BEACON_LOST_THRESHOLD, \
-    .delta_intr_early = CONFIG_ESP_WIFI_SLP_PHY_ON_DELTA_EARLY_TIME, \
-    .delta_loss_timeout = CONFIG_ESP_WIFI_SLP_PHY_OFF_DELTA_TIMEOUT_TIME \
-}
-#endif
 
 static const char* TAG = "wifi_init";
 
@@ -130,10 +105,6 @@ esp_err_t esp_wifi_deinit(void)
         ESP_LOGW(TAG, "Failed to unregister Rx callbacks");
     }
 
-#ifdef CONFIG_ESP_WIFI_NAN_ENABLE
-    esp_nan_app_deinit();
-#endif
-
     esp_supplicant_deinit();
     err = esp_wifi_deinit_internal();
     if (err != ESP_OK) {
@@ -141,11 +112,9 @@ esp_err_t esp_wifi_deinit(void)
         return err;
     }
 
-#if CONFIG_ESP_WIFI_SLP_BEACON_LOST_OPT
-    wifi_beacon_monitor_config_t monitor_config = WIFI_BEACON_MONITOR_CONFIG_DEFAULT(false);
-    esp_wifi_beacon_monitor_configure(&monitor_config);
+#if CONFIG_ESP_NETIF_TCPIP_ADAPTER_COMPATIBLE_LAYER
+    tcpip_adapter_clear_default_wifi_handlers();
 #endif
-
 #if CONFIG_ESP_WIFI_SLP_IRAM_OPT
     esp_pm_unregister_light_sleep_default_params_config_callback();
 #endif
@@ -154,29 +123,28 @@ esp_err_t esp_wifi_deinit(void)
     esp_pm_unregister_skip_light_sleep_callback(esp_wifi_internal_is_tsf_active);
     esp_pm_unregister_inform_out_light_sleep_overhead_callback(esp_wifi_internal_update_light_sleep_wake_ahead_time);
     esp_sleep_disable_wifi_wakeup();
-# if CONFIG_ESP_WIFI_ENHANCED_LIGHT_SLEEP
-    esp_sleep_disable_wifi_beacon_wakeup();
-# endif
-#endif /* SOC_WIFI_HW_TSF */
-#endif /* CONFIG_FREERTOS_USE_TICKLESS_IDLE */
+#endif
+#endif
 #if CONFIG_MAC_BB_PD
     esp_unregister_mac_bb_pd_callback(pm_mac_sleep);
     esp_unregister_mac_bb_pu_callback(pm_mac_wakeup);
 #endif
+#if CONFIG_IDF_TARGET_ESP32C3
+    phy_init_flag();
+#endif
     esp_wifi_power_domain_off();
 #if CONFIG_MAC_BB_PD
-    esp_wifi_internal_set_mac_sleep(false);
     esp_mac_bb_pd_mem_deinit();
 #endif
-    esp_phy_modem_deinit();
+    esp_phy_pd_mem_deinit();
 
     return err;
 }
 
 static void esp_wifi_config_info(void)
 {
-#ifdef CONFIG_ESP_WIFI_RX_BA_WIN
-    ESP_LOGI(TAG, "rx ba win: %d", CONFIG_ESP_WIFI_RX_BA_WIN);
+#ifdef CONFIG_ESP32_WIFI_RX_BA_WIN
+    ESP_LOGI(TAG, "rx ba win: %d", CONFIG_ESP32_WIFI_RX_BA_WIN);
 #endif
 
 #ifdef CONFIG_ESP_NETIF_TCPIP_LWIP
@@ -191,11 +159,11 @@ static void esp_wifi_config_info(void)
     ESP_LOGI(TAG, "WiFi/LWIP prefer SPIRAM");
 #endif
 
-#ifdef CONFIG_ESP_WIFI_IRAM_OPT
+#ifdef CONFIG_ESP32_WIFI_IRAM_OPT
     ESP_LOGI(TAG, "WiFi IRAM OP enabled");
 #endif
 
-#ifdef CONFIG_ESP_WIFI_RX_IRAM_OPT
+#ifdef CONFIG_ESP32_WIFI_RX_IRAM_OPT
     ESP_LOGI(TAG, "WiFi RX IRAM OP enabled");
 #endif
 
@@ -214,11 +182,6 @@ static void esp_wifi_config_info(void)
 
 esp_err_t esp_wifi_init(const wifi_init_config_t *config)
 {
-    if ((config->feature_caps & CONFIG_FEATURE_CACHE_TX_BUF_BIT) && (WIFI_CACHE_TX_BUFFER_NUM == 0))
-    {
-        ESP_LOGE(TAG, "Number of WiFi cache TX buffers should not equal 0 when enable SPIRAM");
-        return ESP_ERR_NOT_SUPPORTED;
-    }
     esp_wifi_power_domain_on();
 #ifdef CONFIG_PM_ENABLE
     if (s_wifi_modem_sleep_lock == NULL) {
@@ -271,15 +234,15 @@ esp_err_t esp_wifi_init(const wifi_init_config_t *config)
         return ret;
     }
     esp_sleep_enable_wifi_wakeup();
-# if CONFIG_ESP_WIFI_ENHANCED_LIGHT_SLEEP
-    esp_sleep_enable_wifi_beacon_wakeup();
-# endif
-#if CONFIG_SW_COEXIST_ENABLE || CONFIG_EXTERNAL_COEX_ENABLE
-    coex_wifi_register_update_lpclk_callback(esp_wifi_update_tsf_tick_interval);
 #endif
-#endif /* SOC_WIFI_HW_TSF */
-#endif /* CONFIG_FREERTOS_USE_TICKLESS_IDLE */
+#endif
 
+#if CONFIG_ESP_NETIF_TCPIP_ADAPTER_COMPATIBLE_LAYER
+    esp_err_t err = tcpip_adapter_set_default_wifi_handlers();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to set default Wi-Fi event handlers (0x%x)", err);
+    }
+#endif
 #if CONFIG_SW_COEXIST_ENABLE || CONFIG_EXTERNAL_COEX_ENABLE
     coex_init();
 #endif
@@ -290,7 +253,7 @@ esp_err_t esp_wifi_init(const wifi_init_config_t *config)
         esp_mac_bb_pd_mem_init();
         esp_wifi_internal_set_mac_sleep(true);
 #endif
-        esp_phy_modem_init();
+        esp_phy_pd_mem_init();
 #if CONFIG_IDF_TARGET_ESP32
         s_wifi_mac_time_update_cb = esp_wifi_internal_update_mac_time;
 #endif
@@ -306,18 +269,9 @@ esp_err_t esp_wifi_init(const wifi_init_config_t *config)
             return result;
         }
     }
-#if CONFIG_ESP_WIFI_SLP_BEACON_LOST_OPT
-    wifi_beacon_monitor_config_t monitor_config = WIFI_BEACON_MONITOR_CONFIG_DEFAULT(true);
-    esp_wifi_beacon_monitor_configure(&monitor_config);
-#endif
     adc2_cal_include(); //This enables the ADC2 calibration constructor at start up.
 
     esp_wifi_config_info();
-
-#ifdef CONFIG_ESP_WIFI_NAN_ENABLE
-    esp_nan_app_init();
-#endif
-
     return result;
 }
 
@@ -326,8 +280,8 @@ void wifi_apb80m_request(void)
 {
     assert(s_wifi_modem_sleep_lock);
     esp_pm_lock_acquire(s_wifi_modem_sleep_lock);
-    if (esp_clk_apb_freq() != APB_CLK_FREQ) {
-        ESP_LOGE(__func__, "WiFi needs 80MHz APB frequency to work, but got %dHz", esp_clk_apb_freq());
+    if (rtc_clk_apb_freq_get() != APB_CLK_FREQ) {
+        ESP_LOGE(__func__, "WiFi needs 80MHz APB frequency to work, but got %dHz", rtc_clk_apb_freq_get());
     }
 }
 
@@ -349,31 +303,4 @@ void ieee80211_ftm_attach(void)
 void net80211_softap_funcs_init(void)
 {
 }
-#endif
-
-#ifndef CONFIG_ESP_WIFI_NAN_ENABLE
-
-esp_err_t nan_start(void)
-{
-    /* Do not remove, stub to overwrite weak link in Wi-Fi Lib */
-    return ESP_OK;
-}
-
-esp_err_t nan_stop(void)
-{
-    /* Do not remove, stub to overwrite weak link in Wi-Fi Lib */
-    return ESP_OK;
-}
-
-int nan_input(void *p1, int p2, int p3)
-{
-    /* Do not remove, stub to overwrite weak link in Wi-Fi Lib */
-    return 0;
-}
-
-void nan_sm_handle_event(void *p1, int p2)
-{
-    /* Do not remove, stub to overwrite weak link in Wi-Fi Lib */
-}
-
 #endif

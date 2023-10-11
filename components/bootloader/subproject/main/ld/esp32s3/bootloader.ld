@@ -1,8 +1,3 @@
-/*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
 /** Simplified memory map for the bootloader.
  *  Make sure the bootloader can load into main memory without overwriting itself.
  *
@@ -71,7 +66,7 @@ SECTIONS
     *libbootloader_support.a:bootloader_random.*(.literal .text .literal.* .text.*)
     *libbootloader_support.a:bootloader_random*.*(.literal.bootloader_random_disable .text.bootloader_random_disable)
     *libesp_common.a:fpga_overrides.*(.literal.bootloader_fill_random .text.bootloader_fill_random)
-    *libbootloader_support.a:bootloader_efuse.*(.literal .text .literal.* .text.*)
+    *libbootloader_support.a:bootloader_efuse_esp32s3.*(.literal .text .literal.* .text.*)
     *libbootloader_support.a:bootloader_utility.*(.literal .text .literal.* .text.*)
     *libbootloader_support.a:bootloader_sha.*(.literal .text .literal.* .text.*)
     *libbootloader_support.a:bootloader_console_loader.*(.literal .text .literal.* .text.*)
@@ -87,9 +82,6 @@ SECTIONS
     *libmicro-ecc.a:*.*(.literal .text .literal.* .text.*)
     *libspi_flash.a:*.*(.literal .text .literal.* .text.*)
     *libhal.a:wdt_hal_iram.*(.literal .text .literal.* .text.*)
-    *libhal.a:mmu_hal.*(.literal .text .literal.* .text.*)
-    *libhal.a:cache_hal.*(.literal .text .literal.* .text.*)
-    *libhal.a:efuse_hal.*(.literal .text .literal.* .text.*)
     *libesp_hw_support.a:rtc_clk.*(.literal .text .literal.* .text.*)
     *libesp_hw_support.a:rtc_time.*(.literal .text .literal.* .text.*)
     *libesp_hw_support.a:regi2c_ctrl.*(.literal .text .literal.* .text.*)
@@ -213,62 +205,4 @@ SECTIONS
     _etext = .;
   } > iram_seg
 
-  /** This section will be used by the debugger and disassembler to get more information
-   * about raw data present in the code.
-   * Indeed, it may be required to add some padding at some points in the code
-   * in order to align a branch/jump destination on a particular bound.
-   * Padding these instructions will generate null bytes that shall be
-   * interpreted as data, and not code by the debugger or disassembler.
-   * This section will only be present in the ELF file, not in the final binary
-   * For more details, check GCC-212
-   */
-  .xt.prop 0 :
-  {
-    KEEP (*(.xt.prop .gnu.linkonce.prop.*))
-  }
-
-  .xt.lit 0 :
-  {
-    KEEP (*(.xt.lit .gnu.linkonce.p.*))
-  }
-
 }
-
-/**
- *  Appendix: Memory Usage of ROM bootloader
- *
- * 0x3fcd7e00 ------------------> _dram0_0_start
- *            |               |
- *            |               |
- *            |               |   1. Large buffers that are only used in certain boot modes, see shared_buffers.h
- *            |               |
- *            |               |
- * 0x3fce9710 ------------------> __stack_sentry
- *            |               |
- *            |               |   2. Startup pro cpu stack (freed when IDF app is running)
- *            |               |
- * 0x3fceb710 ------------------> __stack (pro cpu)
- *            |               |
- *            |               |      Startup app cpu stack
- *            |               |
- * 0x3fced710 ------------------> __stack_app (app cpu)
- *            |               |
- *            |               |
- *            |               |   3. Shared memory only used in startup code or nonos/early boot*
- *            |               |      (can be freed when IDF runs)
- *            |               |
- *            |               |
- * 0x3fceee34 ------------------> _dram0_rtos_reserved_start
- *            |               |
- *            |               |
- *            |               |   4. Shared memory used in startup code and when IDF runs
- *            |               |
- *            |               |
- * 0x3fcef770 ------------------> _dram0_rtos_reserved_end
- *            |               |
- * 0x3fcef81c ------------------> _data_start_interface
- *            |               |
- *            |               |   5. End of DRAM is the 'interface' data with constant addresses (ECO compatible)
- *            |               |
- * 0x3fcf0000 ------------------> _data_end_interface
- */

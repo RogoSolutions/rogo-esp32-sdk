@@ -1,10 +1,14 @@
 USB Host
 ========
 
+.. warning::
+    The USB Host Library API is a beta version thus is subject to change.
+
 The document provides information regarding the USB Host Library. This document is split into the following sections:
 
 .. contents:: Sections
   :depth: 2
+
 
 .. ---------------------------------------------------- Overview -------------------------------------------------------
 
@@ -86,7 +90,7 @@ Therefore, in addition to the client tasks, the Host Library also requires a tas
 Devices
 ^^^^^^^
 
-The Host Library hides the details of device handling (such as connection, memory allocation, and enumeration) from the clients. The clients are provided only with a list of already connected and enumerated devices to choose from. During enumeration, each device is automatically configured to use the first configuration found (i.e., the first configuration descriptor returned on a Get Configuration Descriptor request). For most standard devices, the first configuration will have a ``bConfigurationValue`` of ``1``.
+The Host Library hides the details of device handling (such as connection, memory allocation, and enumeration) from the clients. The clients are provided only with a list of already connected and enumerated devices to choose from. During enumeration, each device is configured to use configuration 1.
 
 It is possible for a two or more clients to simultaneously communicate with the same device as long as they are not communicating to the same interface. However, multiple clients can simultaneously communicate with the same device's default endpoint (EP0), which will result in their control transfers being serialized.
 
@@ -165,7 +169,7 @@ With reference the graph above, the typical lifecycle involves the following key
 2. Once the Host Library is installed, the clients can be registered by calling :cpp:func:`usb_host_client_register`.
     - This is typically called from the client task (where the client task waits for a signal from the Daemon Task).
     - This can be called elsewhere if necessary as long it is called after :cpp:func:`usb_host_install`.
-3. Device 1 connects and is then enumerated.
+3. Device 1 connects and is then enumerated. 
     - Each registered client (in this case Client 1 and Client 2) are notified of the new device by way of the :cpp:enumerator:`USB_HOST_CLIENT_EVENT_NEW_DEV` event.
     - Client 1 opens Device 1 and begins communication with it.
 4. Similarly Device 2 connects and is enumerated.
@@ -361,15 +365,14 @@ The USB Host Stack provides a number examples that implement host class drivers 
 CDC-ACM
 """""""
 
-* A host class driver for the Communication Device Class (Abstract Control Model) is deployed to `IDF component registry <https://components.espressif.com/component/espressif/usb_host_cdc_acm>`__.
+* A host class driver for the Communication Device Class (Abstract Control Model) is currently implemented as an example component (found via :example:`peripherals/usb/host/cdc/common/cdc_acm_host`).
 * The :example:`peripherals/usb/host/cdc/cdc_acm_host` example uses the CDC-ACM host driver component to communicate with CDC-ACM devices
-* The :example:`peripherals/usb/host/cdc/cdc_acm_vcp` example shows how can you extend the CDC-ACM host driver to interface Virtual COM Port devices.
-* The CDC-ACM driver is also used in `esp_modem examples <https://github.com/espressif/esp-protocols/tree/master/components/esp_modem/examples>`__, where it is used for communication with cellular modems.
+* The :example:`peripherals/usb/host/cdc/cdc_acm_bg96` example uses the CDC-ACM host driver component to communicate with non-compliant CDC-ACM devices (i.e., vendor-specific classes that support a subset of CDC-ACM features) such as the Quectel BG96 modem.
 
 MSC
 """
 
-* A host class driver for the Mass Storage Class (Bulk-Only Transport) is deployed to `IDF component registry <https://components.espressif.com/component/espressif/usb_host_msc>`__. You can find its example in :example:`peripherals/usb/host/msc`.
+* A host class driver for the Mass Storage Class (Bulk-Only Transport) is current implemented as an example found via :example:`peripherals/usb/host/msc`.
 
 
 .. -------------------------------------------------- API Reference ----------------------------------------------------
@@ -392,17 +395,3 @@ The API of the USB Host Library is separated into the following header files. Ho
 .. include-build-file:: inc/usb_types_stack.inc
 
 .. include-build-file:: inc/usb_types_ch9.inc
-
-.. ------------------------------------------------ Maintainers Notes --------------------------------------------------
-
-Maintainers Notes
------------------
-
-.. note::
-    For more details regarding the internal implementation details of the USB Host stack, please refer to :doc:`/api-reference/peripherals/usb_host/usb_host_notes_index`.
-
-.. toctree::
-    :hidden:
-    :maxdepth: 0
-
-    usb_host/usb_host_notes_index

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -42,12 +42,7 @@
 
 #if BTC_AV_SRC_INCLUDED
 
-/*****************************************************************************
- **  BQB global variables
- *****************************************************************************/
-#if A2D_SRC_BQB_INCLUDED
-bool a2dp_src_bqb_set_sbc_encoder_flag = FALSE;
-#endif /* A2D_SRC_BQB_INCLUDED */
+extern osi_thread_t *btc_thread;
 
 /*****************************************************************************
  **  Constants
@@ -123,8 +118,6 @@ enum {
 #define MAX_OUTPUT_A2DP_FRAME_QUEUE_SZ         (5)
 #define MAX_OUTPUT_A2DP_SRC_FRAME_QUEUE_SZ     (27) // 18 for 20ms tick
 
-#define BTC_A2DP_SRC_DATA_QUEUE_IDX            (1)
-
 typedef struct {
     uint32_t sig;
     void *param;
@@ -161,7 +154,6 @@ typedef struct {
     tBTC_AV_MEDIA_FEEDINGS media_feeding;
     SBC_ENC_PARAMS encoder;
     osi_alarm_t *media_alarm;
-    struct osi_event *poll_data;
 } tBTC_A2DP_SOURCE_CB;
 
 typedef struct {
@@ -291,7 +283,7 @@ bool btc_a2dp_source_startup(void)
 
     APPL_TRACE_EVENT("## A2DP SOURCE START MEDIA THREAD ##");
 
-    a2dp_source_local_param.btc_aa_src_task_hdl = btc_get_current_thread();
+    a2dp_source_local_param.btc_aa_src_task_hdl = btc_thread;
 
     if (btc_a2dp_source_ctrl(BTC_MEDIA_TASK_INIT, NULL) == false) {
         goto error_exit;
@@ -432,6 +424,7 @@ void btc_a2dp_source_set_tx_flush(BOOLEAN enable)
 ** Returns
 **
 *******************************************************************************/
+
 void btc_a2dp_source_setup_codec(void)
 {
     tBTC_AV_MEDIA_FEEDINGS media_feeding;
@@ -622,30 +615,6 @@ BOOLEAN btc_a2dp_source_tx_flush_req(void)
 #endif
 
     return TRUE;
-}
-
-/*****************************************************************************
-**
-** Function        btc_source_report_delay_value
-**
-** Description
-**
-** Returns
-**
-*******************************************************************************/
-void btc_source_report_delay_value(UINT16 delay_value)
-{
-    esp_a2d_cb_param_t param;
-
-#if A2D_DYNAMIC_MEMORY == TRUE
-    if (a2dp_source_local_param_ptr == NULL) {
-        return;
-    }
-#endif
-
-    param.a2d_report_delay_value_stat.delay_value = delay_value;
-
-    btc_aa_cb_to_app(ESP_A2D_REPORT_SNK_DELAY_VALUE_EVT, &param);
 }
 
 /*****************************************************************************
@@ -935,27 +904,6 @@ static void btc_a2dp_source_enc_update(BT_HDR *p_msg)
     }
 }
 
-#if A2D_SRC_BQB_INCLUDED
-/*******************************************************************************
- **
- ** Function         btc_a2dp_source_bqb_sbc_encoder_set
- **
- ** Description      Set SBC encoder for bqb test cases A2DP/SRC/SET/BV-04-I and A2DP/SRC/SET/BV-06-I
- **
- ** Returns          void
- **
- *******************************************************************************/
-void btc_a2dp_source_bqb_sbc_encoder_set(void)
-{
-    a2dp_source_local_param.btc_aa_src_cb.encoder.s16NumOfSubBands = 8;
-    a2dp_source_local_param.btc_aa_src_cb.encoder.s16NumOfBlocks = 8;
-    a2dp_source_local_param.btc_aa_src_cb.encoder.s16AllocationMethod = SBC_LOUDNESS;
-    a2dp_source_local_param.btc_aa_src_cb.encoder.s16ChannelMode = SBC_MONO;
-    a2dp_source_local_param.btc_aa_src_cb.encoder.s16SamplingFreq = SBC_sf44100;
-    SBC_Encoder_Init(&(a2dp_source_local_param.btc_aa_src_cb.encoder));
-}
-#endif /* A2D_SRC_BQB_INCLUDED */
-
 /*******************************************************************************
  **
  ** Function         btc_a2dp_source_pcm2sbc_init
@@ -1026,12 +974,6 @@ static void btc_a2dp_source_pcm2sbc_init(tBTC_MEDIA_INIT_AUDIO_FEEDING *p_feedin
     } else {
         APPL_TRACE_DEBUG("%s no SBC reconfig needed", __FUNCTION__);
     }
-
-#if A2D_SRC_BQB_INCLUDED
-    if (a2dp_src_bqb_set_sbc_encoder_flag) {
-        btc_a2dp_source_bqb_sbc_encoder_set();
-    }
-#endif /* A2D_SRC_BQB_INCLUDED */
 }
 
 /*******************************************************************************
@@ -1567,7 +1509,7 @@ static void btc_a2dp_source_aa_stop_tx(void)
 static void btc_a2dp_source_alarm_cb(UNUSED_ATTR void *context)
 {
     if (a2dp_source_local_param.btc_aa_src_task_hdl) {
-        osi_thread_post_event(a2dp_source_local_param.btc_aa_src_cb.poll_data, OSI_THREAD_MAX_TIMEOUT);
+        osi_thread_post(a2dp_source_local_param.btc_aa_src_task_hdl, btc_a2dp_source_handle_timer, NULL, 1, OSI_THREAD_MAX_TIMEOUT);
     } else {
         APPL_TRACE_DEBUG("[%s] A2DP ALREADY FREED", __func__);
         btc_a2dp_source_aa_stop_tx();
@@ -1622,11 +1564,6 @@ static void btc_a2dp_source_thread_init(UNUSED_ATTR void *context)
 
     btc_a2dp_source_state = BTC_A2DP_SOURCE_STATE_ON;
 
-    struct osi_event *poll_data = osi_event_create(btc_a2dp_source_handle_timer, NULL);
-    assert(poll_data != NULL);
-    osi_event_bind(poll_data, a2dp_source_local_param.btc_aa_src_task_hdl, BTC_A2DP_SRC_DATA_QUEUE_IDX);
-    a2dp_source_local_param.btc_aa_src_cb.poll_data = poll_data;
-
     a2dp_source_local_param.btc_aa_src_cb.TxAaQ = fixed_queue_new(QUEUE_SIZE_MAX);
 
     btc_a2dp_control_init();
@@ -1642,9 +1579,6 @@ static void btc_a2dp_source_thread_cleanup(UNUSED_ATTR void *context)
     fixed_queue_free(a2dp_source_local_param.btc_aa_src_cb.TxAaQ, osi_free_func);
 
     a2dp_source_local_param.btc_aa_src_cb.TxAaQ = NULL;
-
-    osi_event_delete(a2dp_source_local_param.btc_aa_src_cb.poll_data);
-    a2dp_source_local_param.btc_aa_src_cb.poll_data = NULL;
 }
 
 #endif /* BTC_AV_INCLUDED */

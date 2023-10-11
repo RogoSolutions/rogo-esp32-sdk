@@ -1,20 +1,21 @@
 /*
  * X.509v3 certificate parsing and processing (RFC 3280 profile)
- * Copyright (c) 2006-2015, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2011, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
  */
 
-#include "includes.h"
-
-#include "common.h"
+#include "utils/includes.h"
+#include "rsn_supp/wpa.h"
+#include "utils/common.h"
 #include "crypto/crypto.h"
-#include "asn1.h"
-#include "x509v3.h"
+#include "tls/asn1.h"
+#include "tls/x509v3.h"
 
+#include "eap_peer/eap_i.h"
 
-void x509_free_name(struct x509_name *name)
+static void x509_free_name(struct x509_name *name)
 {
 	size_t i;
 
@@ -55,7 +56,6 @@ void x509_certificate_free(struct x509_certificate *cert)
 	x509_free_name(&cert->subject);
 	os_free(cert->public_key);
 	os_free(cert->sign_value);
-	os_free(cert->subject_dn);
 	os_free(cert);
 }
 
@@ -123,13 +123,13 @@ static int x509_str_compare(const char *a, const char *b)
 	if (aa == NULL || bb == NULL) {
 		os_free(aa);
 		os_free(bb);
-		return os_strcasecmp(a, b);
+		return strcasecmp(a, b);
 	}
 
 	x509_str_strip_whitespace(aa);
 	x509_str_strip_whitespace(bb);
 
-	ret = os_strcasecmp(aa, bb);
+	ret = strcasecmp(aa, bb);
 
 	os_free(aa);
 	os_free(bb);
@@ -178,9 +178,9 @@ int x509_name_compare(struct x509_name *a, struct x509_name *b)
 }
 
 
-int x509_parse_algorithm_identifier(const u8 *buf, size_t len,
-				    struct x509_algorithm_identifier *id,
-				    const u8 **next)
+static int x509_parse_algorithm_identifier(
+	const u8 *buf, size_t len,
+	struct x509_algorithm_identifier *id, const u8 **next)
 {
 	struct asn1_hdr hdr;
 	const u8 *pos, *end;
@@ -192,15 +192,19 @@ int x509_parse_algorithm_identifier(const u8 *buf, size_t len,
 	 * }
 	 */
 
-	if (asn1_get_next(buf, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: Expected SEQUENCE (AlgorithmIdentifier)");
+	if (asn1_get_next(buf, len, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Expected SEQUENCE "
+			   "(AlgorithmIdentifier) - found class %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		return -1;
 	}
-	if (hdr.length > buf + len - hdr.payload)
-		return -1;
 	pos = hdr.payload;
 	end = pos + hdr.length;
+
+	if (end > buf + len)
+		return -1;
 
 	*next = end;
 
@@ -231,14 +235,16 @@ static int x509_parse_public_key(const u8 *buf, size_t len,
 	end = buf + len;
 
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: Expected SEQUENCE (SubjectPublicKeyInfo)");
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Expected SEQUENCE "
+			   "(SubjectPublicKeyInfo) - found class %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		return -1;
 	}
 	pos = hdr.payload;
 
-	if (hdr.length > end - pos)
+	if (pos + hdr.length > end)
 		return -1;
 	end = pos + hdr.length;
 	*next = end;
@@ -248,17 +254,18 @@ static int x509_parse_public_key(const u8 *buf, size_t len,
 		return -1;
 
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    !asn1_is_bitstring(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: Expected BITSTRING (subjectPublicKey)");
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_BITSTRING) {
+		wpa_printf(MSG_DEBUG, "X509: Expected BITSTRING "
+			   "(subjectPublicKey) - found class %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		return -1;
 	}
 	if (hdr.length < 1)
 		return -1;
 	pos = hdr.payload;
 	if (*pos) {
-		wpa_printf(MSG_DEBUG,
-			   "X509: BITSTRING (subjectPublicKey) - %d unused bits",
+		wpa_printf(MSG_DEBUG, "X509: BITSTRING - %d unused bits",
 			   *pos);
 		/*
 		 * TODO: should this be rejected? X.509 certificates are
@@ -268,12 +275,13 @@ static int x509_parse_public_key(const u8 *buf, size_t len,
 		 */
 	}
 	os_free(cert->public_key);
-	cert->public_key = os_memdup(pos + 1, hdr.length - 1);
+	cert->public_key = os_malloc(hdr.length - 1);
 	if (cert->public_key == NULL) {
 		wpa_printf(MSG_DEBUG, "X509: Failed to allocate memory for "
 			   "public key");
 		return -1;
 	}
+	os_memcpy(cert->public_key, pos + 1, hdr.length - 1);
 	cert->public_key_len = hdr.length - 1;
 	wpa_hexdump(MSG_MSGDUMP, "X509: subjectPublicKey",
 		    cert->public_key, cert->public_key_len);
@@ -282,8 +290,8 @@ static int x509_parse_public_key(const u8 *buf, size_t len,
 }
 
 
-int x509_parse_name(const u8 *buf, size_t len, struct x509_name *name,
-		    const u8 **next)
+static int x509_parse_name(const u8 *buf, size_t len, struct x509_name *name,
+			   const u8 **next)
 {
 	struct asn1_hdr hdr;
 	const u8 *pos, *end, *set_pos, *set_end, *seq_pos, *seq_end;
@@ -302,14 +310,17 @@ int x509_parse_name(const u8 *buf, size_t len, struct x509_name *name,
 	 * AttributeValue ::= ANY DEFINED BY AttributeType
 	 */
 
-	if (asn1_get_next(buf, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: Expected SEQUENCE (Name / RDNSequencer)");
+	if (asn1_get_next(buf, len, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Expected SEQUENCE "
+			   "(Name / RDNSequencer) - found class %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		return -1;
 	}
 	pos = hdr.payload;
 
-	if (hdr.length > buf + len - pos)
+	if (pos + hdr.length > buf + len)
 		return -1;
 
 	end = *next = pos + hdr.length;
@@ -318,9 +329,11 @@ int x509_parse_name(const u8 *buf, size_t len, struct x509_name *name,
 		enum x509_name_attr_type type;
 
 		if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-		    !asn1_is_set(&hdr)) {
-			asn1_unexpected(&hdr,
-					"X509: Expected SET (RelativeDistinguishedName)");
+		    hdr.class != ASN1_CLASS_UNIVERSAL ||
+		    hdr.tag != ASN1_TAG_SET) {
+			wpa_printf(MSG_DEBUG, "X509: Expected SET "
+				   "(RelativeDistinguishedName) - found class "
+				   "%d tag 0x%x", hdr.class, hdr.tag);
 			x509_free_name(name);
 			return -1;
 		}
@@ -329,9 +342,11 @@ int x509_parse_name(const u8 *buf, size_t len, struct x509_name *name,
 		pos = set_end = hdr.payload + hdr.length;
 
 		if (asn1_get_next(set_pos, set_end - set_pos, &hdr) < 0 ||
-		    !asn1_is_sequence(&hdr)) {
-			asn1_unexpected(&hdr,
-					"X509: Expected SEQUENCE (AttributeTypeAndValue)");
+		    hdr.class != ASN1_CLASS_UNIVERSAL ||
+		    hdr.tag != ASN1_TAG_SEQUENCE) {
+			wpa_printf(MSG_DEBUG, "X509: Expected SEQUENCE "
+				   "(AttributeTypeAndValue) - found class %d "
+				   "tag 0x%x", hdr.class, hdr.tag);
 			x509_free_name(name);
 			return -1;
 		}
@@ -350,13 +365,6 @@ int x509_parse_name(const u8 *buf, size_t len, struct x509_name *name,
 				   "AttributeValue");
 			x509_free_name(name);
 			return -1;
-		}
-
-		if (!asn1_is_string_type(&hdr)) {
-			wpa_printf(MSG_DEBUG,
-				   "X509: Ignore non-string type attribute (tag 0x%x)",
-				   hdr.tag);
-			continue;
 		}
 
 		/* RFC 3280:
@@ -436,7 +444,7 @@ int x509_parse_name(const u8 *buf, size_t len, struct x509_name *name,
 			return -1;
 		}
 
-		val = dup_binstr(hdr.payload, hdr.length);
+		val = (char *)dup_binstr(hdr.payload, hdr.length);
 		if (val == NULL) {
 			x509_free_name(name);
 			return -1;
@@ -461,6 +469,7 @@ int x509_parse_name(const u8 *buf, size_t len, struct x509_name *name,
 
 static char * x509_name_attr_str(enum x509_name_attr_type type)
 {
+#ifndef ESPRESSIF_USE
 	switch (type) {
 	case X509_NAME_ATTR_NOT_USED:
 		return "[N/A]";
@@ -480,6 +489,38 @@ static char * x509_name_attr_str(enum x509_name_attr_type type)
 		return "OU";
 	}
 	return "?";
+#else
+    static char name_attr[6];
+	switch (type) {
+        case X509_NAME_ATTR_NOT_USED:
+            strcpy(name_attr, "[N/A]");
+            break;
+        case X509_NAME_ATTR_DC:
+            strcpy(name_attr, "DC");
+            break;
+        case X509_NAME_ATTR_CN:
+            strcpy(name_attr, "CN");
+            break;
+        case X509_NAME_ATTR_C:
+            strcpy(name_attr, "C");
+            break;
+        case X509_NAME_ATTR_L:
+            strcpy(name_attr, "L");
+            break;
+        case X509_NAME_ATTR_ST:
+            strcpy(name_attr, "ST");
+            break;
+        case X509_NAME_ATTR_O:
+            strcpy(name_attr, "O");
+            break;
+        case X509_NAME_ATTR_OU:
+            strcpy(name_attr, "OU");
+            break;
+        default :
+            strcpy(name_attr, "?");
+	}
+	return name_attr;
+#endif
 }
 
 
@@ -505,7 +546,7 @@ void x509_name_string(struct x509_name *name, char *buf, size_t len)
 		ret = os_snprintf(pos, end - pos, "%s=%s, ",
 				  x509_name_attr_str(name->attr[i].type),
 				  name->attr[i].value);
-		if (os_snprintf_error(end - pos, ret))
+		if (ret < 0 || ret >= end - pos)
 			goto done;
 		pos += ret;
 	}
@@ -520,169 +561,19 @@ void x509_name_string(struct x509_name *name, char *buf, size_t len)
 	if (name->email) {
 		ret = os_snprintf(pos, end - pos, "/emailAddress=%s",
 				  name->email);
-		if (os_snprintf_error(end - pos, ret))
+		if (ret < 0 || ret >= end - pos)
 			goto done;
 		pos += ret;
 	}
 
 done:
-	if (pos < end)
-		*pos = '\0';
 	end[-1] = '\0';
 }
 
 
-static int parse_uint2(const char *pos, size_t len)
+static int x509_parse_time(const u8 *buf, size_t len, u8 asn1_tag,
+			   os_time_t *val)
 {
-	char buf[2] = {0};
-	int ret = 0;
-	int i;
-
-	if (len < 2)
-		return -1;
-
-	for (i = 0; i < 2; i++) {
-		buf[0] = pos[i];
-		ret *= 10;
-		ret += atoi(buf);
-	}
-
-	return ret;
-}
-
-
-static int parse_uint4(const char *pos, size_t len)
-{
-	char buf[2] = {0};
-	int ret = 0;
-	int i;
-
-	if (len < 4)
-		return -1;
-
-	for (i = 0; i < 4; i++) {
-		buf[0] = pos[i];
-		ret *= 10;
-		ret += atoi(buf);
-	}
-
-	return ret;
-}
-
-
-int x509_parse_time(const u8 *buf, size_t len, u8 asn1_tag, os_time_t *val)
-{
-	const char *pos, *end;
-	int year, month, day, hour, min, sec;
-
-	/*
-	 * Time ::= CHOICE {
-	 *     utcTime        UTCTime,
-	 *     generalTime    GeneralizedTime
-	 * }
-	 *
-	 * UTCTime: YYMMDDHHMMSSZ
-	 * GeneralizedTime: YYYYMMDDHHMMSSZ
-	 */
-
-	pos = (const char *) buf;
-	end = pos + len;
-
-	switch (asn1_tag) {
-	case ASN1_TAG_UTCTIME:
-		if (len != 13 || buf[12] != 'Z') {
-			wpa_hexdump_ascii(MSG_DEBUG, "X509: Unrecognized "
-					  "UTCTime format", buf, len);
-			return -1;
-		}
-		year = parse_uint2(pos, end - pos);
-		if (year < 0) {
-			wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse "
-					  "UTCTime year", buf, len);
-			return -1;
-		}
-		if (year < 50)
-			year += 2000;
-		else
-			year += 1900;
-		pos += 2;
-		break;
-	case ASN1_TAG_GENERALIZEDTIME:
-		if (len != 15 || buf[14] != 'Z') {
-			wpa_hexdump_ascii(MSG_DEBUG, "X509: Unrecognized "
-					  "GeneralizedTime format", buf, len);
-			return -1;
-		}
-		year = parse_uint4(pos, end - pos);
-		if (year < 0) {
-			wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse "
-					  "GeneralizedTime year", buf, len);
-			return -1;
-		}
-		pos += 4;
-		break;
-	default:
-		wpa_printf(MSG_DEBUG, "X509: Expected UTCTime or "
-			   "GeneralizedTime - found tag 0x%x", asn1_tag);
-		return -1;
-	}
-
-	month = parse_uint2(pos, end - pos);
-	if (month < 0) {
-		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse Time "
-				  "(month)", buf, len);
-		return -1;
-	}
-	pos += 2;
-
-	day = parse_uint2(pos, end - pos);
-	if (day < 0) {
-		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse Time "
-				  "(day)", buf, len);
-		return -1;
-	}
-	pos += 2;
-
-	hour = parse_uint2(pos, end - pos);
-	if (hour < 0) {
-		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse Time "
-				  "(hour)", buf, len);
-		return -1;
-	}
-	pos += 2;
-
-	min = parse_uint2(pos, end - pos);
-	if (min < 0) {
-		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse Time "
-				  "(min)", buf, len);
-		return -1;
-	}
-	pos += 2;
-
-	sec = parse_uint2(pos, end - pos);
-	if (sec < 0) {
-		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse Time "
-				  "(sec)", buf, len);
-		return -1;
-	}
-
-	if (os_mktime(year, month, day, hour, min, sec, val) < 0) {
-		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to convert Time",
-				  buf, len);
-		if (year < 1970) {
-			/*
-			 * At least some test certificates have been configured
-			 * to use dates prior to 1970. Set the date to
-			 * beginning of 1970 to handle these case.
-			 */
-			wpa_printf(MSG_DEBUG, "X509: Year=%d before epoch - "
-				   "assume epoch as the time", year);
-			*val = 0;
-			return 0;
-		}
-		return -1;
-	}
-
 	return 0;
 }
 
@@ -706,20 +597,24 @@ static int x509_parse_validity(const u8 *buf, size_t len,
 	 * validity dates in 2050 or later MUST be encoded as GeneralizedTime.
 	 */
 
-	if (asn1_get_next(buf, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr, "X509: Expected SEQUENCE (Validity)");
+	if (asn1_get_next(buf, len, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Expected SEQUENCE "
+			   "(Validity) - found class %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		return -1;
 	}
 	pos = hdr.payload;
 	plen = hdr.length;
 
-	if (plen > (size_t) (buf + len - pos))
+	if (pos + plen > buf + len)
 		return -1;
 
 	*next = pos + plen;
 
 	if (asn1_get_next(pos, plen, &hdr) < 0 ||
-	    (!asn1_is_utctime(&hdr) && !asn1_is_generalizedtime(&hdr)) ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
 	    x509_parse_time(hdr.payload, hdr.length, hdr.tag,
 			    &cert->not_before) < 0) {
 		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse notBefore "
@@ -731,7 +626,7 @@ static int x509_parse_validity(const u8 *buf, size_t len,
 	plen = *next - pos;
 
 	if (asn1_get_next(pos, plen, &hdr) < 0 ||
-	    (!asn1_is_utctime(&hdr) && !asn1_is_generalizedtime(&hdr)) ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
 	    x509_parse_time(hdr.payload, hdr.length, hdr.tag,
 			    &cert->not_after) < 0) {
 		wpa_hexdump_ascii(MSG_DEBUG, "X509: Failed to parse notAfter "
@@ -739,7 +634,7 @@ static int x509_parse_validity(const u8 *buf, size_t len,
 		return -1;
 	}
 
-	wpa_printf(MSG_MSGDUMP, "X509: Validity: notBefore: %lu notAfter: %lu",
+	wpa_printf(MSG_DEBUG, "X509: Validity: notBefore: %lu notAfter: %lu",
 		   (unsigned long) cert->not_before,
 		   (unsigned long) cert->not_after);
 
@@ -754,15 +649,6 @@ static int x509_id_ce_oid(struct asn1_oid *oid)
 		oid->oid[0] == 2 /* joint-iso-ccitt */ &&
 		oid->oid[1] == 5 /* ds */ &&
 		oid->oid[2] == 29 /* id-ce */;
-}
-
-
-static int x509_any_ext_key_usage_oid(struct asn1_oid *oid)
-{
-	return oid->len == 6 &&
-		x509_id_ce_oid(oid) &&
-		oid->oid[3] == 37 /* extKeyUsage */ &&
-		oid->oid[4] == 0 /* anyExtendedKeyUsage */;
 }
 
 
@@ -784,9 +670,13 @@ static int x509_parse_ext_key_usage(struct x509_certificate *cert,
 	 *     decipherOnly            (8) }
 	 */
 
-	if (asn1_get_next(pos, len, &hdr) < 0 || !asn1_is_bitstring(&hdr) ||
+	if (asn1_get_next(pos, len, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_BITSTRING ||
 	    hdr.length < 1) {
-		asn1_unexpected(&hdr, "X509: Expected BIT STRING in KeyUsage");
+		wpa_printf(MSG_DEBUG, "X509: Expected BIT STRING in "
+			   "KeyUsage; found %d tag 0x%x len %d",
+			   hdr.class, hdr.tag, hdr.length);
 		return -1;
 	}
 
@@ -805,7 +695,6 @@ static int x509_parse_ext_basic_constraints(struct x509_certificate *cert,
 	struct asn1_hdr hdr;
 	unsigned long value;
 	size_t left;
-	const u8 *end_seq;
 
 	/*
 	 * BasicConstraints ::= SEQUENCE {
@@ -813,9 +702,12 @@ static int x509_parse_ext_basic_constraints(struct x509_certificate *cert,
 	 * pathLenConstraint       INTEGER (0..MAX) OPTIONAL }
 	 */
 
-	if (asn1_get_next(pos, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: Expected SEQUENCE in BasicConstraints");
+	if (asn1_get_next(pos, len, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Expected SEQUENCE in "
+			   "BasicConstraints; found %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		return -1;
 	}
 
@@ -824,33 +716,41 @@ static int x509_parse_ext_basic_constraints(struct x509_certificate *cert,
 	if (hdr.length == 0)
 		return 0;
 
-	end_seq = hdr.payload + hdr.length;
-	if (asn1_get_next(hdr.payload, hdr.length, &hdr) < 0) {
+	if (asn1_get_next(hdr.payload, hdr.length, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL) {
 		wpa_printf(MSG_DEBUG, "X509: Failed to parse "
 			   "BasicConstraints");
 		return -1;
 	}
 
-	if (asn1_is_boolean(&hdr)) {
+	if (hdr.tag == ASN1_TAG_BOOLEAN) {
+		if (hdr.length != 1) {
+			wpa_printf(MSG_DEBUG, "X509: Unexpected "
+				   "Boolean length (%u) in BasicConstraints",
+				   hdr.length);
+			return -1;
+		}
 		cert->ca = hdr.payload[0];
 
-		pos = hdr.payload + hdr.length;
-		if (pos >= end_seq) {
-			/* No optional pathLenConstraint */
+		if (hdr.payload + hdr.length == pos + len) {
 			wpa_printf(MSG_DEBUG, "X509: BasicConstraints - cA=%d",
 				   cert->ca);
 			return 0;
 		}
-		if (asn1_get_next(pos, end_seq - pos, &hdr) < 0) {
+
+		if (asn1_get_next(hdr.payload + hdr.length, len - hdr.length,
+				  &hdr) < 0 ||
+		    hdr.class != ASN1_CLASS_UNIVERSAL) {
 			wpa_printf(MSG_DEBUG, "X509: Failed to parse "
 				   "BasicConstraints");
 			return -1;
 		}
 	}
 
-	if (!asn1_is_integer(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: Expected INTEGER in BasicConstraints");
+	if (hdr.tag != ASN1_TAG_INTEGER) {
+		wpa_printf(MSG_DEBUG, "X509: Expected INTEGER in "
+			   "BasicConstraints; found class %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		return -1;
 	}
 
@@ -880,7 +780,7 @@ static int x509_parse_alt_name_rfc8222(struct x509_name *name,
 	/* rfc822Name IA5String */
 	wpa_hexdump_ascii(MSG_MSGDUMP, "X509: altName - rfc822Name", pos, len);
 	os_free(name->alt_email);
-	name->alt_email = os_zalloc(len + 1);
+	name->alt_email = (char *)os_zalloc(len + 1);
 	if (name->alt_email == NULL)
 		return -1;
 	os_memcpy(name->alt_email, pos, len);
@@ -902,7 +802,7 @@ static int x509_parse_alt_name_dns(struct x509_name *name,
 	/* dNSName IA5String */
 	wpa_hexdump_ascii(MSG_MSGDUMP, "X509: altName - dNSName", pos, len);
 	os_free(name->dns);
-	name->dns = os_zalloc(len + 1);
+	name->dns = (char *)os_zalloc(len + 1);
 	if (name->dns == NULL)
 		return -1;
 	os_memcpy(name->dns, pos, len);
@@ -926,7 +826,7 @@ static int x509_parse_alt_name_uri(struct x509_name *name,
 			  "X509: altName - uniformResourceIdentifier",
 			  pos, len);
 	os_free(name->uri);
-	name->uri = os_zalloc(len + 1);
+	name->uri = (char *)os_zalloc(len + 1);
 	if (name->uri == NULL)
 		return -1;
 	os_memcpy(name->uri, pos, len);
@@ -948,9 +848,10 @@ static int x509_parse_alt_name_ip(struct x509_name *name,
 	/* iPAddress OCTET STRING */
 	wpa_hexdump(MSG_MSGDUMP, "X509: altName - iPAddress", pos, len);
 	os_free(name->ip);
-	name->ip = os_memdup(pos, len);
+	name->ip = os_malloc(len);
 	if (name->ip == NULL)
 		return -1;
+	os_memcpy(name->ip, pos, len);
 	name->ip_len = len;
 	return 0;
 }
@@ -966,7 +867,7 @@ static int x509_parse_alt_name_rid(struct x509_name *name,
 		return -1;
 
 	asn1_oid_to_str(&name->rid, buf, sizeof(buf));
-	wpa_printf(MSG_MSGDUMP, "X509: altName - registeredID: %s", buf);
+	wpa_printf(MSG_DEBUG, "X509: altName - registeredID: %s", buf);
 
 	return 0;
 }
@@ -1057,9 +958,12 @@ static int x509_parse_ext_subject_alt_name(struct x509_certificate *cert,
 
 	/* SubjectAltName ::= GeneralNames */
 
-	if (asn1_get_next(pos, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: Expected SEQUENCE in SubjectAltName");
+	if (asn1_get_next(pos, len, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Expected SEQUENCE in "
+			   "SubjectAltName; found %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		return -1;
 	}
 
@@ -1081,9 +985,12 @@ static int x509_parse_ext_issuer_alt_name(struct x509_certificate *cert,
 
 	/* IssuerAltName ::= GeneralNames */
 
-	if (asn1_get_next(pos, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: Expected SEQUENCE in IssuerAltName");
+	if (asn1_get_next(pos, len, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Expected SEQUENCE in "
+			   "IssuerAltName; found %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		return -1;
 	}
 
@@ -1098,233 +1005,6 @@ static int x509_parse_ext_issuer_alt_name(struct x509_certificate *cert,
 }
 
 
-static int x509_id_cert_policy_any_oid(struct asn1_oid *oid)
-{
-	return oid->len == 5 &&
-		oid->oid[0] == 2 /* iso/itu-t */ &&
-		oid->oid[1] == 5 /* X.500 Directory Services */ &&
-		oid->oid[2] == 29 /* id-ce */ &&
-		oid->oid[3] == 32 /* id-ce-certificate-policies */ &&
-		oid->oid[4] == 0 /* anyPolicy */;
-}
-
-
-static int x509_id_wfa_oid(struct asn1_oid *oid)
-{
-	return oid->len >= 7 &&
-		oid->oid[0] == 1 /* iso */ &&
-		oid->oid[1] == 3 /* identified-organization */ &&
-		oid->oid[2] == 6 /* dod */ &&
-		oid->oid[3] == 1 /* internet */ &&
-		oid->oid[4] == 4 /* private */ &&
-		oid->oid[5] == 1 /* enterprise */ &&
-		oid->oid[6] == 40808 /* WFA */;
-}
-
-
-static int x509_id_wfa_tod_oid(struct asn1_oid *oid)
-{
-	return oid->len >= 9 &&
-		x509_id_wfa_oid(oid) &&
-		oid->oid[7] == 1 &&
-		oid->oid[8] == 3;
-}
-
-
-static int x509_id_wfa_tod_strict_oid(struct asn1_oid *oid)
-{
-	return oid->len == 10 &&
-		x509_id_wfa_tod_oid(oid) &&
-		oid->oid[9] == 1;
-}
-
-
-static int x509_id_wfa_tod_tofu_oid(struct asn1_oid *oid)
-{
-	return oid->len == 10 &&
-		x509_id_wfa_tod_oid(oid) &&
-		oid->oid[9] == 2;
-}
-
-
-static int x509_parse_ext_certificate_policies(struct x509_certificate *cert,
-					       const u8 *pos, size_t len)
-{
-	struct asn1_hdr hdr;
-	const u8 *end;
-
-	/*
-	 * certificatePolicies ::= SEQUENCE SIZE (1..MAX) OF PolicyInformation
-	 *
-	 * PolicyInformation ::= SEQUENCE {
-	 *      policyIdentifier   CertPolicyId,
-	 *      policyQualifiers   SEQUENCE SIZE (1..MAX) OF
-	 *                              PolicyQualifierInfo OPTIONAL }
-	 *
-	 * CertPolicyId ::= OBJECT IDENTIFIER
-	 */
-
-	if (asn1_get_next(pos, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: Expected SEQUENCE (certificatePolicies)");
-		return -1;
-	}
-	if (hdr.length > pos + len - hdr.payload)
-		return -1;
-	pos = hdr.payload;
-	end = pos + hdr.length;
-
-	wpa_hexdump(MSG_MSGDUMP, "X509: certificatePolicies", pos, end - pos);
-
-	while (pos < end) {
-		const u8 *pol_end;
-		struct asn1_oid oid;
-		char buf[80];
-
-		if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-		    !asn1_is_sequence(&hdr)) {
-			asn1_unexpected(&hdr,
-					"X509: Expected SEQUENCE (PolicyInformation)");
-			return -1;
-		}
-		if (hdr.length > end - hdr.payload)
-			return -1;
-		pos = hdr.payload;
-		pol_end = pos + hdr.length;
-		wpa_hexdump(MSG_MSGDUMP, "X509: PolicyInformation",
-			    pos, pol_end - pos);
-
-		if (asn1_get_oid(pos, pol_end - pos, &oid, &pos))
-			return -1;
-		if (x509_id_cert_policy_any_oid(&oid)) {
-			os_strlcpy(buf, "anyPolicy-STRICT", sizeof(buf));
-			cert->certificate_policy |=
-				X509_EXT_CERT_POLICY_ANY;
-		} else if (x509_id_wfa_tod_strict_oid(&oid)) {
-			os_strlcpy(buf, "TOD-STRICT", sizeof(buf));
-			cert->certificate_policy |=
-				X509_EXT_CERT_POLICY_TOD_STRICT;
-		} else if (x509_id_wfa_tod_tofu_oid(&oid)) {
-			os_strlcpy(buf, "TOD-TOFU", sizeof(buf));
-			cert->certificate_policy |=
-				X509_EXT_CERT_POLICY_TOD_TOFU;
-		} else {
-			asn1_oid_to_str(&oid, buf, sizeof(buf));
-		}
-		wpa_printf(MSG_DEBUG, "policyIdentifier: %s", buf);
-
-		pos = pol_end;
-	}
-
-	cert->extensions_present |= X509_EXT_CERTIFICATE_POLICY;
-
-	return 0;
-}
-
-
-static int x509_id_pkix_oid(struct asn1_oid *oid)
-{
-	return oid->len >= 7 &&
-		oid->oid[0] == 1 /* iso */ &&
-		oid->oid[1] == 3 /* identified-organization */ &&
-		oid->oid[2] == 6 /* dod */ &&
-		oid->oid[3] == 1 /* internet */ &&
-		oid->oid[4] == 5 /* security */ &&
-		oid->oid[5] == 5 /* mechanisms */ &&
-		oid->oid[6] == 7 /* id-pkix */;
-}
-
-
-static int x509_id_kp_oid(struct asn1_oid *oid)
-{
-	/* id-kp */
-	return oid->len >= 8 &&
-		x509_id_pkix_oid(oid) &&
-		oid->oid[7] == 3 /* id-kp */;
-}
-
-
-static int x509_id_kp_server_auth_oid(struct asn1_oid *oid)
-{
-	/* id-kp */
-	return oid->len == 9 &&
-		x509_id_kp_oid(oid) &&
-		oid->oid[8] == 1 /* id-kp-serverAuth */;
-}
-
-
-static int x509_id_kp_client_auth_oid(struct asn1_oid *oid)
-{
-	/* id-kp */
-	return oid->len == 9 &&
-		x509_id_kp_oid(oid) &&
-		oid->oid[8] == 2 /* id-kp-clientAuth */;
-}
-
-
-static int x509_id_kp_ocsp_oid(struct asn1_oid *oid)
-{
-	/* id-kp */
-	return oid->len == 9 &&
-		x509_id_kp_oid(oid) &&
-		oid->oid[8] == 9 /* id-kp-OCSPSigning */;
-}
-
-
-static int x509_parse_ext_ext_key_usage(struct x509_certificate *cert,
-					const u8 *pos, size_t len)
-{
-	struct asn1_hdr hdr;
-	const u8 *end;
-	struct asn1_oid oid;
-
-	/*
-	 * ExtKeyUsageSyntax ::= SEQUENCE SIZE (1..MAX) OF KeyPurposeId
-	 *
-	 * KeyPurposeId ::= OBJECT IDENTIFIER
-	 */
-
-	if (asn1_get_next(pos, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: Expected SEQUENCE (ExtKeyUsageSyntax)");
-		return -1;
-	}
-	if (hdr.length > pos + len - hdr.payload)
-		return -1;
-	pos = hdr.payload;
-	end = pos + hdr.length;
-
-	wpa_hexdump(MSG_MSGDUMP, "X509: ExtKeyUsageSyntax", pos, end - pos);
-
-	while (pos < end) {
-		char buf[80];
-
-		if (asn1_get_oid(pos, end - pos, &oid, &pos))
-			return -1;
-		if (x509_any_ext_key_usage_oid(&oid)) {
-			os_strlcpy(buf, "anyExtendedKeyUsage", sizeof(buf));
-			cert->ext_key_usage |= X509_EXT_KEY_USAGE_ANY;
-		} else if (x509_id_kp_server_auth_oid(&oid)) {
-			os_strlcpy(buf, "id-kp-serverAuth", sizeof(buf));
-			cert->ext_key_usage |= X509_EXT_KEY_USAGE_SERVER_AUTH;
-		} else if (x509_id_kp_client_auth_oid(&oid)) {
-			os_strlcpy(buf, "id-kp-clientAuth", sizeof(buf));
-			cert->ext_key_usage |= X509_EXT_KEY_USAGE_CLIENT_AUTH;
-		} else if (x509_id_kp_ocsp_oid(&oid)) {
-			os_strlcpy(buf, "id-kp-OCSPSigning", sizeof(buf));
-			cert->ext_key_usage |= X509_EXT_KEY_USAGE_OCSP;
-		} else {
-			asn1_oid_to_str(&oid, buf, sizeof(buf));
-		}
-		wpa_printf(MSG_DEBUG, "ExtKeyUsage KeyPurposeId: %s", buf);
-	}
-
-	cert->extensions_present |= X509_EXT_EXT_KEY_USAGE;
-
-	return 0;
-}
-
-
 static int x509_parse_extension_data(struct x509_certificate *cert,
 				     struct asn1_oid *oid,
 				     const u8 *pos, size_t len)
@@ -1333,8 +1013,10 @@ static int x509_parse_extension_data(struct x509_certificate *cert,
 		return 1;
 
 	/* TODO: add other extensions required by RFC 3280, Ch 4.2:
+	 * certificate policies (section 4.2.1.5)
 	 * name constraints (section 4.2.1.11)
 	 * policy constraints (section 4.2.1.12)
+	 * extended key usage (section 4.2.1.13)
 	 * inhibit any-policy (section 4.2.1.15)
 	 */
 	switch (oid->oid[3]) {
@@ -1346,10 +1028,6 @@ static int x509_parse_extension_data(struct x509_certificate *cert,
 		return x509_parse_ext_issuer_alt_name(cert, pos, len);
 	case 19: /* id-ce-basicConstraints */
 		return x509_parse_ext_basic_constraints(cert, pos, len);
-	case 32: /* id-ce-certificatePolicies */
-		return x509_parse_ext_certificate_policies(cert, pos, len);
-	case 37: /* id-ce-extKeyUsage */
-		return x509_parse_ext_ext_key_usage(cert, pos, len);
 	default:
 		return 1;
 	}
@@ -1373,8 +1051,12 @@ static int x509_parse_extension(struct x509_certificate *cert,
 	 * }
 	 */
 
-	if (asn1_get_next(pos, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr, "X509: Expected SEQUENCE in Extensions");
+	if (asn1_get_next(pos, len, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Unexpected ASN.1 header in "
+			   "Extensions: class %d tag 0x%x; expected SEQUENCE",
+			   hdr.class, hdr.tag);
 		return -1;
 	}
 	pos = hdr.payload;
@@ -1387,27 +1069,31 @@ static int x509_parse_extension(struct x509_certificate *cert,
 	}
 
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    (!asn1_is_boolean(&hdr) && !asn1_is_octetstring(&hdr))) {
-		asn1_unexpected(&hdr,
-				"X509: Expected BOOLEAN or OCTETSTRING in Extensions");
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    (hdr.tag != ASN1_TAG_BOOLEAN &&
+	     hdr.tag != ASN1_TAG_OCTETSTRING)) {
+		wpa_printf(MSG_DEBUG, "X509: Unexpected ASN.1 header in "
+			   "Extensions: class %d tag 0x%x; expected BOOLEAN "
+			   "or OCTET STRING", hdr.class, hdr.tag);
 		return -1;
 	}
 
 	if (hdr.tag == ASN1_TAG_BOOLEAN) {
+		if (hdr.length != 1) {
+			wpa_printf(MSG_DEBUG, "X509: Unexpected "
+				   "Boolean length (%u)", hdr.length);
+			return -1;
+		}
 		critical_ext = hdr.payload[0];
 		pos = hdr.payload;
-		/*
-		 * Number of CA certificates seem to be using Private class in
-		 * one of the X.509v3 extensions, so let's accept that instead
-		 * of rejecting the certificate. asn1_is_octetstring() covers
-		 * the more common case.
-		 */
 		if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-		    (!asn1_is_octetstring(&hdr) &&
-		     !(hdr.class == ASN1_CLASS_PRIVATE &&
-		       hdr.tag == ASN1_TAG_OCTETSTRING))) {
-			asn1_unexpected(&hdr,
-					"X509: Expected OCTETSTRING in Extensions");
+		    (hdr.class != ASN1_CLASS_UNIVERSAL &&
+		     hdr.class != ASN1_CLASS_PRIVATE) ||
+		    hdr.tag != ASN1_TAG_OCTETSTRING) {
+			wpa_printf(MSG_DEBUG, "X509: Unexpected ASN.1 header "
+				   "in Extensions: class %d tag 0x%x; "
+				   "expected OCTET STRING",
+				   hdr.class, hdr.tag);
 			return -1;
 		}
 	}
@@ -1423,7 +1109,7 @@ static int x509_parse_extension(struct x509_certificate *cert,
 	if (res == 1 && critical_ext) {
 		wpa_printf(MSG_INFO, "X509: Unknown critical extension %s",
 			   buf);
-		return -1;
+		//return -1;  //for wpa2 certification , commenout , ignore the error
 	}
 
 	return 0;
@@ -1438,8 +1124,12 @@ static int x509_parse_extensions(struct x509_certificate *cert,
 
 	/* Extensions  ::=  SEQUENCE SIZE (1..MAX) OF Extension */
 
-	if (asn1_get_next(pos, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr, "X509: Expected SEQUENCE for Extensions");
+	if (asn1_get_next(pos, len, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Unexpected ASN.1 data "
+			   "for Extensions: class %d tag 0x%x; "
+			   "expected SEQUENCE", hdr.class, hdr.tag);
 		return -1;
 	}
 
@@ -1465,12 +1155,14 @@ static int x509_parse_tbs_certificate(const u8 *buf, size_t len,
 	size_t left;
 	char sbuf[128];
 	unsigned long value;
-	const u8 *subject_dn;
 
 	/* tbsCertificate TBSCertificate ::= SEQUENCE */
-	if (asn1_get_next(buf, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: tbsCertificate did not start with a valid SEQUENCE");
+	if (asn1_get_next(buf, len, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: tbsCertificate did not start "
+			   "with a valid SEQUENCE - found class %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		return -1;
 	}
 	pos = hdr.payload;
@@ -1484,11 +1176,15 @@ static int x509_parse_tbs_certificate(const u8 *buf, size_t len,
 		return -1;
 	pos = hdr.payload;
 
-	if (asn1_is_cs_tag(&hdr, 0) && hdr.constructed) {
-		if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-		    !asn1_is_integer(&hdr)) {
-			asn1_unexpected(&hdr,
-					"X509: No INTEGER tag found for version field");
+	if (hdr.class == ASN1_CLASS_CONTEXT_SPECIFIC) {
+		if (asn1_get_next(pos, end - pos, &hdr) < 0)
+			return -1;
+
+		if (hdr.class != ASN1_CLASS_UNIVERSAL ||
+		    hdr.tag != ASN1_TAG_INTEGER) {
+			wpa_printf(MSG_DEBUG, "X509: No INTEGER tag found for "
+				   "version field - found class %d tag 0x%x",
+				   hdr.class, hdr.tag);
 			return -1;
 		}
 		if (hdr.length != 1) {
@@ -1518,25 +1214,25 @@ static int x509_parse_tbs_certificate(const u8 *buf, size_t len,
 			return -1;
 	} else
 		cert->version = X509_CERT_V1;
-	wpa_printf(MSG_MSGDUMP, "X509: Version X.509v%d", cert->version + 1);
+	wpa_printf(MSG_DEBUG, "X509: Version X.509v%d", cert->version + 1);
 
 	/* serialNumber CertificateSerialNumber ::= INTEGER */
-	if (!asn1_is_integer(&hdr) ||
-	    hdr.length < 1 || hdr.length > X509_MAX_SERIAL_NUM_LEN) {
-		asn1_unexpected(&hdr,
-				"X509: No INTEGER tag found for serialNumber");
+	if (hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_INTEGER) {
+		wpa_printf(MSG_DEBUG, "X509: No INTEGER tag found for "
+			   "serialNumber; class=%d tag=0x%x",
+			   hdr.class, hdr.tag);
 		return -1;
 	}
 
-	pos = hdr.payload + hdr.length;
-	while (hdr.length > 0 && hdr.payload[0] == 0) {
-		hdr.payload++;
-		hdr.length--;
+	pos = hdr.payload;
+	left = hdr.length;
+	while (left) {
+		cert->serial_number <<= 8;
+		cert->serial_number |= *pos++;
+		left--;
 	}
-	os_memcpy(cert->serial_number, hdr.payload, hdr.length);
-	cert->serial_number_len = hdr.length;
-	wpa_hexdump(MSG_MSGDUMP, "X509: serialNumber", cert->serial_number,
-		    cert->serial_number_len);
+	wpa_printf(MSG_DEBUG, "X509: serialNumber %lu", cert->serial_number);
 
 	/* signature AlgorithmIdentifier */
 	if (x509_parse_algorithm_identifier(pos, end - pos, &cert->signature,
@@ -1547,23 +1243,17 @@ static int x509_parse_tbs_certificate(const u8 *buf, size_t len,
 	if (x509_parse_name(pos, end - pos, &cert->issuer, &pos))
 		return -1;
 	x509_name_string(&cert->issuer, sbuf, sizeof(sbuf));
-	wpa_printf(MSG_MSGDUMP, "X509: issuer %s", sbuf);
+	wpa_printf(MSG_DEBUG, "X509: issuer %s", sbuf);
 
 	/* validity Validity */
 	if (x509_parse_validity(pos, end - pos, cert, &pos))
 		return -1;
 
 	/* subject Name */
-	subject_dn = pos;
 	if (x509_parse_name(pos, end - pos, &cert->subject, &pos))
 		return -1;
-	cert->subject_dn = os_malloc(pos - subject_dn);
-	if (!cert->subject_dn)
-		return -1;
-	cert->subject_dn_len = pos - subject_dn;
-	os_memcpy(cert->subject_dn, subject_dn, cert->subject_dn_len);
 	x509_name_string(&cert->subject, sbuf, sizeof(sbuf));
-	wpa_printf(MSG_MSGDUMP, "X509: subject %s", sbuf);
+	wpa_printf(MSG_DEBUG, "X509: subject %s", sbuf);
 
 	/* subjectPublicKeyInfo SubjectPublicKeyInfo */
 	if (x509_parse_public_key(pos, end - pos, cert, &pos))
@@ -1577,8 +1267,10 @@ static int x509_parse_tbs_certificate(const u8 *buf, size_t len,
 
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
 	    hdr.class != ASN1_CLASS_CONTEXT_SPECIFIC) {
-		asn1_unexpected(&hdr,
-				"X509: Expected Context-Specific tag to parse optional tbsCertificate field(s)");
+		wpa_printf(MSG_DEBUG, "X509: Expected Context-Specific"
+			   " tag to parse optional tbsCertificate "
+			   "field(s); parsed class %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		return -1;
 	}
 
@@ -1587,14 +1279,15 @@ static int x509_parse_tbs_certificate(const u8 *buf, size_t len,
 		wpa_printf(MSG_DEBUG, "X509: issuerUniqueID");
 		/* TODO: parse UniqueIdentifier ::= BIT STRING */
 
-		pos = hdr.payload + hdr.length;
-		if (pos == end)
+		if (hdr.payload + hdr.length == end)
 			return 0;
 
 		if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
 		    hdr.class != ASN1_CLASS_CONTEXT_SPECIFIC) {
-			asn1_unexpected(&hdr,
-					"X509: Expected Context-Specific tag to parse optional tbsCertificate field(s)");
+			wpa_printf(MSG_DEBUG, "X509: Expected Context-Specific"
+				   " tag to parse optional tbsCertificate "
+				   "field(s); parsed class %d tag 0x%x",
+				   hdr.class, hdr.tag);
 			return -1;
 		}
 	}
@@ -1604,22 +1297,23 @@ static int x509_parse_tbs_certificate(const u8 *buf, size_t len,
 		wpa_printf(MSG_DEBUG, "X509: subjectUniqueID");
 		/* TODO: parse UniqueIdentifier ::= BIT STRING */
 
-		pos = hdr.payload + hdr.length;
-		if (pos == end)
+		if (hdr.payload + hdr.length == end)
 			return 0;
 
 		if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
 		    hdr.class != ASN1_CLASS_CONTEXT_SPECIFIC) {
-			asn1_unexpected(&hdr,
-					"X509: Expected Context-Specific tag to parse optional tbsCertificate field(s)");
+			wpa_printf(MSG_DEBUG, "X509: Expected Context-Specific"
+				   " tag to parse optional tbsCertificate "
+				   "field(s); parsed class %d tag 0x%x",
+				   hdr.class, hdr.tag);
 			return -1;
 		}
 	}
 
 	if (hdr.tag != 3) {
-		wpa_printf(MSG_DEBUG,
-			   "X509: Ignored unexpected Context-Specific constructed %d tag %d in optional tbsCertificate fields",
-			   hdr.constructed, hdr.tag);
+		wpa_printf(MSG_DEBUG, "X509: Ignored unexpected "
+			   "Context-Specific tag %d in optional "
+			   "tbsCertificate fields", hdr.tag);
 		return 0;
 	}
 
@@ -1671,8 +1365,7 @@ static int x509_digest_oid(struct asn1_oid *oid)
 		oid->oid[4] == 2 /* digestAlgorithm */;
 }
 
-
-int x509_sha1_oid(struct asn1_oid *oid)
+static int x509_sha1_oid(struct asn1_oid *oid)
 {
 	return oid->len == 6 &&
 		oid->oid[0] == 1 /* iso */ &&
@@ -1682,7 +1375,6 @@ int x509_sha1_oid(struct asn1_oid *oid)
 		oid->oid[4] == 2 /* algorithms */ &&
 		oid->oid[5] == 26 /* id-sha1 */;
 }
-
 
 static int x509_sha2_oid(struct asn1_oid *oid)
 {
@@ -1698,21 +1390,21 @@ static int x509_sha2_oid(struct asn1_oid *oid)
 }
 
 
-int x509_sha256_oid(struct asn1_oid *oid)
+static int x509_sha256_oid(struct asn1_oid *oid)
 {
 	return x509_sha2_oid(oid) &&
 		oid->oid[8] == 1 /* sha256 */;
 }
 
 
-int x509_sha384_oid(struct asn1_oid *oid)
+static int x509_sha384_oid(struct asn1_oid *oid)
 {
 	return x509_sha2_oid(oid) &&
 		oid->oid[8] == 2 /* sha384 */;
 }
 
 
-int x509_sha512_oid(struct asn1_oid *oid)
+static int x509_sha512_oid(struct asn1_oid *oid)
 {
 	return x509_sha2_oid(oid) &&
 		oid->oid[8] == 3 /* sha512 */;
@@ -1734,7 +1426,7 @@ struct x509_certificate * x509_certificate_parse(const u8 *buf, size_t len)
 	const u8 *pos, *end, *hash_start;
 	struct x509_certificate *cert;
 
-	cert = os_zalloc(sizeof(*cert) + len);
+	cert = (struct x509_certificate *)os_zalloc(sizeof(*cert) + len);
 	if (cert == NULL)
 		return NULL;
 	os_memcpy(cert + 1, buf, len);
@@ -1747,23 +1439,26 @@ struct x509_certificate * x509_certificate_parse(const u8 *buf, size_t len)
 	/* RFC 3280 - X.509 v3 certificate / ASN.1 DER */
 
 	/* Certificate ::= SEQUENCE */
-	if (asn1_get_next(pos, len, &hdr) < 0 || !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: Certificate did not start with a valid SEQUENCE");
+	if (asn1_get_next(pos, len, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Certificate did not start with "
+			   "a valid SEQUENCE - found class %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		x509_certificate_free(cert);
 		return NULL;
 	}
 	pos = hdr.payload;
 
-	if (hdr.length > end - pos) {
+	if (pos + hdr.length > end) {
 		x509_certificate_free(cert);
 		return NULL;
 	}
 
-	if (hdr.length < end - pos) {
+	if (pos + hdr.length < end) {
 		wpa_hexdump(MSG_MSGDUMP, "X509: Ignoring extra data after DER "
 			    "encoded certificate",
-			    pos + hdr.length, end - (pos + hdr.length));
+			    pos + hdr.length, end - pos + hdr.length);
 		end = pos + hdr.length;
 	}
 
@@ -1784,9 +1479,11 @@ struct x509_certificate * x509_certificate_parse(const u8 *buf, size_t len)
 
 	/* signatureValue BIT STRING */
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    !asn1_is_bitstring(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: Expected BITSTRING (signatureValue)");
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_BITSTRING) {
+		wpa_printf(MSG_DEBUG, "X509: Expected BITSTRING "
+			   "(signatureValue) - found class %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		x509_certificate_free(cert);
 		return NULL;
 	}
@@ -1796,8 +1493,7 @@ struct x509_certificate * x509_certificate_parse(const u8 *buf, size_t len)
 	}
 	pos = hdr.payload;
 	if (*pos) {
-		wpa_printf(MSG_DEBUG,
-			   "X509: BITSTRING (signatureValue) - %d unused bits",
+		wpa_printf(MSG_DEBUG, "X509: BITSTRING - %d unused bits",
 			   *pos);
 		/* PKCS #1 v1.5 10.2.1:
 		 * It is an error if the length in bits of the signature S is
@@ -1807,13 +1503,14 @@ struct x509_certificate * x509_certificate_parse(const u8 *buf, size_t len)
 		return NULL;
 	}
 	os_free(cert->sign_value);
-	cert->sign_value = os_memdup(pos + 1, hdr.length - 1);
+	cert->sign_value = os_malloc(hdr.length - 1);
 	if (cert->sign_value == NULL) {
 		wpa_printf(MSG_DEBUG, "X509: Failed to allocate memory for "
 			   "signatureValue");
 		x509_certificate_free(cert);
 		return NULL;
 	}
+	os_memcpy(cert->sign_value, pos + 1, hdr.length - 1);
 	cert->sign_value_len = hdr.length - 1;
 	wpa_hexdump(MSG_MSGDUMP, "X509: signature",
 		    cert->sign_value, cert->sign_value_len);
@@ -1832,17 +1529,6 @@ struct x509_certificate * x509_certificate_parse(const u8 *buf, size_t len)
 int x509_certificate_check_signature(struct x509_certificate *issuer,
 				     struct x509_certificate *cert)
 {
-	return x509_check_signature(issuer, &cert->signature,
-				    cert->sign_value, cert->sign_value_len,
-				    cert->tbs_cert_start, cert->tbs_cert_len);
-}
-
-
-int x509_check_signature(struct x509_certificate *issuer,
-			 struct x509_algorithm_identifier *signature,
-			 const u8 *sign_value, size_t sign_value_len,
-			 const u8 *signed_data, size_t signed_data_len)
-{
 	struct crypto_public_key *pk;
 	u8 *data;
 	const u8 *pos, *end, *next, *da_end;
@@ -1851,12 +1537,10 @@ int x509_check_signature(struct x509_certificate *issuer,
 	struct asn1_oid oid;
 	u8 hash[64];
 	size_t hash_len;
-	const u8 *addr[1] = { signed_data };
-	size_t len[1] = { signed_data_len };
 
-	if (!x509_pkcs_oid(&signature->oid) ||
-	    signature->oid.len != 7 ||
-	    signature->oid.oid[5] != 1 /* pkcs-1 */) {
+	if (!x509_pkcs_oid(&cert->signature.oid) ||
+	    cert->signature.oid.len != 7 ||
+	    cert->signature.oid.oid[5] != 1 /* pkcs-1 */) {
 		wpa_printf(MSG_DEBUG, "X509: Unrecognized signature "
 			   "algorithm");
 		return -1;
@@ -1867,15 +1551,15 @@ int x509_check_signature(struct x509_certificate *issuer,
 	if (pk == NULL)
 		return -1;
 
-	data_len = sign_value_len;
+	data_len = cert->sign_value_len;
 	data = os_malloc(data_len);
 	if (data == NULL) {
 		crypto_public_key_free(pk);
 		return -1;
 	}
 
-	if (crypto_public_key_decrypt_pkcs1(pk, sign_value,
-					    sign_value_len, data,
+	if (crypto_public_key_decrypt_pkcs1(pk, cert->sign_value,
+					    cert->sign_value_len, data,
 					    &data_len) < 0) {
 		wpa_printf(MSG_DEBUG, "X509: Failed to decrypt signature");
 		crypto_public_key_free(pk);
@@ -1900,12 +1584,14 @@ int x509_check_signature(struct x509_certificate *issuer,
 	 *
 	 */
 	if (asn1_get_next(data, data_len, &hdr) < 0 ||
-	    !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr, "X509: Expected SEQUENCE (DigestInfo)");
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Expected SEQUENCE "
+			   "(DigestInfo) - found class %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		os_free(data);
 		return -1;
 	}
-	wpa_hexdump(MSG_MSGDUMP, "X509: DigestInfo", hdr.payload, hdr.length);
 
 	pos = hdr.payload;
 	end = pos + hdr.length;
@@ -1919,14 +1605,14 @@ int x509_check_signature(struct x509_certificate *issuer,
 	 */
 
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    !asn1_is_sequence(&hdr)) {
-		asn1_unexpected(&hdr,
-				"X509: Expected SEQUENCE (AlgorithmIdentifier)");
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Expected SEQUENCE "
+			   "(AlgorithmIdentifier) - found class %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		os_free(data);
 		return -1;
 	}
-	wpa_hexdump(MSG_MSGDUMP, "X509: DigestAlgorithmIdentifier",
-		    hdr.payload, hdr.length);
 	da_end = hdr.payload + hdr.length;
 
 	if (asn1_get_oid(hdr.payload, hdr.length, &oid, &next)) {
@@ -1934,30 +1620,14 @@ int x509_check_signature(struct x509_certificate *issuer,
 		os_free(data);
 		return -1;
 	}
-	wpa_hexdump(MSG_MSGDUMP, "X509: Digest algorithm parameters",
-		    next, da_end - next);
-
-	/*
-	 * RFC 5754: The correct encoding for the SHA2 algorithms would be to
-	 * omit the parameters, but there are implementation that encode these
-	 * as a NULL element. Allow these two cases and reject anything else.
-	 */
-	if (da_end > next &&
-	    (asn1_get_next(next, da_end - next, &hdr) < 0 ||
-	     !asn1_is_null(&hdr) ||
-	     hdr.payload + hdr.length != da_end)) {
-		wpa_printf(MSG_DEBUG,
-			   "X509: Unexpected digest algorithm parameters");
-		os_free(data);
-		return -1;
-	}
 
 	if (x509_sha1_oid(&oid)) {
-		if (signature->oid.oid[6] != 5 /* sha-1WithRSAEncryption */) {
+		if (cert->signature.oid.oid[6] !=
+		    5 /* sha-1WithRSAEncryption */) {
 			wpa_printf(MSG_DEBUG, "X509: digestAlgorithm SHA1 "
 				   "does not match with certificate "
 				   "signatureAlgorithm (%lu)",
-				   signature->oid.oid[6]);
+				   cert->signature.oid.oid[6]);
 			os_free(data);
 			return -1;
 		}
@@ -1965,12 +1635,12 @@ int x509_check_signature(struct x509_certificate *issuer,
 	}
 
 	if (x509_sha256_oid(&oid)) {
-		if (signature->oid.oid[6] !=
+		if (cert->signature.oid.oid[6] !=
 		    11 /* sha2561WithRSAEncryption */) {
 			wpa_printf(MSG_DEBUG, "X509: digestAlgorithm SHA256 "
 				   "does not match with certificate "
 				   "signatureAlgorithm (%lu)",
-				   signature->oid.oid[6]);
+				   cert->signature.oid.oid[6]);
 			os_free(data);
 			return -1;
 		}
@@ -1978,11 +1648,12 @@ int x509_check_signature(struct x509_certificate *issuer,
 	}
 
 	if (x509_sha384_oid(&oid)) {
-		if (signature->oid.oid[6] != 12 /* sha384WithRSAEncryption */) {
+		if (cert->signature.oid.oid[6] !=
+		    12 /* sha384WithRSAEncryption */) {
 			wpa_printf(MSG_DEBUG, "X509: digestAlgorithm SHA384 "
 				   "does not match with certificate "
 				   "signatureAlgorithm (%lu)",
-				   signature->oid.oid[6]);
+				   cert->signature.oid.oid[6]);
 			os_free(data);
 			return -1;
 		}
@@ -1990,11 +1661,12 @@ int x509_check_signature(struct x509_certificate *issuer,
 	}
 
 	if (x509_sha512_oid(&oid)) {
-		if (signature->oid.oid[6] != 13 /* sha512WithRSAEncryption */) {
+		if (cert->signature.oid.oid[6] !=
+		    13 /* sha512WithRSAEncryption */) {
 			wpa_printf(MSG_DEBUG, "X509: digestAlgorithm SHA512 "
 				   "does not match with certificate "
 				   "signatureAlgorithm (%lu)",
-				   signature->oid.oid[6]);
+				   cert->signature.oid.oid[6]);
 			os_free(data);
 			return -1;
 		}
@@ -2008,11 +1680,12 @@ int x509_check_signature(struct x509_certificate *issuer,
 	}
 	switch (oid.oid[5]) {
 	case 5: /* md5 */
-		if (signature->oid.oid[6] != 4 /* md5WithRSAEncryption */) {
+		if (cert->signature.oid.oid[6] != 4 /* md5WithRSAEncryption */)
+		{
 			wpa_printf(MSG_DEBUG, "X509: digestAlgorithm MD5 does "
 				   "not match with certificate "
 				   "signatureAlgorithm (%lu)",
-				   signature->oid.oid[6]);
+				   cert->signature.oid.oid[6]);
 			os_free(data);
 			return -1;
 		}
@@ -2029,43 +1702,52 @@ int x509_check_signature(struct x509_certificate *issuer,
 skip_digest_oid:
 	/* Digest ::= OCTET STRING */
 	pos = da_end;
+	end = data + data_len;
 
 	if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
-	    !asn1_is_octetstring(&hdr)) {
-		asn1_unexpected(&hdr, "X509: Expected OCTETSTRING (Digest)");
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_OCTETSTRING) {
+		wpa_printf(MSG_DEBUG, "X509: Expected OCTETSTRING "
+			   "(Digest) - found class %d tag 0x%x",
+			   hdr.class, hdr.tag);
 		os_free(data);
 		return -1;
 	}
 	wpa_hexdump(MSG_MSGDUMP, "X509: Decrypted Digest",
 		    hdr.payload, hdr.length);
 
-	switch (signature->oid.oid[6]) {
+	switch (cert->signature.oid.oid[6]) {
 	case 4: /* md5WithRSAEncryption */
-		md5_vector(1, addr, len, hash);
+		md5_vector(1, &cert->tbs_cert_start, &cert->tbs_cert_len,
+			   hash);
 		hash_len = 16;
 		wpa_hexdump(MSG_MSGDUMP, "X509: Certificate hash (MD5)",
 			    hash, hash_len);
 		break;
 	case 5: /* sha-1WithRSAEncryption */
-		sha1_vector(1, addr, len, hash);
+		sha1_vector(1, &cert->tbs_cert_start, &cert->tbs_cert_len,
+			    hash);
 		hash_len = 20;
 		wpa_hexdump(MSG_MSGDUMP, "X509: Certificate hash (SHA1)",
 			    hash, hash_len);
 		break;
 	case 11: /* sha256WithRSAEncryption */
-		sha256_vector(1, addr, len, hash);
+		sha256_vector(1, &cert->tbs_cert_start, &cert->tbs_cert_len,
+				                    hash);
 		hash_len = 32;
 		wpa_hexdump(MSG_MSGDUMP, "X509: Certificate hash (SHA256)",
 			    hash, hash_len);
 		break;
 	case 12: /* sha384WithRSAEncryption */
-		sha384_vector(1, addr, len, hash);
+		sha384_vector(1, &cert->tbs_cert_start, &cert->tbs_cert_len,
+			      hash);
 		hash_len = 48;
 		wpa_hexdump(MSG_MSGDUMP, "X509: Certificate hash (SHA384)",
 			    hash, hash_len);
 		break;
 	case 13: /* sha512WithRSAEncryption */
-		sha512_vector(1, addr, len, hash);
+		sha512_vector(1, &cert->tbs_cert_start, &cert->tbs_cert_len,
+			      hash);
 		hash_len = 64;
 		wpa_hexdump(MSG_MSGDUMP, "X509: Certificate hash (SHA512)",
 			    hash, hash_len);
@@ -2073,24 +1755,15 @@ skip_digest_oid:
 	case 2: /* md2WithRSAEncryption */
 	default:
 		wpa_printf(MSG_INFO, "X509: Unsupported certificate signature "
-			   "algorithm (%lu)", signature->oid.oid[6]);
+			   "algorithm (%lu)", cert->signature.oid.oid[6]);
 		os_free(data);
 		return -1;
 	}
 
 	if (hdr.length != hash_len ||
-	    os_memcmp_const(hdr.payload, hash, hdr.length) != 0) {
+	    os_memcmp(hdr.payload, hash, hdr.length) != 0) {
 		wpa_printf(MSG_INFO, "X509: Certificate Digest does not match "
 			   "with calculated tbsCertificate hash");
-		os_free(data);
-		return -1;
-	}
-
-	if (hdr.payload + hdr.length < data + data_len) {
-		wpa_hexdump(MSG_INFO,
-			    "X509: Extra data after certificate signature hash",
-			    hdr.payload + hdr.length,
-			    data + data_len - hdr.payload - hdr.length);
 		os_free(data);
 		return -1;
 	}
@@ -2155,7 +1828,6 @@ int x509_certificate_chain_validate(struct x509_certificate *trusted,
 	os_get_time(&now);
 
 	for (cert = chain, idx = 0; cert; cert = cert->next, idx++) {
-		cert->issuer_trusted = 0;
 		x509_name_string(&cert->subject, buf, sizeof(buf));
 		wpa_printf(MSG_DEBUG, "X509: %lu: %s", idx, buf);
 
@@ -2169,7 +1841,7 @@ int x509_certificate_chain_validate(struct x509_certificate *trusted,
 		     (unsigned long) cert->not_after)) {
 			wpa_printf(MSG_INFO, "X509: Certificate not valid "
 				   "(now=%lu not_before=%lu not_after=%lu)",
-				   now.sec, cert->not_before, cert->not_after);
+				   (unsigned long)now.sec, (unsigned long)cert->not_before, (unsigned long)cert->not_after);
 			*reason = X509_VALIDATE_CERTIFICATE_EXPIRED;
 			return -1;
 		}
@@ -2241,7 +1913,6 @@ int x509_certificate_chain_validate(struct x509_certificate *trusted,
 
 			wpa_printf(MSG_DEBUG, "X509: Trusted certificate "
 				   "found to complete the chain");
-			cert->issuer_trusted = 1;
 			chain_trusted = 1;
 		}
 	}

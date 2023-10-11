@@ -1,5 +1,5 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C6 | ESP32-H2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | -------- |
+| Supported Targets | ESP32 | ESP32-C3 | ESP32-S3 |
+| ----------------- | ----- | -------- | -------- |
 
 # BLE SPP central example
 
@@ -76,7 +76,7 @@ It performs three GATT operations against the specified peer:
 
 Note :
 
-* To install the dependency packages needed, please refer to the top level [README file](../../../../README.md#running-test-python-script-ttfw).
+* Make sure to run `python -m pip install --user -r $IDF_PATH/requirements.txt -r $IDF_PATH/tools/ble/requirements.txt` to install the dependency packages needed.
 * Currently this Python utility is only supported on Linux (BLE communication is via BLuez + DBus).
 
 ## How to use example

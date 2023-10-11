@@ -1,11 +1,13 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
 
 #include <string.h>
-#include "esp_private/periph_ctrl.h" // for enabling UHCI module, remove it after UHCI driver is released
+#include "driver/periph_ctrl.h"
 #include "driver/gpio.h"
 #include "driver/uart.h"
 #include "soc/lldesc.h"
@@ -167,7 +169,7 @@ static IRAM_ATTR bool hci_uart_tl_tx_eof_callback(gdma_channel_handle_t dma_chan
 static void uart_gpio_set(void)
 {
     gpio_config_t io_output_conf = {
-        .intr_type = GPIO_INTR_DISABLE,    //disable interrupt
+        .intr_type = GPIO_PIN_INTR_DISABLE,    //disable interrupt
         .mode = GPIO_MODE_OUTPUT,    // output mode
         .pin_bit_mask = GPIO_OUTPUT_PIN_SEL,    // bit mask of the output pins
         .pull_down_en = 0,    // disable pull-down mode
@@ -176,7 +178,7 @@ static void uart_gpio_set(void)
     gpio_config(&io_output_conf);
 
     gpio_config_t io_input_conf = {
-        .intr_type = GPIO_INTR_DISABLE,    //disable interrupt
+        .intr_type = GPIO_PIN_INTR_DISABLE,    //disable interrupt
         .mode = GPIO_MODE_INPUT,    // input mode
         .pin_bit_mask = GPIO_INPUT_PIN_SEL,  // bit mask of the input pins
         .pull_down_en = 0,    // disable pull-down mode
@@ -205,7 +207,7 @@ void uhci_uart_install(void)
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_CTS_RTS,
         .rx_flow_ctrl_thresh = UART_RX_THRS,
-        .source_clk = UART_SCLK_DEFAULT,
+        .source_clk = UART_SCLK_APB,
     };
     ESP_ERROR_CHECK(uart_param_config(UART_HCI_NUM, &uart_config));
 
@@ -221,8 +223,8 @@ void uhci_uart_install(void)
     };
     ESP_ERROR_CHECK(gdma_new_channel(&rx_channel_config, &s_rx_channel));
 
-    gdma_connect(s_tx_channel, GDMA_MAKE_TRIGGER(GDMA_TRIG_PERIPH_UHCI, 0));
-    gdma_connect(s_rx_channel, GDMA_MAKE_TRIGGER(GDMA_TRIG_PERIPH_UHCI, 0));
+    gdma_connect(s_tx_channel, GDMA_MAKE_TRIGGER(GDMA_TRIG_PERIPH_UART, 0));
+    gdma_connect(s_rx_channel, GDMA_MAKE_TRIGGER(GDMA_TRIG_PERIPH_UART, 0));
 
     gdma_strategy_config_t strategy_config = {
         .auto_update_desc = false,

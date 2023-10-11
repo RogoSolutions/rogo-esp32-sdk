@@ -1,17 +1,17 @@
-/*
- * BLE Combined Advertising and Scanning Example.
- *
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
+/* BLE Combined Advertising and Scanning Example.
+
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
 #include <stdio.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_bt.h"
 #include "esp_log.h"
-#include "esp_timer.h"
 #include "nvs_flash.h"
 #include "freertos/queue.h"
 #include "bt_hci_common.h"
@@ -440,7 +440,7 @@ void app_main(void)
             }
             ESP_LOGI(TAG, "BLE Advertise, cmd_sent: %d", cmd_cnt);
         }
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_RATE_MS);
     }
     xTaskCreatePinnedToCore(&hci_evt_process, "hci_evt_process", 2048, NULL, 6, NULL, 0);
 }

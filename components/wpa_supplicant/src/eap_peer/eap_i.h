@@ -280,8 +280,6 @@ enum SIG_WPA2 {
 struct eap_sm {
 	/* not defined in RFC 4137 */
 	Boolean changed;
-	void *eapol_ctx;
-	const struct eapol_callbacks *eapol_cb;
 	void *eap_method_priv;
 	int init_phase2;
 

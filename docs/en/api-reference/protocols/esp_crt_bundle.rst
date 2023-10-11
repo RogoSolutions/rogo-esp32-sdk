@@ -12,8 +12,8 @@ The bundle comes with the complete list of root certificates from Mozilla’s NS
 
 When generating the bundle you may choose between:
 
- * The full root certificate bundle from Mozilla, containing more than 130 certificates. The current bundle was updated Tue Jan 10 04:12:06 2023 GMT.
- * A pre-selected filter list of the name of the most commonly used root certificates, reducing the amount of certificates to around 41 while still having around 90% absolute usage coverage and 99% market share coverage according to SSL certificate authorities statistics.
+ * The full root certificate bundle from Mozilla, containing more than 130 certificates. The current bundle was updated Tue Apr 26 03:12:05 2022 GMT.
+ * A pre-selected filter list of the name of the most commonly used root certificates, reducing the amount of certificates to around 35 while still having around 90 % coverage according to market share statistics.
 
 In addition it is possible to specify a path to a certificate file or a directory containing certificates which then will be added to the generated bundle.
 
@@ -22,7 +22,7 @@ In addition it is possible to specify a path to a certificate file or a director
 Configuration
 -------------
 
-Most configuration is done through menuconfig. CMake will generate the bundle according to the configuration and embed it.
+Most configuration is done through menuconfig. Make and CMake will generate the bundle according to the configuration and embed it.
 
  * :ref:`CONFIG_MBEDTLS_CERTIFICATE_BUNDLE`: automatically build and attach the bundle.
  * :ref:`CONFIG_MBEDTLS_DEFAULT_CERTIFICATE_BUNDLE`: decide which certificates to include from the complete root list.
@@ -48,23 +48,21 @@ If using mbedTLS directly then the bundle may be activated by directly calling t
     esp_crt_bundle_attach(&conf);
 
 
-.. _updating_bundle:
-
 Generating the List of Root Certificates
 ----------------------------------------
 The list of root certificates comes from Mozilla's NSS root certificate store, which can be found `here <https://wiki.mozilla.org/CA/Included_Certificates>`_
 The list can be downloaded and created by running the script ``mk-ca-bundle.pl`` that is distributed as a part of `curl <https://github.com/curl/curl>`_.
-Another alternative would be to download the finished list directly from the curl website: `CA certificates extracted from Mozilla <https://curl.se/docs/caextract.html>`_
+Another alternative would be to download the finished list directly from the curl website: `CA certificates extracted from Mozilla <https://curl.haxx.se/docs/caextract.html>`_
 
-The common certificates bundle were made by selecting the authorities with a market share of more than 1 % from w3tech's `SSL Survey <https://w3techs.com/technologies/overview/ssl_certificate>`_.
+The common certificates bundle were made by selecting the authorities with a market share of more than 1 % from w3tech's `SSL Survey <https://w3techs.com/technologies/overview/ssl_certificate/all>`_.
 These authorities were then used to pick the names of the certificates for the filter list, `cmn_crt_authorities.csv`, from `this list <https://ccadb-public.secure.force.com/mozilla/IncludedCACertificateReportPEMCSV>`_ provided by Mozilla.
 
-
+.. _updating_bundle:
 
 Updating the Certificate Bundle
 -------------------------------
 
-The bundle is embedded into the app and can be updated along with the app by an OTA update. If you want to include a more up-to-date bundle than the bundle currently included in ESP-IDF, then the certificate list can be downloaded from Mozilla as described in :ref:`updating_bundle`.
+The bundle is embedded into the app and can be updated along with the app by an OTA update. If you want to include a more up-to-date bundle than the bundle currently included in IDF, then the certificate list can be downloaded from Mozilla as described in :ref:`updating_bundle`.
 
 
 

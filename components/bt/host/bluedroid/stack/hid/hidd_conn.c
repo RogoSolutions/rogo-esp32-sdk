@@ -709,14 +709,11 @@ tHID_STATUS hidd_conn_send_data(uint8_t channel, uint8_t msg_type, uint8_t param
     uint8_t *p_out;
     uint16_t cid;
     uint16_t buf_size;
-
     HIDD_TRACE_VERBOSE("%s: channel(%d), msg_type(%d), len(%d)", __func__, channel, msg_type, len);
-
     p_hcon = &hd_cb.device.conn;
     if (p_hcon->conn_flags & HID_CONN_FLAGS_CONGESTED) {
         return HID_ERR_CONGESTED;
     }
-
     switch (msg_type) {
     case HID_TRANS_HANDSHAKE:
     case HID_TRANS_CONTROL:
@@ -763,8 +760,7 @@ tHID_STATUS hidd_conn_send_data(uint8_t channel, uint8_t msg_type, uint8_t param
             }
             hd_cb.pending_data = p_buf;
             if (hd_cb.device.conn.conn_state == HID_CONN_STATE_UNUSED) {
-                HIDD_TRACE_WARNING("%s: try to reconnect!", __func__);
-                return hidd_conn_initiate();
+                hidd_conn_initiate();
             }
             return HID_SUCCESS;
         }
@@ -776,7 +772,7 @@ tHID_STATUS hidd_conn_send_data(uint8_t channel, uint8_t msg_type, uint8_t param
     }
 #endif
     HIDD_TRACE_VERBOSE("%s: report sent", __func__);
-    if (p_hcon->conn_flags & HID_CONN_FLAGS_CONGESTED || !L2CA_DataWrite(cid, p_buf))
+    if (!L2CA_DataWrite(cid, p_buf))
         return (HID_ERR_CONGESTED);
     return (HID_SUCCESS);
 }

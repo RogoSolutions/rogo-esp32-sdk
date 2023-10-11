@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef __BLUEDROID_USER_CONFIG_H__
 #define __BLUEDROID_USER_CONFIG_H__
@@ -10,7 +18,6 @@
 /* All the configuration from SDK defined here */
 #include "bt_common.h"
 #include "bt_user_config.h"
-#include "soc/soc_caps.h"
 
 /**********************************************************
  * Thread/Task reference
@@ -44,13 +51,6 @@
 #define UC_BT_SPP_ENABLED                   CONFIG_BT_SPP_ENABLED
 #else
 #define UC_BT_SPP_ENABLED                   FALSE
-#endif
-
-//L2CAP
-#ifdef CONFIG_BT_L2CAP_ENABLED
-#define UC_BT_L2CAP_ENABLED                   CONFIG_BT_L2CAP_ENABLED
-#else
-#define UC_BT_L2CAP_ENABLED                   FALSE
 #endif
 
 //HFP(AG)
@@ -95,13 +95,6 @@
 #define UC_BT_SSP_ENABLED                   FALSE
 #endif
 
-//BQB(BT)
-#ifdef CONFIG_BT_CLASSIC_BQB_ENABLED
-#define UC_BT_CLASSIC_BQB_ENABLED           CONFIG_BT_CLASSIC_BQB_ENABLED
-#else
-#define UC_BT_CLASSIC_BQB_ENABLED           FALSE
-#endif
-
 //BLE
 #ifdef CONFIG_BT_BLE_ENABLED
 #define UC_BT_BLE_ENABLED                   CONFIG_BT_BLE_ENABLED
@@ -112,11 +105,7 @@
 #ifdef CONFIG_BT_BLE_RPA_SUPPORTED
 #define UC_BT_BLE_RPA_SUPPORTED            CONFIG_BT_BLE_RPA_SUPPORTED
 #else
-#if SOC_BLE_DEVICE_PRIVACY_SUPPORTED
-#define UC_BT_BLE_RPA_SUPPORTED            TRUE
-#else
 #define UC_BT_BLE_RPA_SUPPORTED            FALSE
-#endif
 #endif
 
 #ifdef CONFIG_BT_BLE_50_FEATURES_SUPPORTED
@@ -129,24 +118,6 @@
 #define UC_BT_BLE_42_FEATURES_SUPPORTED            CONFIG_BT_BLE_42_FEATURES_SUPPORTED
 #else
 #define UC_BT_BLE_42_FEATURES_SUPPORTED            FALSE
-#endif
-
-#ifdef CONFIG_BT_BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER
-#define UC_BT_BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER            CONFIG_BT_BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER
-#else
-#define UC_BT_BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER            FALSE
-#endif
-
-#ifdef CONFIG_BT_BLE_FEAT_PERIODIC_ADV_ENH
-#define UC_BT_BLE_FEAT_PERIODIC_ADV_ENH            CONFIG_BT_BLE_FEAT_PERIODIC_ADV_ENH
-#else
-#define UC_BT_BLE_FEAT_PERIODIC_ADV_ENH            FALSE
-#endif
-
-#ifdef CONFIG_BT_BLE_HIGH_DUTY_ADV_INTERVAL
-#define UC_BT_BLE_HIGH_DUTY_ADV_INTERVAL CONFIG_BT_BLE_HIGH_DUTY_ADV_INTERVAL
-#else
-#define UC_BT_BLE_HIGH_DUTY_ADV_INTERVAL FALSE
 #endif
 
 //GATTS
@@ -164,12 +135,6 @@
 #endif
 
 //GATTC CACHE
-#ifdef CONFIG_BT_GATTC_MAX_CACHE_CHAR
-#define UC_BT_GATTC_MAX_CACHE_CHAR      CONFIG_BT_GATTC_MAX_CACHE_CHAR
-#else
-#define UC_BT_GATTC_MAX_CACHE_CHAR      40
-#endif
-
 #ifdef CONFIG_BT_GATTC_CACHE_NVS_FLASH
 #define UC_BT_GATTC_CACHE_NVS_FLASH_ENABLED    CONFIG_BT_GATTC_CACHE_NVS_FLASH
 #else
@@ -229,7 +194,7 @@
 
 #endif //CONFIG_IDF_TARGET_ESP32
 
-#if (CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32C6 || CONFIG_IDF_TARGET_ESP32H2 || CONFIG_IDF_TARGET_ESP32C2)
+#if (CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S3)
 //BTDM_BLE_ADV_REPORT_FLOW_CTRL_SUPP
 #ifdef CONFIG_BT_CTRL_BLE_ADV_REPORT_FLOW_CTRL_SUPP
 #define UC_BTDM_BLE_ADV_REPORT_FLOW_CTRL_SUPP  CONFIG_BT_CTRL_BLE_ADV_REPORT_FLOW_CTRL_SUPP
@@ -251,7 +216,7 @@
 #define UC_BTDM_BLE_ADV_REPORT_DISCARD_THRSHOLD     20
 #endif
 
-#endif //(CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32C6 || CONFIG_IDF_TARGET_ESP32H2 || CONFIG_IDF_TARGET_ESP32C2)
+#endif //(CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S3)
 
 //BT ACL CONNECTIONS
 #ifdef CONFIG_BT_ACL_CONNECTIONS
@@ -294,11 +259,6 @@
 #define UC_CONFIG_BT_GATT_MAX_SR_PROFILES       8
 #endif
 
-#ifdef CONFIG_BT_GATT_MAX_SR_ATTRIBUTES
-#define UC_CONFIG_BT_GATT_MAX_SR_ATTRIBUTES     CONFIG_BT_GATT_MAX_SR_ATTRIBUTES
-#else
-#define UC_CONFIG_BT_GATT_MAX_SR_ATTRIBUTES     100
-#endif
 
 #ifdef CONFIG_BT_GATTS_SEND_SERVICE_CHANGE_MODE
 #define UC_BT_GATTS_SEND_SERVICE_CHANGE_MODE    CONFIG_BT_GATTS_SEND_SERVICE_CHANGE_MODE
@@ -306,34 +266,10 @@
 #define UC_BT_GATTS_SEND_SERVICE_CHANGE_MODE    0
 #endif
 
-#ifdef CONFIG_BT_GATTS_ROBUST_CACHING_ENABLED
-#define UC_BT_GATTS_ROBUST_CACHING_ENABLED      CONFIG_BT_GATTS_ROBUST_CACHING_ENABLED
-#else
-#define UC_BT_GATTS_ROBUST_CACHING_ENABLED      FALSE
-#endif
-
-#ifdef CONFIG_BT_GATTS_DEVICE_NAME_WRITABLE
-#define UC_BT_GATTS_DEVICE_NAME_WRITABLE        CONFIG_BT_GATTS_DEVICE_NAME_WRITABLE
-#else
-#define UC_BT_GATTS_DEVICE_NAME_WRITABLE        FALSE
-#endif
-
-#ifdef CONFIG_BT_GATTS_APPEARANCE_WRITABLE
-#define UC_BT_GATTS_APPEARANCE_WRITABLE         CONFIG_BT_GATTS_APPEARANCE_WRITABLE
-#else
-#define UC_BT_GATTS_APPEARANCE_WRITABLE         FALSE
-#endif
-
 #ifdef CONFIG_BT_BLE_ACT_SCAN_REP_ADV_SCAN
 #define UC_BT_BLE_ACT_SCAN_REP_ADV_SCAN         CONFIG_BT_BLE_ACT_SCAN_REP_ADV_SCAN
 #else
 #define UC_BT_BLE_ACT_SCAN_REP_ADV_SCAN         FALSE
-#endif
-
-#ifdef CONFIG_BT_BLE_RPA_TIMEOUT
-#define UC_BT_BLE_RPA_TIMEOUT                   CONFIG_BT_BLE_RPA_TIMEOUT
-#else
-#define UC_BT_BLE_RPA_TIMEOUT                   900
 #endif
 
 //SCO VOICE OVER HCI

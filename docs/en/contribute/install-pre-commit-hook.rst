@@ -4,9 +4,9 @@ Install pre-commit Hook for ESP-IDF Project
 Required Dependency
 -------------------
 
-Python 3.7.* or above. This is our recommended python version for IDF developers.
+Python 3.6.1 or above. This is our recommendation python version for IDF developers.
 
-If you still have python versions not compatible, update your python versions before installing the pre-commit hook.
+If you still have python versions not compatible, please do not install pre-commit hook and update your python versions.
 
 Install pre-commit
 ------------------
@@ -32,14 +32,14 @@ What's More?
 
 For detailed usage, please refer to the documentation of pre-commit_.
 
-.. _pre-commit: https://pre-commit.com/
+.. _pre-commit: https://www.pre-commit.com/
 
 Common Problems For Windows Users
 ---------------------------------
 
 ``/usr/bin/env: python: Permission denied.``
 
-   If you're in Git Bash, please check the python executable location by run ``which python``.
+   If you're in Git Bash or MSYS terminal, please check the python executable location by run ``which python``.
 
    If the executable is under ``~/AppData/Local/Microsoft/WindowsApps/``, then it's a link to Windows AppStore, not a real one.
 
@@ -53,3 +53,6 @@ Your %USERPROFILE% contains non-ASCII characters
    - CMD: ``set PRE_COMMIT_HOME=C:\somepath\pre-commit``
    - PowerShell: ``$Env:PRE_COMMIT_HOME = "C:\somepath\pre-commit"``
    - git bash: ``export PRE_COMMIT_HOME="/c/somepath/pre-commit"``
+
+
+ 

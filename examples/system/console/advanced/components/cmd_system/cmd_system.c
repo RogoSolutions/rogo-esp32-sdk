@@ -10,13 +10,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <inttypes.h>
 #include <unistd.h>
 #include "esp_log.h"
 #include "esp_console.h"
-#include "esp_chip_info.h"
+#include "esp_system.h"
 #include "esp_sleep.h"
-#include "esp_flash.h"
+#include "esp_spi_flash.h"
 #include "driver/rtc_io.h"
 #include "driver/uart.h"
 #include "argtable3/argtable3.h"
@@ -40,7 +39,6 @@ static void register_light_sleep(void);
 #if WITH_TASKS_INFO
 static void register_tasks(void);
 #endif
-static void register_log_level(void);
 
 void register_system_common(void)
 {
@@ -51,7 +49,6 @@ void register_system_common(void)
 #if WITH_TASKS_INFO
     register_tasks();
 #endif
-    register_log_level();
 }
 
 void register_system_sleep(void)
@@ -69,49 +66,18 @@ void register_system(void)
 /* 'version' command */
 static int get_version(int argc, char **argv)
 {
-    const char *model;
     esp_chip_info_t info;
-    uint32_t flash_size;
     esp_chip_info(&info);
-
-    switch(info.model) {
-        case CHIP_ESP32:
-            model = "ESP32";
-            break;
-        case CHIP_ESP32S2:
-            model = "ESP32-S2";
-            break;
-        case CHIP_ESP32S3:
-            model = "ESP32-S3";
-            break;
-        case CHIP_ESP32C3:
-            model = "ESP32-C3";
-            break;
-        case CHIP_ESP32H2:
-            model = "ESP32-H2";
-            break;
-        case CHIP_ESP32C2:
-            model = "ESP32-C2";
-            break;
-        default:
-            model = "Unknown";
-            break;
-    }
-
-    if(esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
-        printf("Get flash size failed");
-        return 1;
-    }
     printf("IDF Version:%s\r\n", esp_get_idf_version());
     printf("Chip info:\r\n");
-    printf("\tmodel:%s\r\n", model);
+    printf("\tmodel:%s\r\n", info.model == CHIP_ESP32 ? "ESP32" : "Unknown");
     printf("\tcores:%d\r\n", info.cores);
-    printf("\tfeature:%s%s%s%s%"PRIu32"%s\r\n",
+    printf("\tfeature:%s%s%s%s%d%s\r\n",
            info.features & CHIP_FEATURE_WIFI_BGN ? "/802.11bgn" : "",
            info.features & CHIP_FEATURE_BLE ? "/BLE" : "",
            info.features & CHIP_FEATURE_BT ? "/BT" : "",
            info.features & CHIP_FEATURE_EMB_FLASH ? "/Embedded-Flash:" : "/External-Flash:",
-           flash_size / (1024 * 1024), " MB");
+           spi_flash_get_chip_size() / (1024 * 1024), " MB");
     printf("\trevision number:%d\r\n", info.revision);
     return 0;
 }
@@ -150,7 +116,7 @@ static void register_restart(void)
 
 static int free_mem(int argc, char **argv)
 {
-    printf("%"PRIu32"\n", esp_get_free_heap_size());
+    printf("%d\n", esp_get_free_heap_size());
     return 0;
 }
 
@@ -169,7 +135,7 @@ static void register_free(void)
 static int heap_size(int argc, char **argv)
 {
     uint32_t heap_size = heap_caps_get_minimum_free_size(MALLOC_CAP_DEFAULT);
-    printf("min heap size: %"PRIu32"\n", heap_size);
+    printf("min heap size: %u\n", heap_size);
     return 0;
 }
 
@@ -224,7 +190,7 @@ static void register_tasks(void)
 
 static struct {
     struct arg_int *wakeup_time;
-#if SOC_PM_SUPPORT_EXT0_WAKEUP || SOC_PM_SUPPORT_EXT1_WAKEUP
+#if SOC_PM_SUPPORT_EXT_WAKEUP
     struct arg_int *wakeup_gpio_num;
     struct arg_int *wakeup_gpio_level;
 #endif
@@ -245,7 +211,7 @@ static int deep_sleep(int argc, char **argv)
         ESP_ERROR_CHECK( esp_sleep_enable_timer_wakeup(timeout) );
     }
 
-#if SOC_PM_SUPPORT_EXT1_WAKEUP
+#if SOC_PM_SUPPORT_EXT_WAKEUP
     if (deep_sleep_args.wakeup_gpio_num->count) {
         int io_num = deep_sleep_args.wakeup_gpio_num->ival[0];
         if (!esp_sleep_is_valid_wakeup_gpio(io_num)) {
@@ -266,14 +232,13 @@ static int deep_sleep(int argc, char **argv)
         ESP_ERROR_CHECK( esp_sleep_enable_ext1_wakeup(1ULL << io_num, level) );
         ESP_LOGE(TAG, "GPIO wakeup from deep sleep currently unsupported on ESP32-C3");
     }
-#endif // SOC_PM_SUPPORT_EXT1_WAKEUP
+#endif // SOC_PM_SUPPORT_EXT_WAKEUP
 
 #if CONFIG_IDF_TARGET_ESP32
     rtc_gpio_isolate(GPIO_NUM_12);
 #endif //CONFIG_IDF_TARGET_ESP32
 
     esp_deep_sleep_start();
-    return 1;
 }
 
 static void register_deep_sleep(void)
@@ -281,7 +246,7 @@ static void register_deep_sleep(void)
     int num_args = 1;
     deep_sleep_args.wakeup_time =
         arg_int0("t", "time", "<t>", "Wake up time, ms");
-#if SOC_PM_SUPPORT_EXT0_WAKEUP || SOC_PM_SUPPORT_EXT1_WAKEUP
+#if SOC_PM_SUPPORT_EXT_WAKEUP
     deep_sleep_args.wakeup_gpio_num =
         arg_int0(NULL, "io", "<n>",
                  "If specified, wakeup using GPIO with given number");
@@ -294,7 +259,7 @@ static void register_deep_sleep(void)
     const esp_console_cmd_t cmd = {
         .command = "deep_sleep",
         .help = "Enter deep sleep mode. "
-#if SOC_PM_SUPPORT_EXT0_WAKEUP || SOC_PM_SUPPORT_EXT1_WAKEUP
+#if SOC_PM_SUPPORT_EXT_WAKEUP
         "Two wakeup modes are supported: timer and GPIO. "
 #else
         "Timer wakeup mode is supported. "
@@ -398,71 +363,6 @@ static void register_light_sleep(void)
         .hint = NULL,
         .func = &light_sleep,
         .argtable = &light_sleep_args
-    };
-    ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
-}
-
-/** log_level command changes log level via esp_log_level_set */
-
-static struct {
-    struct arg_str *tag;
-    struct arg_str *level;
-    struct arg_end *end;
-} log_level_args;
-
-static const char* s_log_level_names[] = {
-    "none",
-    "error",
-    "warn",
-    "info",
-    "debug",
-    "verbose"
-};
-
-static int log_level(int argc, char **argv)
-{
-    int nerrors = arg_parse(argc, argv, (void **) &log_level_args);
-    if (nerrors != 0) {
-        arg_print_errors(stderr, log_level_args.end, argv[0]);
-        return 1;
-    }
-    assert(log_level_args.tag->count == 1);
-    assert(log_level_args.level->count == 1);
-    const char* tag = log_level_args.tag->sval[0];
-    const char* level_str = log_level_args.level->sval[0];
-    esp_log_level_t level;
-    size_t level_len = strlen(level_str);
-    for (level = ESP_LOG_NONE; level <= ESP_LOG_VERBOSE; level++) {
-        if (memcmp(level_str, s_log_level_names[level], level_len) == 0) {
-            break;
-        }
-    }
-    if (level > ESP_LOG_VERBOSE) {
-        printf("Invalid log level '%s', choose from none|error|warn|info|debug|verbose\n", level_str);
-        return 1;
-    }
-    if (level > CONFIG_LOG_MAXIMUM_LEVEL) {
-        printf("Can't set log level to %s, max level limited in menuconfig to %s. "
-               "Please increase CONFIG_LOG_MAXIMUM_LEVEL in menuconfig.\n",
-               s_log_level_names[level], s_log_level_names[CONFIG_LOG_MAXIMUM_LEVEL]);
-        return 1;
-    }
-    esp_log_level_set(tag, level);
-    return 0;
-}
-
-static void register_log_level(void)
-{
-    log_level_args.tag = arg_str1(NULL, NULL, "<tag|*>", "Log tag to set the level for, or * to set for all tags");
-    log_level_args.level = arg_str1(NULL, NULL, "<none|error|warn|debug|verbose>", "Log level to set. Abbreviated words are accepted.");
-    log_level_args.end = arg_end(2);
-
-    const esp_console_cmd_t cmd = {
-        .command = "log_level",
-        .help = "Set log level for all tags or a specific tag.",
-        .hint = NULL,
-        .func = &log_level,
-        .argtable = &log_level_args
     };
     ESP_ERROR_CHECK( esp_console_cmd_register(&cmd) );
 }

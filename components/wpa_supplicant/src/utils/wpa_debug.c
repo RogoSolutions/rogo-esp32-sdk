@@ -1,9 +1,15 @@
 /*
  * wpa_supplicant/hostapd / Debug prints
- * Copyright (c) 2002-2013, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2007, Jouni Malinen <j@w1.fi>
  *
- * This software may be distributed under the terms of the BSD license.
- * See README for more details.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * Alternatively, this software may be distributed under the terms of BSD
+ * license.
+ *
+ * See README and COPYING for more details.
  */
 #ifdef ESP_SUPPLICANT
 #include "utils/includes.h"
@@ -54,7 +60,7 @@ int  wpa_snprintf_hex(char *buf, size_t buf_size, const u8 *data, size_t len)
 void  wpa_dump_mem(char* desc, uint8_t *addr, uint16_t len)
 {
     char output[50];
-    wpa_printf(MSG_DEBUG, "%s", desc);
+    wpa_printf(MSG_DEBUG, "%s\n", desc);
     if (addr){
         uint16_t i=0;
         for (i = 0; i < len / 16; i++) {
@@ -112,4 +118,16 @@ void  wpa_hexdump_key(int level, const char *title, const u8 *buf, size_t len)
 }
 #endif
 
+int  eloop_cancel_timeout(eloop_timeout_handler handler,
+			 void *eloop_data, void *user_data)
+{
+    return 0;
+}
+
+int  eloop_register_timeout(unsigned int secs, unsigned int usecs,
+			   eloop_timeout_handler handler,
+			   void *eloop_data, void *user_data)
+{
+    return 0;
+}
 #endif // ESP_SUPPLICANT

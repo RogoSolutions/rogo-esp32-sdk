@@ -16,8 +16,10 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 
+#if CONFIG_ESP_NETIF_TCPIP_LWIP
+
 #include <string.h>
-#include "sys/socket.h"
+#include "lwip/sockets.h"
 #include "esp_smartconfig.h"
 #include "smartconfig_ack.h"
 
@@ -90,7 +92,6 @@ static void sc_ack_send_task(void *pvParameters)
             port_bit = 0;
         }
         remote_port = SC_ACK_TOUCH_V2_SERVER_PORT(port_bit);
-        memset(remote_ip, 0xFF, sizeof(remote_ip));
     } else {
         remote_port = SC_ACK_AIRKISS_SERVER_PORT;
     }
@@ -102,7 +103,7 @@ static void sc_ack_send_task(void *pvParameters)
 
     esp_wifi_get_mac(WIFI_IF_STA, ack->ctx.mac);
 
-    vTaskDelay(200 / portTICK_PERIOD_MS);
+    vTaskDelay(200 / portTICK_RATE_MS);
 
     while (s_sc_ack_send) {
         /* Get local IP address of station */
@@ -164,28 +165,19 @@ static void sc_ack_send_task(void *pvParameters)
                     memcpy(remote_ip, &from.sin_addr, 4);
                     server_addr.sin_addr.s_addr = from.sin_addr.s_addr;
                 } else {
-                    server_addr.sin_addr.s_addr = INADDR_BROADCAST;
+                    goto _end;
                 }
             }
 
-            uint32_t ip_addr = server_addr.sin_addr.s_addr;
             while (s_sc_ack_send) {
                 /* Send smartconfig ACK every 100ms. */
-                vTaskDelay(100 / portTICK_PERIOD_MS);
+                vTaskDelay(100 / portTICK_RATE_MS);
 
-                if (ip_addr != INADDR_BROADCAST) {
-                    sendto(send_sock, &ack->ctx, ack_len, 0, (struct sockaddr*) &server_addr, sin_size);
-                    server_addr.sin_addr.s_addr = INADDR_BROADCAST;
-                    sendlen = sendto(send_sock, &ack->ctx, ack_len, 0, (struct sockaddr*) &server_addr, sin_size);
-                    server_addr.sin_addr.s_addr = ip_addr;
-                } else {
-                    sendlen = sendto(send_sock, &ack->ctx, ack_len, 0, (struct sockaddr*) &server_addr, sin_size);
-                }
-
+                sendlen = sendto(send_sock, &ack->ctx, ack_len, 0, (struct sockaddr*) &server_addr, sin_size);
                 if (sendlen <= 0) {
                     err = sc_ack_send_get_errno(send_sock);
                     ESP_LOGD(TAG, "send failed, errno %d", err);
-                    vTaskDelay(100 / portTICK_PERIOD_MS);
+                    vTaskDelay(100 / portTICK_RATE_MS);
                 }
 
                 /*  Send 30 smartconfig ACKs. Then smartconfig is successful. */
@@ -196,7 +188,7 @@ static void sc_ack_send_task(void *pvParameters)
             }
         }
         else {
-            vTaskDelay((TickType_t)(100 / portTICK_PERIOD_MS));
+            vTaskDelay((portTickType)(100 / portTICK_RATE_MS));
         }
     }
 
@@ -239,3 +231,5 @@ void sc_send_ack_stop(void)
 {
     s_sc_ack_send = false;
 }
+
+#endif

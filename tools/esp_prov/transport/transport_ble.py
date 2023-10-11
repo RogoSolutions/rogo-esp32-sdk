@@ -1,5 +1,16 @@
-# SPDX-FileCopyrightText: 2018-2022 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2018 Espressif Systems (Shanghai) PTE LTD
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 
 from __future__ import print_function
@@ -9,10 +20,7 @@ from .transport import Transport
 
 
 class Transport_BLE(Transport):
-    def __init__(self, service_uuid, nu_lookup):
-        self.nu_lookup = nu_lookup
-        self.service_uuid = service_uuid
-        self.name_uuid_lookup = None
+    def __init__(self, devname, service_uuid, nu_lookup):
         # Expect service UUID like '0000ffff-0000-1000-8000-00805f9b34fb'
         for name in nu_lookup.keys():
             # Calculate characteristic UUID for each endpoint
@@ -22,11 +30,10 @@ class Transport_BLE(Transport):
         # Get BLE client module
         self.cli = ble_cli.get_client()
 
-    async def connect(self, devname):
         # Use client to connect to BLE device and bind to service
-        if not await self.cli.connect(devname=devname, iface='hci0',
-                                      chrc_names=self.nu_lookup.keys(),
-                                      fallback_srv_uuid=self.service_uuid):
+        if not self.cli.connect(devname=devname, iface='hci0',
+                                chrc_names=nu_lookup.keys(),
+                                fallback_srv_uuid=service_uuid):
             raise RuntimeError('Failed to initialize transport')
 
         # Irrespective of provided parameters, let the client
@@ -36,17 +43,24 @@ class Transport_BLE(Transport):
 
         # If that doesn't work, use the lookup table provided as parameter
         if self.name_uuid_lookup is None:
-            self.name_uuid_lookup = self.nu_lookup
+            self.name_uuid_lookup = nu_lookup
             # Check if expected characteristics are provided by the service
             for name in self.name_uuid_lookup.keys():
                 if not self.cli.has_characteristic(self.name_uuid_lookup[name]):
-                    raise RuntimeError(f"'{name}' endpoint not found")
+                    raise RuntimeError("'" + name + "' endpoint not found")
 
-    async def disconnect(self):
-        await self.cli.disconnect()
+    def __del__(self):
+        # Make sure device is disconnected before application gets closed
+        try:
+            self.disconnect()
+        except Exception:
+            pass
 
-    async def send_data(self, ep_name, data):
+    def disconnect(self):
+        self.cli.disconnect()
+
+    def send_data(self, ep_name, data):
         # Write (and read) data to characteristic corresponding to the endpoint
         if ep_name not in self.name_uuid_lookup.keys():
-            raise RuntimeError(f'Invalid endpoint: {ep_name}')
-        return await self.cli.send_data(self.name_uuid_lookup[ep_name], data)
+            raise RuntimeError('Invalid endpoint : ' + ep_name)
+        return self.cli.send_data(self.name_uuid_lookup[ep_name], data)

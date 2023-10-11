@@ -27,6 +27,7 @@
 #include "hci/hci_packet_factory.h"
 
 
+static BT_HDR *make_packet(size_t data_size);
 static BT_HDR *make_command_no_params(uint16_t opcode);
 static BT_HDR *make_command(uint16_t opcode, size_t parameter_size, uint8_t **stream_out);
 
@@ -233,9 +234,7 @@ static BT_HDR *make_command_no_params(uint16_t opcode)
 
 static BT_HDR *make_command(uint16_t opcode, size_t parameter_size, uint8_t **stream_out)
 {
-    BT_HDR *packet = HCI_GET_CMD_BUF(parameter_size);
-    hci_cmd_metadata_t *metadata = HCI_GET_CMD_METAMSG(packet);
-    metadata->opcode = opcode;
+    BT_HDR *packet = make_packet(HCI_COMMAND_PREAMBLE_SIZE + parameter_size);
 
     uint8_t *stream = packet->data;
     UINT16_TO_STREAM(stream, opcode);
@@ -246,6 +245,17 @@ static BT_HDR *make_command(uint16_t opcode, size_t parameter_size, uint8_t **st
     }
 
     return packet;
+}
+
+static BT_HDR *make_packet(size_t data_size)
+{
+    BT_HDR *ret = (BT_HDR *)osi_calloc(sizeof(BT_HDR) + data_size);
+    assert(ret);
+    ret->event = 0;
+    ret->offset = 0;
+    ret->layer_specific = 0;
+    ret->len = data_size;
+    return ret;
 }
 
 static const hci_packet_factory_t interface = {

@@ -50,10 +50,6 @@
  */
 #include <machine/endian.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
  * General byte order swapping functions.
  */
@@ -202,7 +198,3 @@ le64enc(void *pp, uint64_t u)
 	le32enc(p, (uint32_t)(u & 0xffffffffU));
 	le32enc(p + 4, (uint32_t)(u >> 32));
 }
-
-#ifdef __cplusplus
-}
-#endif

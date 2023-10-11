@@ -57,26 +57,35 @@ esp_err_t esp_apptrace_tmo_check(esp_apptrace_tmo_t *tmo)
 
 esp_err_t esp_apptrace_lock_take(esp_apptrace_lock_t *lock, esp_apptrace_tmo_t *tmo)
 {
-    esp_err_t ret;
+    int res;
 
     while (1) {
-        // Try enter a critical section (i.e., take the spinlock) with 0 timeout
-        if (portTRY_ENTER_CRITICAL(&(lock->mux), 0) == pdTRUE) {
+        //Todo: Replace the current locking mechanism and int_state with portTRY_ENTER_CRITICAL() instead.
+        // do not overwrite lock->int_state before we actually acquired the mux
+        unsigned int_state = portSET_INTERRUPT_MASK_FROM_ISR();
+        bool success = vPortCPUAcquireMutexTimeout(&lock->mux, 0);
+        if (success) {
+            lock->int_state = int_state;
             return ESP_OK;
         }
-        // Failed to enter the critical section, so interrupts are still enabled. Check if we have timed out.
-        ret = esp_apptrace_tmo_check(tmo);
-        if (ret != ESP_OK) {
-            break;  // Timed out, exit now
+        portCLEAR_INTERRUPT_MASK_FROM_ISR(int_state);
+        // we can be preempted from this place till the next call (above) to portSET_INTERRUPT_MASK_FROM_ISR()
+        res = esp_apptrace_tmo_check(tmo);
+        if (res != ESP_OK) {
+            break;
         }
-        // Haven't timed out, try again
     }
-    return ret;
+    return res;
 }
 
 esp_err_t esp_apptrace_lock_give(esp_apptrace_lock_t *lock)
 {
-    portEXIT_CRITICAL(&(lock->mux));
+    // save lock's irq state value for this CPU
+    unsigned int_state = lock->int_state;
+    // after call to the following func we can not be sure that lock->int_state
+    // is not overwritten by other CPU who has acquired the mux just after we released it. See esp_apptrace_lock_take().
+    vPortCPUReleaseMutex(&lock->mux);
+    portCLEAR_INTERRUPT_MASK_FROM_ISR(int_state);
     return ESP_OK;
 }
 

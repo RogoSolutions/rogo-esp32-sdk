@@ -32,7 +32,7 @@
 #include <string.h>
 #include "esp_system.h"
 #include "esp_rom_sys.h"
-#include "esp_cpu.h"
+#include "hal/cpu_hal.h"
 
 
 struct source_location {
@@ -118,28 +118,28 @@ static void __ubsan_default_handler(struct source_location *loc, const char *fun
  * with the following signatures. The functions are never called directly,
  * only when undefined behavior is detected in instrumented code.
  */
-void __ubsan_handle_type_mismatch(void *data_, void *ptr_);
-void __ubsan_handle_type_mismatch_v1(void *data_, void *ptr_);
-void __ubsan_handle_add_overflow(void *data_, void *lhs_, void *rhs_);
-void __ubsan_handle_sub_overflow(void *data_, void *lhs_, void *rhs_);
-void __ubsan_handle_mul_overflow(void *data_, void *lhs_, void *rhs_);
-void __ubsan_handle_negate_overflow(void *data_, void *old_val_);
-void __ubsan_handle_divrem_overflow(void *data_, void *lhs_, void *rhs_);
-void __ubsan_handle_shift_out_of_bounds(void *data_, void *lhs_, void *rhs_);
-void __ubsan_handle_out_of_bounds(void *data_, void *idx_);
-void __ubsan_handle_missing_return(void *data_);
-void __ubsan_handle_vla_bound_not_positive(void *data_, void *bound_);
-void __ubsan_handle_load_invalid_value(void *data_, void *val_);
-void __ubsan_handle_nonnull_arg(void *data_);
-void __ubsan_handle_nonnull_return(void *data_);
-void __ubsan_handle_builtin_unreachable(void *data_);
-void __ubsan_handle_pointer_overflow(void *data_, void *base_, void *result_);
-void __ubsan_handle_invalid_builtin(void *data_);
+void __ubsan_handle_type_mismatch(struct type_mismatch_data *data, unsigned long ptr);
+void __ubsan_handle_type_mismatch_v1(struct type_mismatch_data_v1 *data, unsigned long ptr);
+void __ubsan_handle_add_overflow(struct overflow_data *data, unsigned long lhs, unsigned long rhs);
+void __ubsan_handle_sub_overflow(struct overflow_data *data, unsigned long lhs, unsigned long rhs);
+void __ubsan_handle_mul_overflow(struct overflow_data *data, unsigned long lhs, unsigned long rhs);
+void __ubsan_handle_negate_overflow(struct overflow_data *data, unsigned long old_val);
+void __ubsan_handle_divrem_overflow(struct overflow_data *data, unsigned long lhs, unsigned long rhs);
+void __ubsan_handle_shift_out_of_bounds(struct shift_out_of_bounds_data *data, unsigned long lhs, unsigned long rhs);
+void __ubsan_handle_out_of_bounds(struct out_of_bounds_data *data, unsigned long idx);
+void __ubsan_handle_missing_return(struct unreachable_data *data);
+void __ubsan_handle_vla_bound_not_positive(struct vla_bound_data *data, unsigned long bound);
+void __ubsan_handle_load_invalid_value(struct invalid_value_data *data, unsigned long val);
+void __ubsan_handle_nonnull_arg(struct nonnull_arg_data *data);
+void __ubsan_handle_nonnull_return(struct nonnull_return_data *data);
+void __ubsan_handle_builtin_unreachable(struct unreachable_data *data);
+void __ubsan_handle_pointer_overflow(struct pointer_overflow_data *data,
+                                     unsigned long base, unsigned long result);
 
 static void __ubsan_maybe_debugbreak(void)
 {
-    if (esp_cpu_dbgr_is_attached()) {
-        esp_cpu_dbgr_break();
+    if (cpu_hal_is_debugger_attached()) {
+        cpu_hal_break();
     }
 }
 
@@ -166,72 +166,63 @@ static void __ubsan_default_handler(struct source_location *loc, const char *fun
     esp_system_abort(msg);
 }
 
-void __ubsan_handle_type_mismatch(void *data_,
-                                  void *ptr_)
+void __ubsan_handle_type_mismatch(struct type_mismatch_data *data,
+                                  unsigned long ptr)
 {
-    struct type_mismatch_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_type_mismatch_v1(void *data_,
-                                     void *ptr)
+void __ubsan_handle_type_mismatch_v1(struct type_mismatch_data_v1 *data,
+                                     unsigned long ptr)
 {
-    struct type_mismatch_data_v1 *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_add_overflow(void *data_,
-                                 void *lhs_,
-                                 void *rhs_)
+void __ubsan_handle_add_overflow(struct overflow_data *data,
+                                 unsigned long lhs,
+                                 unsigned long rhs)
 {
-    struct overflow_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_sub_overflow(void *data_,
-                                 void *lhs_,
-                                 void *rhs_)
+void __ubsan_handle_sub_overflow(struct overflow_data *data,
+                                 unsigned long lhs,
+                                 unsigned long rhs)
 {
-    struct overflow_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_mul_overflow(void *data_,
-                                 void *lhs_,
-                                 void *rhs_)
+void __ubsan_handle_mul_overflow(struct overflow_data *data,
+                                 unsigned long lhs,
+                                 unsigned long rhs)
 {
-    struct overflow_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_negate_overflow(void *data_,
-                                    void *old_val_)
+void __ubsan_handle_negate_overflow(struct overflow_data *data,
+                                    unsigned long old_val)
 {
-    struct overflow_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_divrem_overflow(void *data_,
-                                    void *lhs_,
-                                    void *rhs_)
+void __ubsan_handle_divrem_overflow(struct overflow_data *data,
+                                    unsigned long lhs,
+                                    unsigned long rhs)
 {
-    struct overflow_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_shift_out_of_bounds(void *data_,
-                                        void *lhs_,
-                                        void *rhs_)
+void __ubsan_handle_shift_out_of_bounds(struct shift_out_of_bounds_data *data,
+                                        unsigned long lhs,
+                                        unsigned long rhs)
 {
-    struct shift_out_of_bounds_data *data = data_;
-    unsigned int rhs = (unsigned int)rhs_;
     if (rhs == 32) {
         return;
     }
@@ -239,70 +230,60 @@ void __ubsan_handle_shift_out_of_bounds(void *data_,
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_out_of_bounds(void *data_,
-                                  void *idx_)
+void __ubsan_handle_out_of_bounds(struct out_of_bounds_data *data,
+                                  unsigned long idx)
 {
-    struct out_of_bounds_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_missing_return(void *data_)
+void __ubsan_handle_missing_return(struct unreachable_data *data)
 {
-    struct unreachable_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_vla_bound_not_positive(void *data_,
-                                           void *bound_)
+void __ubsan_handle_vla_bound_not_positive(struct vla_bound_data *data,
+        unsigned long bound)
 {
-    struct vla_bound_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_load_invalid_value(void *data_,
-                                       void *val_)
+void __ubsan_handle_load_invalid_value(struct invalid_value_data *data,
+                                       unsigned long val)
 {
-    struct invalid_value_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_nonnull_arg(void *data_)
+void __ubsan_handle_nonnull_arg(struct nonnull_arg_data *data)
 {
-    struct nonnull_arg_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_nonnull_return(void *data_)
+void __ubsan_handle_nonnull_return(struct nonnull_return_data *data)
 {
-    struct nonnull_return_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_builtin_unreachable(void *data_)
+void __ubsan_handle_builtin_unreachable(struct unreachable_data *data)
 {
-    struct unreachable_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_pointer_overflow(void *data_,
-                                     void *base_,
-                                     void *result_)
+void __ubsan_handle_pointer_overflow(struct pointer_overflow_data *data,
+                                     unsigned long base, unsigned long result)
 {
-    struct pointer_overflow_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }
 
-void __ubsan_handle_invalid_builtin(void *data_)
+void __ubsan_handle_invalid_builtin(struct invalid_builtin_data *data)
 {
-    struct invalid_builtin_data *data = data_;
     __ubsan_maybe_debugbreak();
     __ubsan_default_handler(&data->loc, __func__);
 }

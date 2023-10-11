@@ -8,6 +8,7 @@
 #include "nvs_flash.h"
 #include "freertos/FreeRTOSConfig.h"
 /* BLE */
+#include "esp_nimble_hci.h"
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
 #include "host/ble_hs.h"
@@ -185,16 +186,16 @@ notify_task(void *arg)
 
                 /* Check if the MBUFs are available */
                 if (os_msys_num_free() >= MIN_REQUIRED_MBUF) {
-                    do {
+                    om = ble_hs_mbuf_from_flat(payload, sizeof(payload));
+                    if (om == NULL) {
+                        /* Memory not available for mbuf */
+                        ESP_LOGE(tag, "No MBUFs available from pool, retry..");
+                        vTaskDelay(100 / portTICK_PERIOD_MS);
                         om = ble_hs_mbuf_from_flat(payload, sizeof(payload));
-                        if (om == NULL) {
-                            /* Memory not available for mbuf */
-                            ESP_LOGE(tag, "No MBUFs available from pool, retry..");
-                            vTaskDelay(100 / portTICK_PERIOD_MS);
-                        }
-                    } while (om == NULL);
+                        assert(om != NULL);
+                    }
 
-                    rc = ble_gatts_notify_custom(conn_handle, notify_handle, om);
+                    rc = ble_gattc_notify_custom(conn_handle, notify_handle, om);
                     if (rc != 0) {
                         ESP_LOGE(tag, "Error while sending notification; rc = %d", rc);
                         notify_count -= 1;
@@ -210,7 +211,6 @@ notify_task(void *arg)
                     ESP_LOGE(tag, "Not enough OS_MBUFs available; reduce notify count ");
                     xSemaphoreGive(notify_sem);
                     notify_count -= 1;
-                    vTaskDelay(10 / portTICK_PERIOD_MS);
                 }
 
                 end_time = esp_timer_get_time();
@@ -371,13 +371,9 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+    ESP_ERROR_CHECK(esp_nimble_hci_and_controller_init());
 
-    ret = nimble_port_init();
-    if (ret != ESP_OK) {
-        ESP_LOGE(tag, "Failed to init nimble %d ", ret);
-        return;
-    }
-
+    nimble_port_init();
     /* Initialize the NimBLE host configuration */
     ble_hs_cfg.sync_cb = gatts_on_sync;
     ble_hs_cfg.reset_cb = gatts_on_reset;

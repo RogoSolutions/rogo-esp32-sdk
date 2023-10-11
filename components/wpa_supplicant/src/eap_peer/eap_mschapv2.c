@@ -10,9 +10,11 @@
 #ifdef EAP_MSCHAPv2
 
 #include "rsn_supp/wpa.h"
+#include "utils/includes.h"
+#include "utils/common.h"
 #include "crypto/random.h"
 #include "crypto/ms_funcs.h"
-#include "crypto/tls.h"
+#include "tls/tls.h"
 #include "eap_peer/eap_i.h"
 #include "eap_peer/eap_defs.h"
 #include "eap_peer/eap_tls_common.h"
@@ -140,7 +142,7 @@ eap_mschapv2_challenge_reply(
 	const u8 *identity, *password;
 	int pwhash;
 
-	wpa_printf(MSG_DEBUG, "EAP-MSCHAPV2: Generate Challenge Response");
+	wpa_printf(MSG_DEBUG, "EAP-MSCHAPV2: Generate Challenge Response\n");
 
 	identity = eap_get_config_identity(sm, &identity_len);
 	password = eap_get_config_password2(sm, &password_len, &pwhash);
@@ -671,13 +673,13 @@ static int eap_mschapv2_check_config(struct eap_sm *sm)
 
 	if (config->identity == NULL ||
 	    config->identity_len == 0) {
-		wpa_printf(MSG_ERROR, "EAP-MSCHAPV2: idetity not configured");
+		wpa_printf(MSG_ERROR, "EAP-MSCHAPV2: idetity not configured\n");
 		return -1;
 	}
 
 	if (config->password == NULL ||
 	    config->password_len == 0) {
-		wpa_printf(MSG_ERROR, "EAP-MSCHAPV2: Password not configured");
+		wpa_printf(MSG_ERROR, "EAP-MSCHAPV2: Password not configured\n");
 		return -1;
 	}
 
@@ -704,7 +706,7 @@ static int eap_mschapv2_check_mslen(struct eap_sm *sm, size_t len,
 			   (unsigned long) len);
 		return 0;
 	}
-	wpa_printf(MSG_ERROR, "EAP-MSCHAPV2: Invalid header len=%lu ms_len=%lu",
+	wpa_printf(MSG_ERROR, "EAP-MSCHAPV2: Invalid header len=%lu ms_len=%lu\n",
 		  (unsigned long)len, (unsigned long)ms_len);
 
 	return -1;
@@ -786,7 +788,7 @@ static struct wpabuf * eap_mschapv2_process(struct eap_sm *sm, void *priv,
 	case MSCHAPV2_OP_FAILURE:
 		return eap_mschapv2_failure(sm, data, ret, ms, len, id);
 	default:
-		wpa_printf(MSG_ERROR, "EAP-MSCHAPV2: Unknown op code %d - ignored",
+		wpa_printf(MSG_ERROR, "EAP-MSCHAPV2: Unknown op code %d - ignored\n",
 			  ms->op_code);
 		ret->ignore = TRUE;
 		return NULL;

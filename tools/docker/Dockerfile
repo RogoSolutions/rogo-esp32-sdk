@@ -2,6 +2,7 @@ FROM ubuntu:20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+# We need libpython2.7 due to GDB tools
 RUN : \
   && apt-get update \
   && apt-get install -y \
@@ -13,18 +14,16 @@ RUN : \
     curl \
     flex \
     git \
-    git-lfs \
     gperf \
     lcov \
-    libbsd-dev \
     libffi-dev \
     libncurses-dev \
+    libpython2.7 \
     libusb-1.0-0-dev \
     make \
     ninja-build \
     python3 \
-    python3-venv \
-    ruby \
+    python3-pip \
     unzip \
     wget \
     xz-utils \
@@ -32,6 +31,9 @@ RUN : \
   && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/* \
   && update-alternatives --install /usr/bin/python python /usr/bin/python3 10 \
+  && python -m pip install --upgrade \
+    pip \
+    virtualenv \
   && :
 
 # To build the image for a branch or a tag of IDF, pass --build-arg IDF_CLONE_BRANCH_OR_TAG=name.
@@ -50,14 +52,6 @@ ARG IDF_INSTALL_TARGETS=all
 
 ENV IDF_PATH=/opt/esp/idf
 ENV IDF_TOOLS_PATH=/opt/esp
-
-# install build essential needed for linux target apps, which is a preview target so it is installed with "all" only
-RUN if [ "$IDF_INSTALL_TARGETS" = "all" ]; then \
-    apt-get update \
-    && apt-get install -y build-essential \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/* ; \
-  fi
 
 RUN echo IDF_CHECKOUT_REF=$IDF_CHECKOUT_REF IDF_CLONE_BRANCH_OR_TAG=$IDF_CLONE_BRANCH_OR_TAG && \
     git clone --recursive \
@@ -82,33 +76,9 @@ RUN : \
   && rm -rf $IDF_TOOLS_PATH/dist \
   && :
 
-# The constraint file has been downloaded and the right Python package versions installed. No need to check and
-# download this at every invocation of the container.
-ENV IDF_PYTHON_CHECK_CONSTRAINTS=no
-
 # Ccache is installed, enable it by default
 ENV IDF_CCACHE_ENABLE=1
-
-# Install QEMU runtime dependencies
-RUN : \
-  && apt-get update && apt-get install -y -q \
-    libglib2.0-0 \
-    libpixman-1-0 \
-  && rm -rf /var/lib/apt/lists/* \
-  && :
-
-# Install QEMU
-ARG QEMU_VER=esp-develop-20220919
-ARG QEMU_DIST=qemu-${QEMU_VER}.tar.bz2
-ARG QEMU_SHA256=f6565d3f0d1e463a63a7f81aec94cce62df662bd42fc7606de4b4418ed55f870
-RUN : \
-  && wget --no-verbose https://github.com/espressif/qemu/releases/download/${QEMU_VER}/${QEMU_DIST} \
-  && echo "${QEMU_SHA256} *${QEMU_DIST}" | sha256sum --check --strict - \
-  && tar -xf ${QEMU_DIST} -C /opt \
-  && rm ${QEMU_DIST} \
-  && :
-ENV PATH=/opt/qemu/bin:${PATH}
-
 COPY entrypoint.sh /opt/esp/entrypoint.sh
+
 ENTRYPOINT [ "/opt/esp/entrypoint.sh" ]
 CMD [ "/bin/bash" ]

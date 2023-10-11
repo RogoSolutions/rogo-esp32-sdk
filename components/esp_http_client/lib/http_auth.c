@@ -9,12 +9,13 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "sys/socket.h"
+#include "esp_netif.h"
+#include "lwip/sockets.h"
 #include "esp_rom_md5.h"
 #include "esp_tls_crypto.h"
 
+#include "esp_system.h"
 #include "esp_log.h"
-#include "esp_check.h"
 
 #include "http_utils.h"
 #include "http_auth.h"
@@ -37,7 +38,7 @@ static int md5_printf(char *md, const char *fmt, ...)
     unsigned char *buf;
     unsigned char digest[MD5_MAX_LEN];
     int len, i;
-    md5_context_t md5_ctx;
+    struct MD5Context md5_ctx;
     va_list ap;
     va_start(ap, fmt);
     len = vasprintf((char **)&buf, fmt, ap);
@@ -65,7 +66,6 @@ char *http_auth_digest(const char *username, const char *password, esp_http_auth
     char *digest = NULL;
     char *auth_str = NULL;
     char *temp_auth_str = NULL;
-    esp_err_t ret = ESP_OK;
 
     if (username == NULL ||
         password == NULL ||
@@ -76,13 +76,13 @@ char *http_auth_digest(const char *username, const char *password, esp_http_auth
     }
 
     ha1 = calloc(1, MD5_MAX_LEN);
-    ESP_GOTO_ON_FALSE(ha1, ESP_FAIL, _digest_exit, TAG, "Memory exhausted");
+    HTTP_MEM_CHECK(TAG, ha1, goto _digest_exit);
 
     ha2 = calloc(1, MD5_MAX_LEN);
-    ESP_GOTO_ON_FALSE(ha2, ESP_FAIL, _digest_exit, TAG, "Memory exhausted");
+    HTTP_MEM_CHECK(TAG, ha2, goto _digest_exit);
 
     digest = calloc(1, MD5_MAX_LEN);
-    ESP_GOTO_ON_FALSE(digest, ESP_FAIL, _digest_exit, TAG, "Memory exhausted");
+    HTTP_MEM_CHECK(TAG, digest, goto _digest_exit);
 
     if (md5_printf(ha1, "%s:%s:%s", username, auth_data->realm, password) <= 0) {
         goto _digest_exit;
@@ -116,49 +116,35 @@ char *http_auth_digest(const char *username, const char *password, esp_http_auth
             goto _digest_exit;
         }
     }
-    int rc = asprintf(&auth_str, "Digest username=\"%s\", realm=\"%s\", nonce=\"%s\", uri=\"%s\", algorithm=\"MD5\", "
-             "response=\"%s\", qop=%s, nc=%08x, cnonce=%016"PRIx64,
+    asprintf(&auth_str, "Digest username=\"%s\", realm=\"%s\", nonce=\"%s\", uri=\"%s\", algorithm=\"MD5\", "
+             "response=\"%s\", qop=%s, nc=%08x, cnonce=\"%016llx\"",
              username, auth_data->realm, auth_data->nonce, auth_data->uri, digest, auth_data->qop, auth_data->nc, auth_data->cnonce);
-    if (rc < 0) {
-        ESP_LOGE(TAG, "asprintf() returned: %d", rc);
-        ret = ESP_FAIL;
-        goto _digest_exit;
-    }
     if (auth_data->opaque) {
-        rc = asprintf(&temp_auth_str, "%s, opaque=\"%s\"", auth_str, auth_data->opaque);
-        // Free the previous memory allocated for `auth_str`
+        asprintf(&temp_auth_str, "%s, opaque=\"%s\"", auth_str, auth_data->opaque);
         free(auth_str);
-        if (rc < 0) {
-            ESP_LOGE(TAG, "asprintf() returned: %d", rc);
-            ret = ESP_FAIL;
-            goto _digest_exit;
-        }
         auth_str = temp_auth_str;
     }
 _digest_exit:
     free(ha1);
     free(ha2);
     free(digest);
-    return (ret == ESP_OK) ? auth_str : NULL;
+    return auth_str;
 }
 
 char *http_auth_basic(const char *username, const char *password)
 {
-    size_t out;
+    int out;
     char *user_info = NULL;
     char *digest = NULL;
-    esp_err_t ret = ESP_OK;
     size_t n = 0;
-    if (asprintf(&user_info, "%s:%s", username, password) < 0) {
-        return NULL;
-    }
-    ESP_RETURN_ON_FALSE(user_info, NULL, TAG, "Memory exhausted");
+    asprintf(&user_info, "%s:%s", username, password);
+    HTTP_MEM_CHECK(TAG, user_info, return NULL);
     esp_crypto_base64_encode(NULL, 0, &n, (const unsigned char *)user_info, strlen(user_info));
     digest = calloc(1, 6 + n + 1);
-    ESP_GOTO_ON_FALSE(digest, ESP_FAIL, _basic_exit, TAG, "Memory exhausted");
+    HTTP_MEM_CHECK(TAG, digest, goto _basic_exit);
     strcpy(digest, "Basic ");
-    esp_crypto_base64_encode((unsigned char *)digest + 6, n, &out, (const unsigned char *)user_info, strlen(user_info));
+    esp_crypto_base64_encode((unsigned char *)digest + 6, n, (size_t *)&out, (const unsigned char *)user_info, strlen(user_info));
 _basic_exit:
     free(user_info);
-    return (ret == ESP_OK) ? digest : NULL;
+    return digest;
 }

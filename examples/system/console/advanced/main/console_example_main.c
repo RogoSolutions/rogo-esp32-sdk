@@ -27,10 +27,6 @@
 #error This example is incompatible with USB CDC console. Please try "console_usb" example instead.
 #endif // CONFIG_ESP_CONSOLE_USB_CDC
 
-#ifdef CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
-#error This example is incompatible with USB serial JTAG console.
-#endif // CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
-
 static const char* TAG = "example";
 #define PROMPT_STR CONFIG_IDF_TARGET
 
@@ -50,7 +46,7 @@ static void initialize_filesystem(void)
             .max_files = 4,
             .format_if_mount_failed = true
     };
-    esp_err_t err = esp_vfs_fat_spiflash_mount_rw_wl(MOUNT_PATH, "storage", &mount_config, &wl_handle);
+    esp_err_t err = esp_vfs_fat_spiflash_mount(MOUNT_PATH, "storage", &mount_config, &wl_handle);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(err));
         return;
@@ -90,9 +86,9 @@ static void initialize_console(void)
             .data_bits = UART_DATA_8_BITS,
             .parity = UART_PARITY_DISABLE,
             .stop_bits = UART_STOP_BITS_1,
-#if SOC_UART_SUPPORT_REF_TICK
+#if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32S2
         .source_clk = UART_SCLK_REF_TICK,
-#elif SOC_UART_SUPPORT_XTAL_CLK
+#else
         .source_clk = UART_SCLK_XTAL,
 #endif
     };

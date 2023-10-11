@@ -4,16 +4,6 @@
 .. before processing :start-after: and :end-before: options.
 
 
-.. tool-xtensa-esp-elf-gdb-notes
-
-
----
-
-.. tool-riscv32-esp-elf-gdb-notes
-
-
----
-
 .. tool-xtensa-esp32-elf-notes
 
 
@@ -39,6 +29,11 @@
 
 ---
 
+.. tool-esp32s2ulp-elf-notes
+
+
+---
+
 .. tool-openocd-esp32-notes
 
 
@@ -50,7 +45,7 @@ On Linux and macOS, it is recommended to install CMake using the OS package mana
 
 ---
 
-.. tool-esp-clang-notes
+.. tool-xtensa-clang-notes
 
 
 ---
@@ -72,11 +67,6 @@ On Linux and macOS, it is recommended to install ninja using the OS package mana
 ---
 
 .. tool-dfu-util-notes
-
-
----
-
-.. tool-esp-rom-elfs-notes
 
 
 ---

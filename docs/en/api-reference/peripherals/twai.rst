@@ -3,25 +3,30 @@ Two-Wire Automotive Interface (TWAI)
 
 .. -------------------------------- Overview -----------------------------------
 
-.. only:: esp32c6
-
-	.. warning::
-		{IDF_TARGET_NAME} has {IDF_TARGET_SOC_TWAI_CONTROLLER_NUM} TWAI controllers, but at the moment, the driver can only support ``TWAI0`` due to the limitation of the driver structure.
-
 Overview
 --------
 
-The Two-Wire Automotive Interface (TWAI) is a real-time serial communication protocol suited for automotive and industrial applications. It is compatible with ISO11898-1 Classical frames, thus can support Standard Frame Format (11-bit ID) and Extended Frame Format (29-bit ID). The {IDF_TARGET_NAME} contains {IDF_TARGET_CONFIG_SOC_TWAI_CONTROLLER_NUM} TWAI controller(s) that can be configured to communicate on a TWAI bus via an external transceiver.
+The Two-Wire Automotive Interface (TWAI) is a real-time serial communication protocol suited for automotive and industrial applications. It is compatible with ISO11898-1 Classical frames, thus can support Standard Frame Format (11-bit ID) and Extended Frame Format (29-bit ID). The {IDF_TARGET_NAME}'s peripherals contains a TWAI controller that can be configured to communicate on a TWAI bus via an external transceiver.
 
 .. warning::
     The TWAI controller is not compatible with ISO11898-1 FD Format frames, and will interpret such frames as errors.
 
 This programming guide is split into the following sections:
 
-.. contents:: Sections
-  :depth: 2
+    1. :ref:`twai-protocol-summary`
+
+    2. :ref:`signals-lines-and-transceiver`
+
+    3. :ref:`configuration`
+
+    4. :ref:`driver-operation`
+
+    5. :ref:`examples`
+
 
 .. --------------------------- Basic TWAI Concepts -----------------------------
+
+.. _twai-protocol-summary:
 
 TWAI Protocol Summary
 ---------------------
@@ -44,7 +49,7 @@ TWAI Messages
 TWAI Messages are split into Data Frames and Remote Frames. Data Frames are used to deliver a data payload to other nodes, whereas a Remote Frame is used to request a Data Frame from other nodes (other nodes can optionally respond with a Data Frame). Data and Remote Frames have two frame formats known as **Extended Frame** and **Standard Frame** which contain a 29-bit ID and an 11-bit ID respectively. A TWAI message consists of the following fields:
 
     - 29-bit or 11-bit ID: Determines the priority of the message (lower value has higher priority).
-    - Data Length Code (DLC) between 0 to 8: Indicates the size (in bytes) of the data payload for a Data Frame, or the amount of data to request for a Remote Frame.
+    - Data Length Code (DLC) between 0 to 8: Indicates the size (in bytes) of the data payload for a Data Frame, or the amount of data to request for a Remote Frame. 
     - Up to 8 bytes of data for a Data Frame (should match DLC).
 
 Error States and Counters
@@ -58,7 +63,10 @@ The TWAI protocol implements a feature known as "fault confinement" where a pers
 
 **Bus-Off:** A node becomes Bus-Off when the **TEC becomes greater than or equal to 256**. A Bus-Off node is unable influence the bus in any manner (essentially disconnected from the bus) thus eliminating itself from the bus. A node will remain in the Bus-Off state until it undergoes bus-off recovery.
 
+
 .. ---------------------- Signal Lines and Transceiver -------------------------
+
+.. _signals-lines-and-transceiver:
 
 Signals Lines and Transceiver
 -----------------------------
@@ -75,13 +83,15 @@ The TWAI controller's interface consists of 4 signal lines known as **TX, RX, BU
 
 **BUS-OFF:** The BUS-OFF signal line is **optional** and is set to a low logic level (0V) whenever the TWAI controller reaches a bus-off state. The BUS-OFF signal line is set to a high logic level (3.3V) otherwise.
 
-**CLKOUT:** The CLKOUT signal line is **optional** and outputs a prescaled version of the controller's source clock.
+**CLKOUT:** The CLKOUT signal line is **optional** and outputs a prescaled version of the controller's source clock (APB Clock).
 
 .. note::
     An external transceiver **must internally loopback the TX to RX** such that a change in logic level to the TX signal line can be observed on the RX line. Failing to do so will cause the TWAI controller to interpret differences in logic levels between the two signal lines as a loss in arbitration or a bit error.
 
 
 .. ------------------------------ Configuration --------------------------------
+
+.. _configuration:
 
 Driver Configuration
 --------------------
@@ -144,7 +154,7 @@ The TWAI driver contains an alert feature that is used to notify the application
 
 .. note::
     When enabling alerts, the ``TWAI_ALERT_AND_LOG`` flag can be used to cause the TWAI driver to log any raised alerts to UART. However, alert logging is disabled and ``TWAI_ALERT_AND_LOG`` if the :ref:`CONFIG_TWAI_ISR_IN_IRAM` option is enabled (see :ref:`placing-isr-into-iram`).
-
+    
 .. note::
     The ``TWAI_ALERT_ALL`` and ``TWAI_ALERT_NONE`` macros can also be used to enable/disable all alerts during configuration/reconfiguration.
 
@@ -157,18 +167,16 @@ The operating bit rate of the TWAI driver is configured using the :cpp:type:`twa
     2. **Timing Segment 1** consists of 1 to 16 time quanta before sample point
     3. **Timing Segment 2** consists of 1 to 8 time quanta after sample point
 
-{IDF_TARGET_MAX_BRP:default="128", esp32="128", esp32s2="32768", esp32s3="16384", esp32c3="16384", esp32c6="32768", esp32h2="32768"}
+{IDF_TARGET_MAX_BRP:default="128", esp32="128", esp32s2="32768", esp32c3="16384"}
 
-The **Baudrate Prescaler** is used to determine the period of each time quantum by dividing the TWAI controller's source clock. On the {IDF_TARGET_NAME}, the ``brp`` can be **any even number from 2 to {IDF_TARGET_MAX_BRP}**. Alternatively, you can decide the resolution of each quantum, by setting :cpp:member:`twai_timing_config_t::quanta_resolution_hz` to a non-zero value. In this way, the driver can calculate the underlying ``brp`` value for you. It's useful when you set different clock sources but want the bitrate to keep the same.
-
-Supported clock source for a TWAI controller is listed in the :cpp:type:`twai_clock_source_t` and can be specified in :cpp:member:`twai_timing_config_t::clk_src`.
+The **Baudrate Prescaler** is used to determine the period of each time quantum by dividing the TWAI controller's source clock (80 MHz APB clock). On the {IDF_TARGET_NAME}, the ``brp`` can be **any even number from 2 to {IDF_TARGET_MAX_BRP}**.
 
 .. only:: esp32
 
     If the ESP32 is a revision 2 or later chip, the ``brp`` will **also support any multiple of 4 from 132 to 256**, and can be enabled by setting the :ref:`CONFIG_ESP32_REV_MIN` to revision 2 or higher.
 
 .. packetdiag:: ../../../_static/diagrams/twai/bit_timing.diag
-    :caption: Bit timing configuration for 500kbit/s given BRP = 8, clock source frequency is 80MHz
+    :caption: Bit timing configuration for 500kbit/s given BRP = 8
     :align: center
 
 The sample point of a bit is located on the intersection of Timing Segment 1 and 2. Enabling **Triple Sampling** will cause 3 time quanta to be sampled per bit instead of 1 (extra samples are located at the tail end of Timing Segment 1).
@@ -182,28 +190,40 @@ Bit timing **macro initializers** are also available for commonly used bit rates
 
 .. list::
 
-    - :c:macro:`TWAI_TIMING_CONFIG_1MBITS`
-    - :c:macro:`TWAI_TIMING_CONFIG_800KBITS`
-    - :c:macro:`TWAI_TIMING_CONFIG_500KBITS`
-    - :c:macro:`TWAI_TIMING_CONFIG_250KBITS`
-    - :c:macro:`TWAI_TIMING_CONFIG_125KBITS`
-    - :c:macro:`TWAI_TIMING_CONFIG_100KBITS`
-    - :c:macro:`TWAI_TIMING_CONFIG_50KBITS`
-    - :c:macro:`TWAI_TIMING_CONFIG_25KBITS`
-    :not esp32: - :c:macro:`TWAI_TIMING_CONFIG_20KBITS`
-    :not esp32: - :c:macro:`TWAI_TIMING_CONFIG_16KBITS`
-    :not esp32: - :c:macro:`TWAI_TIMING_CONFIG_12_5KBITS`
-    :not esp32: - :c:macro:`TWAI_TIMING_CONFIG_10KBITS`
-    :not esp32: - :c:macro:`TWAI_TIMING_CONFIG_5KBITS`
-    :not esp32: - :c:macro:`TWAI_TIMING_CONFIG_1KBITS`
+    - ``TWAI_TIMING_CONFIG_1MBITS()``
+    - ``TWAI_TIMING_CONFIG_800KBITS()``
+    - ``TWAI_TIMING_CONFIG_500KBITS()``
+    - ``TWAI_TIMING_CONFIG_250KBITS()``
+    - ``TWAI_TIMING_CONFIG_125KBITS()``
+    - ``TWAI_TIMING_CONFIG_100KBITS()``
+    - ``TWAI_TIMING_CONFIG_50KBITS()``
+    - ``TWAI_TIMING_CONFIG_25KBITS()``
+    :esp32s2: - ``TWAI_TIMING_CONFIG_20KBITS()``
+    :esp32s2: - ``TWAI_TIMING_CONFIG_16KBITS()``
+    :esp32s2: - ``TWAI_TIMING_CONFIG_12_5KBITS()``
+    :esp32s2: - ``TWAI_TIMING_CONFIG_10KBITS()``
+    :esp32s2: - ``TWAI_TIMING_CONFIG_5KBITS()``
+    :esp32s2: - ``TWAI_TIMING_CONFIG_1KBITS()``
+    :esp32s3: - ``TWAI_TIMING_CONFIG_20KBITS()``
+    :esp32s3: - ``TWAI_TIMING_CONFIG_16KBITS()``
+    :esp32s3: - ``TWAI_TIMING_CONFIG_12_5KBITS()``
+    :esp32s3: - ``TWAI_TIMING_CONFIG_10KBITS()``
+    :esp32s3: - ``TWAI_TIMING_CONFIG_5KBITS()``
+    :esp32s3: - ``TWAI_TIMING_CONFIG_1KBITS()``
+    :esp32c3: - ``TWAI_TIMING_CONFIG_20KBITS()``
+    :esp32c3: - ``TWAI_TIMING_CONFIG_16KBITS()``
+    :esp32c3: - ``TWAI_TIMING_CONFIG_12_5KBITS()``
+    :esp32c3: - ``TWAI_TIMING_CONFIG_10KBITS()``
+    :esp32c3: - ``TWAI_TIMING_CONFIG_5KBITS()``
+    :esp32c3: - ``TWAI_TIMING_CONFIG_1KBITS()``
 
 .. only:: esp32
 
     Revision 2 or later of the ESP32 also supports the following bit rates:
 
-    - :c:macro:`TWAI_TIMING_CONFIG_20KBITS`
-    - :c:macro:`TWAI_TIMING_CONFIG_16KBITS`
-    - :c:macro:`TWAI_TIMING_CONFIG_12_5KBITS`
+    - ``TWAI_TIMING_CONFIG_20KBITS()``
+    - ``TWAI_TIMING_CONFIG_16KBITS()``
+    - ``TWAI_TIMING_CONFIG_12_5KBITS()``
 
 Acceptance Filter
 ^^^^^^^^^^^^^^^^^
@@ -247,22 +267,9 @@ To place the TWAI driver's ISR, users must do the following:
 .. note::
     When the :ref:`CONFIG_TWAI_ISR_IN_IRAM` option is enabled, the TWAI driver will no longer log any alerts (i.e., the ``TWAI_ALERT_AND_LOG`` flag will not have any effect).
 
-.. only:: esp32
-
-    ESP32 Errata Workarounds
-    ^^^^^^^^^^^^^^^^^^^^^^^^
-
-    The ESP32's TWAI controller contains multiple hardware errata (more details about the errata can be found in the `ESP32's ECO document <https://www.espressif.com/sites/default/files/documentation/eco_and_workarounds_for_bugs_in_esp32_en.pdf>`_). Some of these errata are critical, and under specific circumstances, can place the TWAI controller into an unrecoverable state (i.e., the controller gets stuck until it is reset by the CPU).
-
-    The TWAI driver contains software workarounds for these critical errata. With these workarounds, the ESP32 TWAI driver can operate normally, albeit with degraded performance. The degraded performance will affect users in the following ways depending on what particular errata conditions are encountered:
-
-    - The TWAI driver can occasionally drop some received messages.
-    - The TWAI driver can be unresponsive for a short period of time (i.e., will not transmit or ACK for 11 bit times or longer).
-    - If :ref:`CONFIG_TWAI_ISR_IN_IRAM` is enabled, the workarounds will increase IRAM usage by approximately 1KB.
-
-    The software workarounds are enabled by default and it is recommended that users keep this workarounds enabled.
-
 .. ------------------------------- TWAI Driver ---------------------------------
+
+.. _driver-operation:
 
 Driver Operation
 ----------------
@@ -324,7 +331,7 @@ Message Fields and Flags
 
 The TWAI driver distinguishes different types of messages by using the various bit field members of the :cpp:type:`twai_message_t` structure. These bit field members determine whether a message is in standard or extended format, a remote frame, and the type of transmission to use when transmitting such a message.
 
-These bit field members can also be toggled using the `flags` member of :cpp:type:`twai_message_t` and the following message flags:
+These bit field members can also be toggled using the the `flags` member of :cpp:type:`twai_message_t` and the following message flags:
 
 .. list-table::
     :widths: 30 70
@@ -346,6 +353,8 @@ These bit field members can also be toggled using the `flags` member of :cpp:typ
       - Clears all bit fields. Equivalent to a Standard Frame Format (11bit ID) Data Frame.
 
 .. -------------------------------- Examples -----------------------------------
+
+.. _examples:
 
 Examples
 --------

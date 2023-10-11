@@ -1,25 +1,20 @@
-# SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
-from typing import Dict
-
-from click.core import Context
 from idf_py_actions.errors import FatalError
-from idf_py_actions.tools import PropertyDict, ensure_build_directory, is_target_supported, run_target
+from idf_py_actions.tools import ensure_build_directory, is_target_supported, run_target
 
 
-def action_extensions(base_actions: Dict, project_path: str) -> Dict:
+def action_extensions(base_actions, project_path):
 
-    SUPPORTED_TARGETS = ['esp32s2', 'esp32s3']
+    SUPPORTED_TARGETS = ['esp32s2']
 
-    def dfu_target(target_name: str, ctx: Context, args: PropertyDict, part_size: str) -> None:
+    def dfu_target(target_name, ctx, args, part_size):
         ensure_build_directory(args, ctx.info_name)
         run_target(target_name, args, {'ESP_DFU_PART_SIZE': part_size} if part_size else {})
 
-    def dfu_list_target(target_name: str, ctx: Context, args: PropertyDict) -> None:
+    def dfu_list_target(target_name, ctx, args):
         ensure_build_directory(args, ctx.info_name)
         run_target(target_name, args)
 
-    def dfu_flash_target(target_name: str, ctx: Context, args: PropertyDict, path: str) -> None:
+    def dfu_flash_target(target_name, ctx, args, path):
         ensure_build_directory(args, ctx.info_name)
 
         try:

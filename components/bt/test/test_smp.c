@@ -1,10 +1,4 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
-
-/*
  Tests for the BLE SMP implementation
 */
 
@@ -24,7 +18,7 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "freertos/ringbuf.h"
-#include "esp_random.h"
+#include "esp_system.h"
 #include "nvs_flash.h"
 
 #include "esp_bt.h"

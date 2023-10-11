@@ -12,13 +12,13 @@
 
 #pragma once
 
-#include "lwip/sys.h"
-#include <lwip/netdb.h>
-#include <arpa/inet.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "lwip/sys.h"
+#include <lwip/netdb.h>
+#include <arpa/inet.h>
 
 /**
  * @brief Read and evaluate IP address from stdin

@@ -3,25 +3,14 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+
 #ifndef _DYNAMIC_IMPL_H_
 #define _DYNAMIC_IMPL_H_
 
 #include <stddef.h>
 #include <string.h>
-#include <stdbool.h>
-
-/* TODO: Remove this once the appropriate solution is found
- *
- * ssl_misc.h header uses private elements from
- * mbedtls, which become undefined if the following flag
- * is not defined
- */
-#define MBEDTLS_ALLOW_PRIVATE_ACCESS
-
-// located at mbedtls/library/ssl_misc.h
-#include "ssl_misc.h"
-
 #include "mbedtls/ssl.h"
+#include "mbedtls/ssl_internal.h"
 #include "mbedtls/platform.h"
 #include "esp_log.h"
 

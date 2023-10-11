@@ -43,7 +43,7 @@ static void uart_event_task(void *pvParameters)
     uint8_t* dtmp = (uint8_t*) malloc(RD_BUF_SIZE);
     for(;;) {
         //Waiting for UART event.
-        if(xQueueReceive(uart0_queue, (void * )&event, (TickType_t)portMAX_DELAY)) {
+        if(xQueueReceive(uart0_queue, (void * )&event, (portTickType)portMAX_DELAY)) {
             bzero(dtmp, RD_BUF_SIZE);
             ESP_LOGI(TAG, "uart[%d] event:", EX_UART_NUM);
             switch(event.type) {
@@ -69,7 +69,7 @@ static void uart_event_task(void *pvParameters)
                 //Event of UART ring buffer full
                 case UART_BUFFER_FULL:
                     ESP_LOGI(TAG, "ring buffer full");
-                    // If buffer full happened, you should consider increasing your buffer size
+                    // If buffer full happened, you should consider encreasing your buffer size
                     // As an example, we directly flush the rx buffer here in order to read more data.
                     uart_flush_input(EX_UART_NUM);
                     xQueueReset(uart0_queue);
@@ -129,7 +129,7 @@ void app_main(void)
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
+        .source_clk = UART_SCLK_APB,
     };
     //Install UART driver, and get the queue.
     uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 20, &uart0_queue, 0);

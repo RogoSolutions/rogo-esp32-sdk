@@ -76,11 +76,11 @@ void btc_ble_mesh_health_client_arg_deep_copy(btc_msg_t *msg, void *p_dest, void
     }
 }
 
-void btc_ble_mesh_health_client_arg_deep_free(btc_msg_t *msg)
+static void btc_ble_mesh_health_client_arg_deep_free(btc_msg_t *msg)
 {
     btc_ble_mesh_health_client_args_t *arg = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -180,7 +180,7 @@ static void btc_ble_mesh_health_client_free_req_data(btc_msg_t *msg)
 {
     esp_ble_mesh_health_client_cb_param_t *arg = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -231,8 +231,8 @@ static void btc_ble_mesh_health_client_callback(esp_ble_mesh_health_client_cb_pa
     msg.pid = BTC_PID_HEALTH_CLIENT;
     msg.act = act;
 
-    btc_transfer_context(&msg, cb_params, cb_params == NULL ? 0 : sizeof(esp_ble_mesh_health_client_cb_param_t),
-                         btc_ble_mesh_health_client_copy_req_data, btc_ble_mesh_health_client_free_req_data);
+    btc_transfer_context(&msg, cb_params, sizeof(esp_ble_mesh_health_client_cb_param_t),
+                         btc_ble_mesh_health_client_copy_req_data);
 }
 
 void bt_mesh_health_client_cb_evt_to_btc(uint32_t opcode, uint8_t evt_type,
@@ -393,7 +393,7 @@ void btc_ble_mesh_health_client_call_handler(btc_msg_t *msg)
     btc_ble_mesh_health_client_args_t *arg = NULL;
     esp_ble_mesh_health_client_cb_param_t cb = {0};
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -433,7 +433,7 @@ void btc_ble_mesh_health_client_cb_handler(btc_msg_t *msg)
 {
     esp_ble_mesh_health_client_cb_param_t *param = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -542,8 +542,8 @@ static void btc_ble_mesh_health_server_callback(esp_ble_mesh_health_server_cb_pa
     msg.pid = BTC_PID_HEALTH_SERVER;
     msg.act = act;
 
-    btc_transfer_context(&msg, cb_params, cb_params == NULL ? 0 : sizeof(esp_ble_mesh_health_server_cb_param_t),
-                         btc_ble_mesh_health_server_copy_req_data, btc_ble_mesh_health_server_free_req_data);
+    btc_transfer_context(&msg, cb_params, sizeof(esp_ble_mesh_health_server_cb_param_t),
+                         btc_ble_mesh_health_server_copy_req_data);
 }
 
 void btc_ble_mesh_health_server_call_handler(btc_msg_t *msg)
@@ -551,7 +551,7 @@ void btc_ble_mesh_health_server_call_handler(btc_msg_t *msg)
     esp_ble_mesh_health_server_cb_param_t param = {0};
     btc_ble_mesh_health_server_args_t *arg = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -577,7 +577,7 @@ void btc_ble_mesh_health_server_cb_handler(btc_msg_t *msg)
 {
     esp_ble_mesh_health_server_cb_param_t *param = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }

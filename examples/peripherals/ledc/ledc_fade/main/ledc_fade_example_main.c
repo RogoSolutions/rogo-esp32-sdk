@@ -9,9 +9,10 @@
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/semphr.h"
 #include "driver/ledc.h"
 #include "esp_err.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 /*
  * About this example
@@ -27,14 +28,11 @@
  *
  * 3. You can also set a target duty directly without fading.
  *
- * 4. On ESP32, GPIO18/19/4/5 are used as the LEDC outputs:
- *              GPIO18/19 are from the high speed channel group
- *              GPIO4/5 are from the low speed channel group
+ * 4. This example uses GPIO18/19/4/5 as LEDC output,
+ *    and it will change the duty repeatedly.
  *
- *    On other targets, GPIO8/9/4/5 are used as the LEDC outputs,
- *    and they are all from the low speed channel group.
- *
- * 5. All the LEDC outputs change the duty repeatedly.
+ * 5. GPIO18/19 are from high speed channel group.
+ *    GPIO4/5 are from low speed channel group.
  *
  */
 #if CONFIG_IDF_TARGET_ESP32
@@ -48,9 +46,9 @@
 #define LEDC_LS_TIMER          LEDC_TIMER_1
 #define LEDC_LS_MODE           LEDC_LOW_SPEED_MODE
 #if !CONFIG_IDF_TARGET_ESP32
-#define LEDC_LS_CH0_GPIO       (8)
+#define LEDC_LS_CH0_GPIO       (18)
 #define LEDC_LS_CH0_CHANNEL    LEDC_CHANNEL_0
-#define LEDC_LS_CH1_GPIO       (9)
+#define LEDC_LS_CH1_GPIO       (19)
 #define LEDC_LS_CH1_CHANNEL    LEDC_CHANNEL_1
 #endif
 #define LEDC_LS_CH2_GPIO       (4)
@@ -67,7 +65,7 @@
  * Use callback only if you are aware it is being called inside an ISR
  * Otherwise, you can use a semaphore to unblock tasks
  */
-static IRAM_ATTR bool cb_ledc_fade_end_event(const ledc_cb_param_t *param, void *user_arg)
+static bool cb_ledc_fade_end_event(const ledc_cb_param_t *param, void *user_arg)
 {
     portBASE_TYPE taskAwoken = pdFALSE;
 

@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <stdint.h>
 
@@ -90,7 +98,7 @@ void btc_blufi_report_error(esp_blufi_error_state_t state)
     msg.act = ESP_BLUFI_EVENT_REPORT_ERROR;
     esp_blufi_cb_param_t param;
     param.report_error.state = state;
-    btc_transfer_context(&msg, &param, sizeof(esp_blufi_cb_param_t), NULL, NULL);
+    btc_transfer_context(&msg, &param, sizeof(esp_blufi_cb_param_t), NULL);
 }
 
 void btc_blufi_recv_handler(uint8_t *data, int len)
@@ -136,16 +144,6 @@ void btc_blufi_recv_handler(uint8_t *data, int len)
 
     if (BLUFI_FC_IS_FRAG(hdr->fc)) {
         if (blufi_env.offset == 0) {
-            /*
-            blufi_env.aggr_buf should be NULL if blufi_env.offset is 0.
-            It is possible that the process of sending fragment packet
-            has not been completed
-            */
-            if (blufi_env.aggr_buf) {
-                BTC_TRACE_ERROR("%s msg error, blufi_env.aggr_buf is not freed\n", __func__);
-                btc_blufi_report_error(ESP_BLUFI_MSG_STATE_ERROR);
-                return;
-            }
             blufi_env.total_len = hdr->data[0] | (((uint16_t) hdr->data[1]) << 8);
             blufi_env.aggr_buf = osi_malloc(blufi_env.total_len);
             if (blufi_env.aggr_buf == NULL) {
@@ -165,18 +163,6 @@ void btc_blufi_recv_handler(uint8_t *data, int len)
 
     } else {
         if (blufi_env.offset > 0) {   /* if previous pkt is frag */
-            /* blufi_env.aggr_buf should not be NULL */
-            if (blufi_env.aggr_buf == NULL) {
-                BTC_TRACE_ERROR("%s buffer is NULL\n", __func__);
-                btc_blufi_report_error(ESP_BLUFI_DH_MALLOC_ERROR);
-                return;
-            }
-            /* payload length should be equal to total_len */
-            if ((blufi_env.offset + hdr->data_len) != blufi_env.total_len) {
-                BTC_TRACE_ERROR("%s payload is longer than packet length, len %d \n", __func__, blufi_env.total_len);
-                btc_blufi_report_error(ESP_BLUFI_DATA_FORMAT_ERROR);
-                return;
-            }
             memcpy(blufi_env.aggr_buf + blufi_env.offset, hdr->data, hdr->data_len);
 
             btc_blufi_protocol_handler(hdr->type, blufi_env.aggr_buf, blufi_env.total_len);
@@ -334,21 +320,6 @@ static void btc_blufi_wifi_conn_report(uint8_t opmode, uint8_t sta_conn_state, u
             *p++ = BLUFI_TYPE_DATA_SUBTYPE_SOFTAP_CHANNEL;
             *p++ = 1;
             *p++ = info->softap_channel;
-        }
-        if (info->sta_max_conn_retry_set) {
-            *p++ = BLUFI_TYPE_DATA_SUBTYPE_STA_MAX_CONN_RETRY;
-            *p++ = 1;
-            *p++ = info->sta_max_conn_retry;
-        }
-        if (info->sta_conn_end_reason_set) {
-            *p++ = BLUFI_TYPE_DATA_SUBTYPE_STA_CONN_END_REASON;
-            *p++ = 1;
-            *p++ = info->sta_conn_end_reason;
-        }
-        if (info->sta_conn_rssi_set) {
-            *p++ = BLUFI_TYPE_DATA_SUBTYPE_STA_CONN_RSSI;
-            *p++ = 1;
-            *p++ = info->sta_conn_rssi;
         }
     }
     if (p - data > data_len) {
@@ -741,21 +712,6 @@ void btc_blufi_call_deep_copy(btc_msg_t *msg, void *p_dest, void *p_src)
         if (src_info->softap_channel_set) {
             dst->wifi_conn_report.extra_info->softap_channel_set = src_info->softap_channel_set;
             dst->wifi_conn_report.extra_info->softap_channel = src_info->softap_channel;
-            dst->wifi_conn_report.extra_info_len += (1 + 2);
-        }
-        if (src_info->sta_max_conn_retry_set) {
-            dst->wifi_conn_report.extra_info->sta_max_conn_retry_set = src_info->sta_max_conn_retry_set;
-            dst->wifi_conn_report.extra_info->sta_max_conn_retry = src_info->sta_max_conn_retry;
-            dst->wifi_conn_report.extra_info_len += (1 + 2);
-        }
-        if (src_info->sta_conn_end_reason_set) {
-            dst->wifi_conn_report.extra_info->sta_conn_end_reason_set = src_info->sta_conn_end_reason_set;
-            dst->wifi_conn_report.extra_info->sta_conn_end_reason = src_info->sta_conn_end_reason;
-            dst->wifi_conn_report.extra_info_len += (1 + 2);
-        }
-        if (src_info->sta_conn_rssi_set) {
-            dst->wifi_conn_report.extra_info->sta_conn_rssi_set = src_info->sta_conn_rssi_set;
-            dst->wifi_conn_report.extra_info->sta_conn_rssi = src_info->sta_conn_rssi;
             dst->wifi_conn_report.extra_info_len += (1 + 2);
         }
         break;

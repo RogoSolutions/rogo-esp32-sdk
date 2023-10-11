@@ -1,9 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2017-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
+// Copyright 2020 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 #include "soc/soc.h"
 #include "soc/interrupt_reg.h"
 #include "riscv/rvruntime-frames.h"
@@ -121,10 +128,10 @@ _vector_table:
     .option push
     .option norvc
     j _panic_handler			/* exception handler, entry 0 */
-    .rept (ETS_INT_WDT_INUM - 1)
+    .rept (ETS_T1_WDT_INUM - 1)
     j _interrupt_handler		/* 24 identical entries, all pointing to the interrupt handler */
     .endr
-    j _panic_handler			/* Call panic handler for ETS_INT_WDT_INUM interrupt (soc-level panic)*/
+    j _panic_handler			/* Call panic handler for ETS_T1_WDT_INUM interrupt (soc-level panic)*/
     j _panic_handler			/* Call panic handler for ETS_CACHEERR_INUM interrupt (soc-level panic)*/
     #ifdef CONFIG_ESP_SYSTEM_MEMPROT_FEATURE
     j _panic_handler			/* Call panic handler for ETS_MEMPROT_ERR_INUM interrupt (soc-level panic)*/
@@ -175,7 +182,6 @@ _panic_handler:
     li    t0, 0x80000000
     bgeu  a1, t0, _call_panic_handler
     sw    a1, RV_STK_MCAUSE(sp)
-    /* exception_from_panic never returns */
     jal panic_from_exception
     /* We arrive here if the exception handler has returned. */
     j _return_from_exception
@@ -238,14 +244,14 @@ _interrupt_handler:
     csrr    s2, mstatus
 
     /* Save the interrupt threshold level */
-    li      t0, INTERRUPT_CORE0_CPU_INT_THRESH_REG
+    la      t0, INTERRUPT_CORE0_CPU_INT_THRESH_REG
     lw      s3, 0(t0)
 
     /* Increase interrupt threshold level */
     li      t2, 0x7fffffff
     and     t1, s1, t2       /* t1 = mcause & mask */
     slli    t1, t1, 2        /* t1 = mcause * 4 */
-    li      t2, INTC_INT_PRIO_REG(0)
+    la      t2, INTC_INT_PRIO_REG(0)
     add     t1, t2, t1       /* t1 = INTC_INT_PRIO_REG + 4 * mcause */
     lw      t2, 0(t1)        /* t2 = INTC_INT_PRIO_REG[mcause] */
     addi    t2, t2, 1        /* t2 = t2 +1 */
@@ -287,7 +293,7 @@ _interrupt_handler:
     /* MIE cleared. Nested interrupts are disabled */
 
     /* restore the interrupt threshold level */
-    li      t0, INTERRUPT_CORE0_CPU_INT_THRESH_REG
+    la      t0, INTERRUPT_CORE0_CPU_INT_THRESH_REG
     sw      s3, 0(t0)
     fence
 

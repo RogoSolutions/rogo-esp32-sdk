@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2019-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2019-2020 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <stdio.h>
 #include <string.h>
@@ -19,7 +27,7 @@
 #include "soc/rtc_cntl_reg.h"
 #include "soc/usb_struct.h"
 #include "soc/usb_reg.h"
-#include "spinlock.h"
+#include "soc/spinlock.h"
 #include "hal/soc_hal.h"
 #include "esp_rom_uart.h"
 #include "esp_rom_sys.h"
@@ -53,7 +61,7 @@ static esp_usb_console_cb_t s_tx_cb;
 static void *s_cb_arg;
 
 #ifdef CONFIG_ESP_CONSOLE_USB_CDC_SUPPORT_ETS_PRINTF
-static portMUX_TYPE s_write_lock = portMUX_INITIALIZER_UNLOCKED;
+static spinlock_t s_write_lock = SPINLOCK_INITIALIZER;
 void esp_usb_console_write_char(char c);
 #define ISR_FLAG  ESP_INTR_FLAG_IRAM
 #else
@@ -399,11 +407,11 @@ void esp_usb_console_write_char(char c)
 }
 static inline void write_lock_acquire(void)
 {
-    portENTER_CRITICAL_SAFE(&s_write_lock);
+    spinlock_acquire(&s_write_lock, SPINLOCK_WAIT_FOREVER);
 }
 static inline void write_lock_release(void)
 {
-    portEXIT_CRITICAL_SAFE(&s_write_lock);
+    spinlock_release(&s_write_lock);
 }
 
 #else // CONFIG_ESP_CONSOLE_USB_CDC_SUPPORT_ETS_PRINTF

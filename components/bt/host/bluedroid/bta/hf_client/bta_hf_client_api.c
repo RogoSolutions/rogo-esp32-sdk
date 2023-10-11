@@ -142,7 +142,7 @@ void BTA_HfClientRegister(tBTA_SEC sec_mask, tBTA_HF_CLIENT_FEAT features,
         p_buf->sec_mask = sec_mask;
         if (p_service_name) {
             BCM_STRNCPY_S(p_buf->name, p_service_name, BTA_SERVICE_NAME_LEN);
-            p_buf->name[BTA_SERVICE_NAME_LEN] = '\0';
+            p_buf->name[BTA_SERVICE_NAME_LEN] = 0;
         } else {
             p_buf->name[0] = '\0';
         }
@@ -284,13 +284,8 @@ void BTA_HfClientSendAT(UINT16 handle, tBTA_HF_CLIENT_AT_CMD_TYPE at, UINT32 val
         p_buf->uint32_val2 = val2;
 
         if (str) {
-            UINT32 str_len = strlen(str);
-            if (str_len > BTA_HF_CLIENT_MAX_LEN) {
-                APPL_TRACE_WARNING("%s, str length(%d) is more than %d, truncate it.", __FUNCTION__, str_len, BTA_HF_CLIENT_MAX_LEN);
-                str_len = BTA_HF_CLIENT_MAX_LEN;
-            }
-
-            strlcpy(p_buf->str, str, str_len + 1);
+            strlcpy(p_buf->str, str, BTA_HF_CLIENT_NUMBER_LEN + 1);
+            p_buf->str[BTA_HF_CLIENT_NUMBER_LEN] = '\0';
         } else {
             p_buf->str[0] = '\0';
         }
@@ -299,28 +294,7 @@ void BTA_HfClientSendAT(UINT16 handle, tBTA_HF_CLIENT_AT_CMD_TYPE at, UINT32 val
         bta_sys_sendmsg(p_buf);
     }
 }
-
-#if (BTM_SCO_HCI_INCLUDED == TRUE)
-/*******************************************************************************
-**
-** Function         BTA_HfClientPktStatsNumsGet
-**
-** Description      Get the packet ststus numbers received and send for a specific (e)SCO connection handle.
-**
-**
-** Returns          void
-**
-*******************************************************************************/
-void BTA_HfClientPktStatsNumsGet(UINT16 sync_conn_handle)
-{
-    tBTA_HF_CLIENT_PKT_STAT_GET *p_buf;
-    if ((p_buf = (tBTA_HF_CLIENT_PKT_STAT_GET *) osi_malloc(sizeof(tBTA_HF_CLIENT_PKT_STAT_GET))) != NULL) {
-        p_buf->hdr.event = BTA_HF_CLIENT_PKT_NUMS_GET_EVT;
-        p_buf->sync_conn_handle = sync_conn_handle;
-        bta_sys_sendmsg(p_buf);
-    }
-}
-
+#if (BTM_SCO_HCI_INCLUDED == TRUE )
 void BTA_HfClientCiData(void)
 {
     BT_HDR *p_buf;

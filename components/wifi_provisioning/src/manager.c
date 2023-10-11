@@ -21,7 +21,6 @@
 #include <protocomm.h>
 #include <protocomm_security0.h>
 #include <protocomm_security1.h>
-#include <protocomm_security2.h>
 
 #include "wifi_provisioning_priv.h"
 
@@ -36,7 +35,6 @@
 static const char *TAG = "wifi_prov_mgr";
 
 ESP_EVENT_DEFINE_BASE(WIFI_PROV_EVENT);
-ESP_EVENT_DEFINE_BASE(WIFI_PROV_MGR_PVT_EVENT);
 
 typedef enum {
     WIFI_PROV_STATE_IDLE,
@@ -47,10 +45,6 @@ typedef enum {
     WIFI_PROV_STATE_SUCCESS,
     WIFI_PROV_STATE_STOPPING
 } wifi_prov_mgr_state_t;
-
-typedef enum {
-    WIFI_PROV_MGR_STOP,
-} wifi_prov_mgr_pvt_event_t;
 
 /**
  * @brief  Structure for storing capabilities supported by
@@ -96,17 +90,14 @@ struct wifi_prov_mgr_ctx {
     /* Type of security to use with protocomm */
     int security;
 
-    /* Pointer to security params */
-    const void* protocomm_sec_params;
+    /* Pointer to proof of possession */
+    protocomm_security_pop_t pop;
 
     /* Handle for Provisioning Auto Stop timer */
     esp_timer_handle_t autostop_timer;
 
     /* Handle for delayed Wi-Fi connection timer */
     esp_timer_handle_t wifi_connect_timer;
-
-    /* Handle for delayed cleanup timer */
-    esp_timer_handle_t cleanup_delay_timer;
 
     /* State of Wi-Fi Station */
     wifi_prov_sta_state_t wifi_state;
@@ -119,9 +110,6 @@ struct wifi_prov_mgr_ctx {
 
     /* Protocomm handlers for Wi-Fi scan endpoint */
     wifi_prov_scan_handlers_t *wifi_scan_handlers;
-
-    /* Protocomm handlers for Wi-Fi ctrl endpoint */
-    wifi_ctrl_handlers_t *wifi_ctrl_handlers;
 
     /* Count of used endpoint UUIDs */
     unsigned int endpoint_uuid_used;
@@ -257,7 +245,6 @@ static cJSON* wifi_prov_get_info_json(void)
     /* Version field */
     cJSON_AddStringToObject(prov_info_json, "ver", prov_ctx->mgr_info.version);
 
-    cJSON_AddNumberToObject(prov_info_json, "sec_ver", prov_ctx->security);
     /* Capabilities field */
     cJSON_AddItemToObject(prov_info_json, "cap", prov_capabilities);
 
@@ -319,29 +306,11 @@ static esp_err_t wifi_prov_mgr_start_service(const char *service_name, const cha
 
     /* Set protocomm security type for endpoint */
     if (prov_ctx->security == 0) {
-#ifdef CONFIG_ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_0
         ret = protocomm_set_security(prov_ctx->pc, "prov-session",
                                      &protocomm_security0, NULL);
-#else
-        // Enable SECURITY_VERSION_0 in Protocomm configuration menu
-        return ESP_ERR_NOT_SUPPORTED;
-#endif
     } else if (prov_ctx->security == 1) {
-#ifdef CONFIG_ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_1
         ret = protocomm_set_security(prov_ctx->pc, "prov-session",
-                                     &protocomm_security1, prov_ctx->protocomm_sec_params);
-#else
-        // Enable SECURITY_VERSION_1 in Protocomm configuration menu
-        return ESP_ERR_NOT_SUPPORTED;
-#endif
-    } else if (prov_ctx->security == 2) {
-#ifdef CONFIG_ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_2
-        ret = protocomm_set_security(prov_ctx->pc, "prov-session",
-                                     &protocomm_security2, prov_ctx->protocomm_sec_params);
-#else
-        // Enable SECURITY_VERSION_2 in Protocomm configuration menu
-        return ESP_ERR_NOT_SUPPORTED;
-#endif
+                                     &protocomm_security1, &prov_ctx->pop);
     } else {
         ESP_LOGE(TAG, "Unsupported protocomm security version %d", prov_ctx->security);
         ret = ESP_ERR_INVALID_ARG;
@@ -397,36 +366,12 @@ static esp_err_t wifi_prov_mgr_start_service(const char *service_name, const cha
         return ret;
     }
 
-    prov_ctx->wifi_ctrl_handlers = malloc(sizeof(wifi_ctrl_handlers_t));
-    ret = get_wifi_ctrl_handlers(prov_ctx->wifi_ctrl_handlers);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to allocate memory for Wi-Fi ctrl handlers");
-        free(prov_ctx->wifi_prov_handlers);
-        scheme->prov_stop(prov_ctx->pc);
-        protocomm_delete(prov_ctx->pc);
-        return ESP_ERR_NO_MEM;
-    }
-
-    /* Add endpoint for controlling state of Wi-Fi station */
-    ret = protocomm_add_endpoint(prov_ctx->pc, "prov-ctrl",
-                                 wifi_ctrl_handler,
-                                 prov_ctx->wifi_ctrl_handlers);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to set Wi-Fi ctrl endpoint");
-        free(prov_ctx->wifi_ctrl_handlers);
-        free(prov_ctx->wifi_prov_handlers);
-        scheme->prov_stop(prov_ctx->pc);
-        protocomm_delete(prov_ctx->pc);
-        return ret;
-    }
-
     /* Register global event handler */
     ret = esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
                                      wifi_prov_mgr_event_handler_internal, NULL);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to register WiFi event handler");
         free(prov_ctx->wifi_scan_handlers);
-        free(prov_ctx->wifi_ctrl_handlers);
         free(prov_ctx->wifi_prov_handlers);
         scheme->prov_stop(prov_ctx->pc);
         protocomm_delete(prov_ctx->pc);
@@ -440,29 +385,11 @@ static esp_err_t wifi_prov_mgr_start_service(const char *service_name, const cha
         esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID,
                                      wifi_prov_mgr_event_handler_internal);
         free(prov_ctx->wifi_scan_handlers);
-        free(prov_ctx->wifi_ctrl_handlers);
         free(prov_ctx->wifi_prov_handlers);
         scheme->prov_stop(prov_ctx->pc);
         protocomm_delete(prov_ctx->pc);
         return ret;
     }
-
-    ret = esp_event_handler_register(WIFI_PROV_MGR_PVT_EVENT, WIFI_PROV_MGR_STOP,
-                                     wifi_prov_mgr_event_handler_internal, NULL);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to register provisioning event handler");
-        esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID,
-                                     wifi_prov_mgr_event_handler_internal);
-        esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP,
-                                     wifi_prov_mgr_event_handler_internal);
-        free(prov_ctx->wifi_scan_handlers);
-        free(prov_ctx->wifi_ctrl_handlers);
-        free(prov_ctx->wifi_prov_handlers);
-        scheme->prov_stop(prov_ctx->pc);
-        protocomm_delete(prov_ctx->pc);
-        return ret;
-    }
-
 
     ESP_LOGI(TAG, "Provisioning started with service name : %s ",
              service_name ? service_name : "<NULL>");
@@ -533,16 +460,9 @@ void wifi_prov_mgr_endpoint_unregister(const char *ep_name)
     RELEASE_LOCK(prov_ctx_lock);
 }
 
-static void prov_stop_and_notify(bool is_async)
+static void prov_stop_task(void *arg)
 {
-    esp_event_handler_unregister(WIFI_PROV_MGR_PVT_EVENT, WIFI_PROV_MGR_STOP,
-                                 wifi_prov_mgr_event_handler_internal);
-
-    if (prov_ctx->cleanup_delay_timer) {
-        esp_timer_stop(prov_ctx->cleanup_delay_timer);
-        esp_timer_delete(prov_ctx->cleanup_delay_timer);
-        prov_ctx->cleanup_delay_timer = NULL;
-    }
+    bool is_this_a_task = (bool) arg;
 
     wifi_prov_cb_func_t app_cb = prov_ctx->mgr_config.app_event_handler.event_cb;
     void *app_data = prov_ctx->mgr_config.app_event_handler.user_data;
@@ -552,11 +472,8 @@ static void prov_stop_and_notify(bool is_async)
 
     /* This delay is so that the client side app is notified first
      * and then the provisioning is stopped. Generally 1000ms is enough. */
-    if (!is_async)
-    {
-        uint32_t cleanup_delay = prov_ctx->cleanup_delay > 100 ? prov_ctx->cleanup_delay : 100;
-        vTaskDelay(cleanup_delay / portTICK_PERIOD_MS);
-    }
+    uint32_t cleanup_delay = prov_ctx->cleanup_delay > 100 ? prov_ctx->cleanup_delay : 100;
+    vTaskDelay(cleanup_delay / portTICK_PERIOD_MS);
 
     /* All the extra application added endpoints are also
      * removed automatically when prov_stop is called */
@@ -575,19 +492,15 @@ static void prov_stop_and_notify(bool is_async)
     free(prov_ctx->wifi_scan_handlers);
     prov_ctx->wifi_scan_handlers = NULL;
 
-    free(prov_ctx->wifi_ctrl_handlers);
-    prov_ctx->wifi_ctrl_handlers = NULL;
-
     /* Switch device to Wi-Fi STA mode irrespective of
      * whether provisioning was completed or not */
     esp_wifi_set_mode(WIFI_MODE_STA);
     ESP_LOGI(TAG, "Provisioning stopped");
 
-    if (is_async) {
-        /* NOTE: While calling this API in an async fashion,
-         * the context lock prov_ctx_lock has already been taken
-         */
+    if (is_this_a_task) {
+        ACQUIRE_LOCK(prov_ctx_lock);
         prov_ctx->prov_state = WIFI_PROV_STATE_IDLE;
+        RELEASE_LOCK(prov_ctx_lock);
 
         ESP_LOGD(TAG, "execute_event_cb : %d", WIFI_PROV_END);
         if (scheme_cb) {
@@ -599,11 +512,13 @@ static void prov_stop_and_notify(bool is_async)
         if (esp_event_post(WIFI_PROV_EVENT, WIFI_PROV_END, NULL, 0, portMAX_DELAY) != ESP_OK) {
             ESP_LOGE(TAG, "Failed to post event WIFI_PROV_END");
         }
+
+        vTaskDelete(NULL);
     }
 }
 
 /* This will do one of these:
- * 1) if blocking is false, start a cleanup timer for stopping the provisioning service (returns true)
+ * 1) if blocking is false, start a task for stopping the provisioning service (returns true)
  * 2) if blocking is true, stop provisioning service immediately (returns true)
  * 3) if service was already in the process of termination, in blocking mode this will
  *    wait till the service is stopped (returns false)
@@ -665,14 +580,9 @@ static bool wifi_prov_mgr_stop_service(bool blocking)
     prov_ctx->prov_state = WIFI_PROV_STATE_STOPPING;
 
     /* Free proof of possession */
-    if (prov_ctx->protocomm_sec_params) {
-        if (prov_ctx->security == 1) {
-            // In case of security 1 we keep an internal copy of "pop".
-            // Hence free it at this point
-            uint8_t *pop = (uint8_t *)((protocomm_security1_params_t *) prov_ctx->protocomm_sec_params)->data;
-            free(pop);
-        }
-        prov_ctx->protocomm_sec_params = NULL;
+    if (prov_ctx->pop.data) {
+        free((void *)prov_ctx->pop.data);
+        prov_ctx->pop.data = NULL;
     }
 
     /* Delete all scan results */
@@ -695,18 +605,20 @@ static bool wifi_prov_mgr_stop_service(bool blocking)
         /* Run the cleanup without launching a separate task. Also the
          * WIFI_PROV_END event is not emitted in this case */
         RELEASE_LOCK(prov_ctx_lock);
-        prov_stop_and_notify(false);
+        prov_stop_task((void *)0);
         ACQUIRE_LOCK(prov_ctx_lock);
         prov_ctx->prov_state = WIFI_PROV_STATE_IDLE;
     } else {
-        /* Launch cleanup timer to perform the cleanup asynchronously.
+        /* Launch cleanup task to perform the cleanup asynchronously.
          * It is important to do this asynchronously because, there are
          * situations in which the transport level resources have to be
          * released - some duration after - returning from a call to
          * wifi_prov_mgr_stop_provisioning(), like when it is called
          * inside a protocomm handler */
-        uint64_t cleanup_delay_ms = prov_ctx->cleanup_delay > 100 ? prov_ctx->cleanup_delay : 100;
-        esp_timer_start_once(prov_ctx->cleanup_delay_timer, cleanup_delay_ms * 1000U);
+        if (xTaskCreate(prov_stop_task, "prov_stop_task", 4096, (void *)1, tskIDLE_PRIORITY, NULL) != pdPASS) {
+            ESP_LOGE(TAG, "Failed to create prov_stop_task!");
+            abort();
+        }
         ESP_LOGD(TAG, "Provisioning scheduled for stopping");
     }
     return true;
@@ -716,14 +628,6 @@ static bool wifi_prov_mgr_stop_service(bool blocking)
 static void stop_prov_timer_cb(void *arg)
 {
     wifi_prov_mgr_stop_provisioning();
-}
-
-static void cleanup_delay_timer_cb(void *arg)
-{
-    esp_err_t ret = esp_event_post(WIFI_PROV_MGR_PVT_EVENT, WIFI_PROV_MGR_STOP, NULL, 0, pdMS_TO_TICKS(100));
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to post WIFI_PROV_MGR_STOP event! %d %s", ret, esp_err_to_name(ret));
-    }
 }
 
 esp_err_t wifi_prov_mgr_disable_auto_stop(uint32_t cleanup_delay)
@@ -885,6 +789,14 @@ static esp_err_t update_wifi_scan_results(void)
     return ret;
 }
 
+/* DEPRECATED : Event handler for starting/stopping provisioning.
+ * To be called from within the context of the main
+ * event handler */
+esp_err_t wifi_prov_mgr_event_handler(void *ctx, system_event_t *event)
+{
+    return ESP_OK;
+}
+
 static void wifi_prov_mgr_event_handler_internal(
     void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
@@ -892,7 +804,6 @@ static void wifi_prov_mgr_event_handler_internal(
         ESP_LOGE(TAG, "Provisioning manager not initialized");
         return;
     }
-
     ACQUIRE_LOCK(prov_ctx_lock);
 
     /* If pointer to provisioning application data is NULL
@@ -953,6 +864,7 @@ static void wifi_prov_mgr_event_handler_internal(
         case WIFI_REASON_AUTH_EXPIRE:
         case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
         case WIFI_REASON_AUTH_FAIL:
+        case WIFI_REASON_ASSOC_EXPIRE:
         case WIFI_REASON_HANDSHAKE_TIMEOUT:
         case WIFI_REASON_MIC_FAILURE:
             ESP_LOGE(TAG, "STA Auth Error");
@@ -977,8 +889,6 @@ static void wifi_prov_mgr_event_handler_internal(
             /* Execute user registered callback handler */
             execute_event_cb(WIFI_PROV_CRED_FAIL, (void *)&reason, sizeof(reason));
         }
-    } else if (event_base == WIFI_PROV_MGR_PVT_EVENT && event_id == WIFI_PROV_MGR_STOP) {
-        prov_stop_and_notify(true);
     }
 
     RELEASE_LOCK(prov_ctx_lock);
@@ -1192,6 +1102,11 @@ esp_err_t wifi_prov_mgr_is_provisioned(bool *provisioned)
 
     *provisioned = false;
 
+    if (!prov_ctx_lock) {
+        ESP_LOGE(TAG, "Provisioning manager not initialized");
+        return ESP_ERR_INVALID_STATE;
+    }
+
     /* Get Wi-Fi Station configuration */
     wifi_config_t wifi_cfg;
     if (esp_wifi_get_config(WIFI_IF_STA, &wifi_cfg) != ESP_OK) {
@@ -1336,12 +1251,6 @@ esp_err_t wifi_prov_mgr_init(wifi_prov_mgr_config_t config)
         goto exit;
     }
 
-    ret = scheme->set_config_endpoint(prov_ctx->prov_scheme_config, "prov-ctrl", 0xFF4F);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "failed to configure Wi-Fi state control endpoint");
-        goto exit;
-    }
-
     ret = scheme->set_config_endpoint(prov_ctx->prov_scheme_config, "prov-scan", 0xFF50);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "failed to configure Wi-Fi scanning endpoint");
@@ -1429,8 +1338,6 @@ void wifi_prov_mgr_deinit(void)
     if (!service_was_running && !prov_ctx) {
         ESP_LOGD(TAG, "Manager already de-initialized");
         RELEASE_LOCK(prov_ctx_lock);
-        vSemaphoreDelete(prov_ctx_lock);
-        prov_ctx_lock = NULL;
         return;
     }
 
@@ -1481,12 +1388,9 @@ void wifi_prov_mgr_deinit(void)
     if (esp_event_post(WIFI_PROV_EVENT, WIFI_PROV_DEINIT, NULL, 0, portMAX_DELAY) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to post event WIFI_PROV_DEINIT");
     }
-
-    vSemaphoreDelete(prov_ctx_lock);
-    prov_ctx_lock = NULL;
 }
 
-esp_err_t wifi_prov_mgr_start_provisioning(wifi_prov_security_t security, const void *wifi_prov_sec_params,
+esp_err_t wifi_prov_mgr_start_provisioning(wifi_prov_security_t security, const char *pop,
                                            const char *service_name, const char *service_key)
 {
     uint8_t restore_wifi_flag = 0;
@@ -1560,38 +1464,21 @@ esp_err_t wifi_prov_mgr_start_provisioning(wifi_prov_security_t security, const 
         goto err;
     }
 
-#ifdef CONFIG_ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_0
     /* Initialize app data */
     if (security == WIFI_PROV_SECURITY_0) {
         prov_ctx->mgr_info.capabilities.no_sec = true;
-    }
-#endif
-#ifdef CONFIG_ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_1
-    if (security == WIFI_PROV_SECURITY_1) {
-        if (wifi_prov_sec_params) {
-            static protocomm_security1_params_t sec1_params;
-            // Generate internal copy of "pop", that shall be freed at the end
-            char *pop = strdup(wifi_prov_sec_params);
-            if (pop == NULL) {
-                ESP_LOGE(TAG, "Failed to allocate memory for pop");
-                ret = ESP_ERR_NO_MEM;
-                goto err;
-            }
-            sec1_params.data = (const uint8_t *)pop;
-            sec1_params.len = strlen(pop);
-            prov_ctx->protocomm_sec_params = (const void *) &sec1_params;
-        } else {
-            prov_ctx->mgr_info.capabilities.no_pop = true;
+    } else if (pop) {
+        prov_ctx->pop.len = strlen(pop);
+        prov_ctx->pop.data = malloc(prov_ctx->pop.len);
+        if (!prov_ctx->pop.data) {
+            ESP_LOGE(TAG, "Unable to allocate PoP data");
+            ret = ESP_ERR_NO_MEM;
+            goto err;
         }
+        memcpy((void *)prov_ctx->pop.data, pop, prov_ctx->pop.len);
+    } else {
+        prov_ctx->mgr_info.capabilities.no_pop = true;
     }
-#endif
-#ifdef CONFIG_ESP_PROTOCOMM_SUPPORT_SECURITY_VERSION_2
-    if (security == WIFI_PROV_SECURITY_2) {
-        if (wifi_prov_sec_params) {
-            prov_ctx->protocomm_sec_params = wifi_prov_sec_params;
-        }
-    }
-#endif
     prov_ctx->security = security;
 
 
@@ -1604,6 +1491,7 @@ esp_err_t wifi_prov_mgr_start_provisioning(wifi_prov_security_t security, const 
     ret = esp_timer_create(&wifi_connect_timer_conf, &prov_ctx->wifi_connect_timer);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to create Wi-Fi connect timer");
+        free((void *)prov_ctx->pop.data);
         goto err;
     }
 
@@ -1620,24 +1508,10 @@ esp_err_t wifi_prov_mgr_start_provisioning(wifi_prov_security_t security, const 
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to create auto-stop timer");
             esp_timer_delete(prov_ctx->wifi_connect_timer);
+            free((void *)prov_ctx->pop.data);
             goto err;
         }
     }
-
-    esp_timer_create_args_t cleanup_delay_timer = {
-        .callback = cleanup_delay_timer_cb,
-        .arg = NULL,
-        .dispatch_method = ESP_TIMER_TASK,
-        .name = "cleanup_delay_tm"
-    };
-    ret = esp_timer_create(&cleanup_delay_timer, &prov_ctx->cleanup_delay_timer);
-    if (ret != ESP_OK) {
-      ESP_LOGE(TAG, "Failed to create cleanup delay timer");
-      esp_timer_delete(prov_ctx->wifi_connect_timer);
-      esp_timer_delete(prov_ctx->autostop_timer);
-      goto err;
-    }
-
 
     /* System APIs for BLE / Wi-Fi will be called inside wifi_prov_mgr_start_service(),
      * which may trigger system level events. Hence, releasing the context lock will
@@ -1650,7 +1524,7 @@ esp_err_t wifi_prov_mgr_start_provisioning(wifi_prov_security_t security, const 
     if (ret != ESP_OK) {
         esp_timer_delete(prov_ctx->autostop_timer);
         esp_timer_delete(prov_ctx->wifi_connect_timer);
-        esp_timer_delete(prov_ctx->cleanup_delay_timer);
+        free((void *)prov_ctx->pop.data);
     }
     ACQUIRE_LOCK(prov_ctx_lock);
     if (ret == ESP_OK) {
@@ -1736,53 +1610,4 @@ esp_err_t wifi_prov_mgr_reset_sm_state_on_failure(void)
 exit:
     RELEASE_LOCK(prov_ctx_lock);
     return err;
-}
-
-esp_err_t wifi_prov_mgr_reset_sm_state_for_reprovision(void)
-{
-    if (!prov_ctx_lock) {
-        ESP_LOGE(TAG, "Provisioning manager not initialized");
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    ACQUIRE_LOCK(prov_ctx_lock);
-
-    esp_err_t ret = ESP_OK;
-    wifi_config_t wifi_cfg_empty = {0};
-    uint8_t restore_wifi_flag = 0;
-
-    if (!prov_ctx->mgr_info.capabilities.no_auto_stop) {
-        ESP_LOGE(TAG, "Execute wifi_prov_mgr_disable_auto_stop() before calling this API");
-        ret = ESP_ERR_INVALID_STATE;
-        goto exit;
-    }
-
-    ret = esp_wifi_set_storage(WIFI_STORAGE_RAM);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to set Wi-Fi storage to RAM");
-        goto exit;
-    }
-    restore_wifi_flag |= WIFI_PROV_STORAGE_BIT;
-
-    ret = esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg_empty);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to set empty Wi-Fi credentials, 0x%x", ret);
-        goto exit;
-    }
-
-    ret = esp_wifi_disconnect();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to disconnect wifi, 0x%x", ret);
-        goto exit;
-    }
-
-    prov_ctx->prov_state = WIFI_PROV_STATE_STARTED;
-    execute_event_cb(WIFI_PROV_START, NULL, 0);
-
-exit:
-    if (restore_wifi_flag & WIFI_PROV_STORAGE_BIT) {
-        esp_wifi_set_storage(WIFI_STORAGE_FLASH);
-    }
-    RELEASE_LOCK(prov_ctx_lock);
-    return ret;
 }

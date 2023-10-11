@@ -522,14 +522,13 @@ int bt_mesh_model_send(struct bt_mesh_model *model,
                        const struct bt_mesh_send_cb *cb,
                        void *cb_data);
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+
+// Ninh.D.H 21.06.2023 //
 int bt_mesh_model_send_with_devkey(struct bt_mesh_model *model,
                                    struct bt_mesh_msg_ctx *ctx,
                                    struct net_buf_simple *msg,
                                    uint8_t *devKey,
                                    const struct bt_mesh_send_cb *cb, void *cb_data);
-/*************************************************************************************************/
 
 /**
  * @brief Send a model publication message.

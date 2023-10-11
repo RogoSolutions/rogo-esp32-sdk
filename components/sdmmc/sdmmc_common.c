@@ -195,21 +195,36 @@ esp_err_t sdmmc_init_host_bus_width(sdmmc_card_t* card)
 
 esp_err_t sdmmc_init_host_frequency(sdmmc_card_t* card)
 {
-    esp_err_t err;
     assert(card->max_freq_khz <= card->host.max_freq_khz);
 
-    if (card->max_freq_khz > SDMMC_FREQ_PROBING) {
-        err = (*card->host.set_card_clk)(card->host.slot, card->max_freq_khz);
+    /* Find highest frequency in the following list,
+     * which is below card->max_freq_khz.
+     */
+    const uint32_t freq_values[] = {
+            SDMMC_FREQ_52M,
+            SDMMC_FREQ_HIGHSPEED,
+            SDMMC_FREQ_26M,
+            SDMMC_FREQ_DEFAULT
+            //NOTE: in sdspi mode, 20MHz may not work. in that case, add 10MHz here.
+    };
+    const int n_freq_values = sizeof(freq_values) / sizeof(freq_values[0]);
+
+    uint32_t selected_freq = SDMMC_FREQ_PROBING;
+    for (int i = 0; i < n_freq_values; ++i) {
+        uint32_t freq = freq_values[i];
+        if (card->max_freq_khz >= freq) {
+            selected_freq = freq;
+            break;
+        }
+    }
+
+    ESP_LOGD(TAG, "%s: using %d kHz bus frequency", __func__, selected_freq);
+    if (selected_freq > SDMMC_FREQ_PROBING) {
+        esp_err_t err = (*card->host.set_card_clk)(card->host.slot, selected_freq);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "failed to switch bus frequency (0x%x)", err);
             return err;
         }
-    }
-
-    err = (*card->host.get_real_freq)(card->host.slot, &(card->real_freq_khz));
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "failed to get real working frequency (0x%x)", err);
-        return err;
     }
 
     if (card->is_ddr) {
@@ -217,7 +232,7 @@ esp_err_t sdmmc_init_host_frequency(sdmmc_card_t* card)
             ESP_LOGE(TAG, "host doesn't support DDR mode or voltage switching");
             return ESP_ERR_NOT_SUPPORTED;
         }
-        err = (*card->host.set_bus_ddr_mode)(card->host.slot, true);
+        esp_err_t err = (*card->host.set_bus_ddr_mode)(card->host.slot, true);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "failed to switch bus to DDR mode (0x%x)", err);
             return err;
@@ -243,9 +258,7 @@ void sdmmc_card_print_info(FILE* stream, const sdmmc_card_t* card)
     bool print_scr = false;
     bool print_csd = false;
     const char* type;
-
     fprintf(stream, "Name: %s\n", card->cid.name);
-
     if (card->is_sdio) {
         type = "SDIO";
         print_scr = true;
@@ -255,31 +268,20 @@ void sdmmc_card_print_info(FILE* stream, const sdmmc_card_t* card)
         print_csd = true;
     } else {
         type = (card->ocr & SD_OCR_SDHC_CAP) ? "SDHC/SDXC" : "SDSC";
-        print_csd = true;
     }
     fprintf(stream, "Type: %s\n", type);
-
-    if (card->real_freq_khz == 0) {
-        fprintf(stream, "Speed: N/A\n");
+    if (card->max_freq_khz < 1000) {
+        fprintf(stream, "Speed: %d kHz\n", card->max_freq_khz);
     } else {
-        const char *freq_unit = card->real_freq_khz < 1000 ? "kHz" : "MHz";
-        const float freq = card->real_freq_khz < 1000 ? card->real_freq_khz : card->real_freq_khz / 1000.0;
-        const char *max_freq_unit = card->max_freq_khz < 1000 ? "kHz" : "MHz";
-        const float max_freq = card->max_freq_khz < 1000 ? card->max_freq_khz : card->max_freq_khz / 1000.0;
-        fprintf(stream, "Speed: %.2f %s (limit: %.2f %s)%s\n", freq, freq_unit, max_freq, max_freq_unit, card->is_ddr ? ", DDR" : "");
+        fprintf(stream, "Speed: %d MHz%s\n", card->max_freq_khz / 1000,
+                card->is_ddr ? ", DDR" : "");
     }
-
     fprintf(stream, "Size: %lluMB\n", ((uint64_t) card->csd.capacity) * card->csd.sector_size / (1024 * 1024));
 
     if (print_csd) {
         fprintf(stream, "CSD: ver=%d, sector_size=%d, capacity=%d read_bl_len=%d\n",
-                (card->is_mmc ? card->csd.csd_ver : card->csd.csd_ver + 1),
+                card->csd.csd_ver,
                 card->csd.sector_size, card->csd.capacity, card->csd.read_block_len);
-        if (card->is_mmc) {
-            fprintf(stream, "EXT CSD: bus_width=%d\n", (1 << card->log_bus_width));
-        } else if (!card->is_sdio){ // make sure card is SD
-            fprintf(stream, "SSR: bus_width=%d\n", (card->ssr.cur_bus_width ? 4 : 1));
-        }
     }
     if (print_scr) {
         fprintf(stream, "SCR: sd_spec=%d, bus_width=%d\n", card->scr.sd_spec, card->scr.bus_width);
@@ -309,13 +311,4 @@ esp_err_t sdmmc_fix_host_flags(sdmmc_card_t* card)
         }
     }
     return ESP_OK;
-}
-
-uint32_t sdmmc_get_erase_timeout_ms(const sdmmc_card_t* card, int arg, size_t erase_size_kb)
-{
-    if (card->is_mmc) {
-        return sdmmc_mmc_get_erase_timeout_ms(card, arg, erase_size_kb);
-    } else {
-        return sdmmc_sd_get_erase_timeout_ms(card, arg, erase_size_kb);
-    }
 }

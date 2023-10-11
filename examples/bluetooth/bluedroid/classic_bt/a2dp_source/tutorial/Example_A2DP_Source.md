@@ -75,7 +75,7 @@ if (esp_bluedroid_enable() != ESP_OK) {
 }
 ```
 
-The Classic Bluetooth uses an asynchronous programming paradigm. The entire Bluedroid stack sees the use of events, event handlers, callbacks and state machines. Most APIs are implemented by posting specific type of events to the work queue of Bluedroid Stack. Threads(FreeRTOS) tasks inside Bluedroid then process the events with specific handlers, according to the internal state. When the operations are completed, Bluedroid stack invokes the callback function which is registered by application, to report some other events and information.
+The Classic Bluetooth uses an asynchronous programming paradigm. The concept of EVENT and CALLBACK functions runs through the entire Bluetooth protocol stack. In other words, when certain operations or commands are completed, the Bluetooth Stack will report one or more events to the application and wait for further processing based on the information fed back by the event. Application usually registers corresponding callback functions for the events of interest. The Bluetooth protocol stack defined most of the event types. At the same time, applications can also customize event types and corresponding event handlers.
 
 For example, after executing `esp_bt_gap_start_discovery()`, an event of `ESP_BT_GAP_DISC_STATE_CHANGED_EVT` occurs to inform that the discovery state has been changed. Application can do some processing at this time.
 
@@ -111,7 +111,7 @@ bt_app_task_start_up();
 
 ### Profile Set up
 
-The main function ends up dispatching event "BT_APP_STACK_UP_EVT" to the application task. 
+The main function ends up dispatching event BT_APP_STACK_UP_EVT to the application task.
 
 ```c
 /* Bluetooth device name, connection mode and profile set up */

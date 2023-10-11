@@ -3,7 +3,7 @@ ESP Local Control
 
 Overview
 --------
-ESP Local Control (**esp_local_ctrl**) component in  ESP-IDF provides capability to control an ESP device over HTTPS or BLE. It provides access to application defined **properties** that are available for reading / writing via a set of configurable handlers.
+ESP Local Control (**esp_local_ctrl**) component in  ESP-IDF provides capability to control an ESP device over Wi-Fi + HTTPS or BLE. It provides access to application defined **properties** that are available for reading / writing via a set of configurable handlers.
 
 Initialization of the **esp_local_ctrl** service over BLE transport is performed as follows:
 
@@ -27,7 +27,7 @@ Initialization of the **esp_local_ctrl** service over BLE transport is performed
             .proto_sec = {
                 .version = PROTOCOM_SEC0,
                 .custom_handle = NULL,
-                .sec_params = NULL,
+                .pop = NULL,
             },
             .handlers = {
                 /* User defined handler functions */
@@ -54,10 +54,10 @@ Similarly for HTTPS transport:
         httpd_ssl_config_t https_conf = HTTPD_SSL_CONFIG_DEFAULT();
 
         /* Load server certificate */
-        extern const unsigned char servercert_start[] asm("_binary_servercert_pem_start");
-        extern const unsigned char servercert_end[]   asm("_binary_servercert_pem_end");
-        https_conf.servercert = servercert_start;
-        https_conf.servercert_len = servercert_end - servercert_start;
+        extern const unsigned char cacert_pem_start[] asm("_binary_cacert_pem_start");
+        extern const unsigned char cacert_pem_end[]   asm("_binary_cacert_pem_end");
+        https_conf.cacert_pem = cacert_pem_start;
+        https_conf.cacert_len = cacert_pem_end - cacert_pem_start;
 
         /* Load server private key */
         extern const unsigned char prvtkey_pem_start[] asm("_binary_prvtkey_pem_start");
@@ -73,7 +73,7 @@ Similarly for HTTPS transport:
             .proto_sec = {
                 .version = PROTOCOM_SEC0,
                 .custom_handle = NULL,
-                .sec_params = NULL,
+                .pop = NULL,
             },
             .handlers = {
                 /* User defined handler functions */
@@ -91,12 +91,9 @@ Similarly for HTTPS transport:
 
 You may set security for transport in ESP local control using following options:
 
-1. `PROTOCOM_SEC2`: specifies that SRP6a based key exchange and end to end encryption based on AES-GCM is used. This is the most preffered option as it adds a robust security with Augmented PAKE protocol i.e. SRP6a.
-2. `PROTOCOM_SEC1`: specifies that Curve25519 based key exchange and end to end encryption based on AES-CTR is used.
-3. `PROTOCOM_SEC0`: specifies that data will be exchanged as a plain text (no security).
-4. `PROTOCOM_SEC_CUSTOM`: you can define your own security requirement. Please note that you will also have to provide `custom_handle` of type `protocomm_security_t *` in this context.
-
-.. note:: The respective security schemes need to be enabled through the project configuration menu. Please refer to the Enabling protocom security version section in :doc:`Protocol Communication </api-reference/provisioning/protocomm>` for more details.
+1. `PROTOCOM_SEC1`: specifies that end to end encryption is used.
+2. `PROTOCOM_SEC0`: specifies that data will be exchanged as a plain text.
+3. `PROTOCOM_SEC_CUSTOM`: you can define your own security requirement. Please note that you will also have to provide `custom_handle` of type `protocomm_security_t *` in this context.
 
 Creating a property
 -------------------

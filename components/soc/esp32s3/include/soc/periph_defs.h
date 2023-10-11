@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -51,7 +51,6 @@ typedef enum {
     PERIPH_GDMA_MODULE,
     PERIPH_DEDIC_GPIO_MODULE,
     PERIPH_SARADC_MODULE,
-    PERIPH_TEMPSENSOR_MODULE,
     PERIPH_MODULE_MAX
 } periph_module_t;
 
@@ -151,7 +150,7 @@ typedef enum {
     ETS_CACHE_CORE0_ACS_INTR_SOURCE,
     ETS_CACHE_CORE1_ACS_INTR_SOURCE,
     ETS_USB_SERIAL_JTAG_INTR_SOURCE,
-    ETS_PERI_BACKUP_INTR_SOURCE,
+    ETS_PREI_BACKUP_INTR_SOURCE,
     ETS_DMA_EXTMEM_REJECT_SOURCE,
     ETS_MAX_INTR_SOURCE,                        /**< number of interrupt sources */
 } periph_interrput_t;

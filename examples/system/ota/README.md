@@ -74,7 +74,7 @@ After a successful build, we need to create a self-signed certificate and run a 
   (Some windows builds of openssl translate CR/LF sequences to LF in the served files, leading to corrupted images received by the OTA client; others interpret the `0x1a`/`SUB` character in a binary as an escape sequence, i.e. end of file, and close the connection prematurely thus preventing the OTA client from receiving a complete image).
   * We recommend  using the `openssl` binary bundled in `Git For Windows` from the [ESP-IDF Tool installer](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/windows-setup.html):
   Open the ESP-IDF command prompt and add the internal openssl binary to your path: `set PATH=%LocalAppData%\Git\usr\bin;%PATH%` and run openssl's http server command as above.
-  * Alternatively, use any windows based openssl with version `v1.1.1i` or greater built on the `Msys-x86_64` platform, or a simple python https server -- see `start_https_server` in the [example_test](simple_ota_example/pytest_simple_ota.py) script.
+  * Alternatively, use any windows based openssl with version `v1.1.1i` or greater built on the `Msys-x86_64` platform, or a simple python https server -- see `start_https_server` in the [example_test](simple_ota_example/example_test.py) script.
 
 ### Flash Certificate to "ESP-Dev-Board"
 
@@ -86,14 +86,12 @@ cp ca_cert.pem /path/to/ota/example/server_certs/
 
 ### Internal workflow of the OTA Example
 
-After booting, the firmware:
+After booting, the firmware prints "Starting OTA example" to the console and:
 
-1. prints "OTA example app_main start" to the console
-2. Connects via Ethernet or to the AP using the provided SSID and password (Wi-Fi case)
-3. prints "Starting OTA example task" to the console
-4. Connects to the HTTPS server and downloads the new image
-5. Writes the image to flash, and instructs the bootloader to boot from this image after the next reset
-6. Reboots
+1. Connects via Ethernet or to the AP using the provided SSID and password (Wi-Fi case)
+2. Connects to the HTTPS server and downloads the new image
+3. Writes the image to flash, and instructs the bootloader to boot from this image after the next reset
+4. Reboots
 
 If you want to rollback to the `factory` app after the upgrade (or to the first OTA partition in case the `factory` partition does not exist), run the command `idf.py erase_otadata`. This restores the `ota_data` partition to its initial state.
 
@@ -142,14 +140,14 @@ If you see this error, check that the configured (and actual) flash size is larg
 
 Make sure to run "idf.py erase-flash" after making changes to the partition table.
 
-### Local HTTPS Server
+### Local https server
 
 Running a local https server might be tricky in some cases (due to self signed certificates, or potential issues with `openssl s_server` on Windows). Here are some suggestions for alternatives:
 * Run a plain HTTP server to test the connection. (Note that using a plain http is **not secure** and should only be used for testing)
     - Execute `python -m http.server 8070` in the directory with the firmware image
     - Use http://<host-ip>:8070/<firmware-name> as the firmware upgrade URL
-    - Enable *Allow HTTP for OTA* (`CONFIG_ESP_HTTPS_OTA_ALLOW_HTTP`) in `Component config -> ESP HTTPS OTA` so the URI without TLS is accepted
-* Start the HTTPS server using [example_test](simple_ota_example/pytest_simple_ota.py) with two or more parameters: `pytest_simple_ota.py <BIN_DIR> <PORT> [CERT_DIR]`, where:
+    - Enable *Allow HTTP for OTA* (`CONFIG_OTA_ALLOW_HTTP`) in `Component config -> ESP HTTPS OTA` so the URI without TLS is accepted
+* Start the https server using [example_test](simple_ota_example/example_test.py) with two or more parameters: `example_test.py <BIN_DIR> <PORT> [CERT_DIR]`, where:
     - `<BIN_DIR>` is a directory containing the image and by default also the certificate and key files:`ca_cert.pem` and `ca_key.pem`
     - `<PORT>` is the server's port, here `8070`
     - `[CERT_DIR]` is an optional argument pointing to a specific directory with the certificate and key file.
@@ -160,18 +158,4 @@ $ python example_test.py build 8070
 Starting HTTPS server at "https://:8070"
 192.168.10.106 - - [02/Mar/2021 14:32:26] "GET /simple_ota.bin HTTP/1.1" 200 -
 ```
-* Publish the firmware image on a public server (e.g. github.com) and copy its root certificate to the `server_certs` directory as `ca_cert.pem`. The certificate can be downloaded using the `s_client` openssl command as shown below:
-
-```
-echo "" | openssl s_client -showcerts -connect raw.githubusercontent.com:443 | sed -n "1,/Root/d; /BEGIN/,/END/p" | openssl x509 -outform PEM >ca_cert.pem
-```
-
-Please note that URL used here is `raw.githubusercontent.com`. This URL allows raw access to files hosted on github.com repository. Additionally, command above copies last certificate from chain of certs as the CA root cert of server.
-
-### Using HTTPS Server in Production
-
-Please refer to [ESP-TLS: TLS Server Verification](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/protocols/esp_tls.html#tls-server-verification) for more information on server verification. The root certificate (in PEM format) needs to be provided to the `cert_pem` member of the `esp_http_client_config_t` configuration.
-
-Note that the server-endpoint **root** certificate should be used for verification instead of any intermediate ones from the certificate chain. The reason being that the root certificate has the maximum validity and usually remains the same for a long period of time.
-
-Users can also use the `ESP x509 Certificate Bundle` feature for verification, which covers most of the trusted root certificates (using the `crt_bundle_attach` member of the `esp_http_client_config_t` configuration). There is no need to add any additional certificates. Please refer to the [simple_ota_example](simple_ota_example) for its usage.
+* Publish the firmware image on a public server (e.g. github.com) and copy its root certificate to the `server_certs` directory as `ca_cert.pem`. (The certificate can be downloaded using the `s_client` openssl command if the host includes the root certificate in the chain, e.g. `openssl s_client -showcerts -connect github.com:443 </dev/null`)

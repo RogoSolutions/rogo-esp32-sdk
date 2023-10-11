@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef __BTC_TASK_H__
 #define __BTC_TASK_H__
@@ -20,7 +28,7 @@ typedef struct btc_msg {
     uint8_t aid;    //application id
     uint8_t pid;    //profile id
     uint8_t act;    //profile action, defined in seprerate header files
-    UINT8   arg[0]; //param for btc function or function param
+    void   *arg;    //param for btc function or function param
 } btc_msg_t;
 
 typedef struct btc_adv_packet {
@@ -59,8 +67,6 @@ typedef enum {
     BTC_PID_SPP,
     BTC_PID_HD,
     BTC_PID_HH,
-    BTC_PID_L2CAP,
-    BTC_PID_SDP,
 #if (BTC_HF_INCLUDED == TRUE)
     BTC_PID_HF,
 #endif /* BTC_HF_INCLUDED */
@@ -94,7 +100,6 @@ typedef struct {
 } btc_func_t;
 
 typedef void (* btc_arg_deep_copy_t)(btc_msg_t *msg, void *dst, void *src);
-typedef void (* btc_arg_deep_free_t)(btc_msg_t *msg);
 
 #ifdef __cplusplus
 extern "C" {
@@ -106,32 +111,24 @@ extern "C" {
  * @param  arg       paramter
  * @param  arg_len   length of paramter
  * @param  copy_func deep copy function
- * @param  free_func deep free function
  * @return           BT_STATUS_SUCCESS: success
  *                   others: fail
  */
-bt_status_t btc_transfer_context(btc_msg_t *msg, void *arg, int arg_len, btc_arg_deep_copy_t copy_func,
-                                    btc_arg_deep_free_t free_func);
+bt_status_t btc_transfer_context(btc_msg_t *msg, void *arg, int arg_len, btc_arg_deep_copy_t copy_func);
 
 /**
  * transfer an message to another module in tha same task.
  * @param  msg       message
+ * @param  arg       paramter
  * @return           BT_STATUS_SUCCESS: success
  *                   others: fail
  */
-bt_status_t btc_inter_profile_call(btc_msg_t *msg);
+bt_status_t btc_inter_profile_call(btc_msg_t *msg, void *arg);
 
 bt_status_t btc_init(void);
 void btc_deinit(void);
 bool btc_check_queue_is_congest(void);
 int get_btc_work_queue_size(void);
-
-/**
- * get the BTC thread handle
- * @return           NULL: fail
- *                   others: pointer of osi_thread structure of BTC
- */
-osi_thread_t *btc_get_current_thread(void);
 
 #ifdef __cplusplus
 }

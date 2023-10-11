@@ -3,7 +3,7 @@ NimBLE-based host APIs
 Overview
 ========
 
-Apache MyNewt NimBLE is a highly configurable and BT SIG qualifiable BLE stack providing both host and controller functionalities. ESP-IDF supports NimBLE host stack which is specifically ported for ESP32 platform and FreeRTOS. The underlying controller is still the same (as in case of Bluedroid) providing VHCI interface. Refer to  `NimBLE user guide <https://mynewt.apache.org/latest/network/index.html>`_ for a complete list of features and additional information on NimBLE stack. Most features of NimBLE including BLE Mesh are supported by ESP-IDF. The porting layer is kept cleaner by maintaining all the existing APIs of NimBLE along with a single ESP-NimBLE API for initialization, making it simpler for the application developers.
+Apache MyNewt NimBLE is a highly configurable and BT SIG qualifiable BLE stack providing both host and controller functionalities. ESP-IDF supports NimBLE host stack which is specifically ported for ESP32 platform and FreeRTOS. The underlying controller is still the same (as in case of Bluedroid) providing VHCI interface. Refer to  `NimBLE user guide <http://mynewt.apache.org/latest/network/index.html#>`_ for a complete list of features and additional information on NimBLE stack. Most features of NimBLE including BLE Mesh are supported by ESP-IDF. The porting layer is kept cleaner by maintaining all the existing APIs of NimBLE along with a single ESP-NimBLE API for initialization, making it simpler for the application developers.
 
 Architecture
 ============
@@ -30,7 +30,8 @@ To begin with, make sure that the NimBLE stack is enabled from menuconfig :ref:`
 
 Typical programming sequence with NimBLE stack consists of the following steps:
     * Initialize NVS flash using :cpp:func:`nvs_flash_init` API. This is because ESP controller uses NVS during initialization.
-    * Initialize the host and controller stack using ``nimble_port_init``.
+    * Call :cpp:func:`esp_nimble_hci_and_controller_init` to initialize ESP controller as well as transport layer. This will also link the host and controller modules together. Alternatively, if ESP controller is already initialized, then :cpp:func:`esp_nimble_hci_init` can be called for the remaining initialization.
+    * Initialize the host stack using ``nimble_port_init``.
     * Initialize the required NimBLE host configuration parameters and callbacks
     * Perform application specific tasks/initialization
     * Run the thread for host stack using ``nimble_port_freertos_init``

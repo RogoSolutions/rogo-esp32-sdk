@@ -16,35 +16,16 @@
 #define TIME_IS_OUT(start, end, timeout)     (timeout) > ((end)-(start)) ? 0 : 1
 
 //Pin setting
-#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
+#ifdef CONFIG_IDF_TARGET_ESP32S2
 #define GPIO_MOSI 11
 #define GPIO_MISO 13
 #define GPIO_SCLK 12
 #define GPIO_CS   10
 
-#elif CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32C2
-#define GPIO_MOSI    7
-#define GPIO_MISO    2
-#define GPIO_SCLK    6
-#define GPIO_CS      10
-
-#elif CONFIG_IDF_TARGET_ESP32C6
-#define GPIO_MOSI    19
-#define GPIO_MISO    20
-#define GPIO_SCLK    18
-#define GPIO_CS      9
-
-#elif CONFIG_IDF_TARGET_ESP32H2
-#define GPIO_HANDSHAKE 2
-#define GPIO_MOSI 5
-#define GPIO_MISO 0
-#define GPIO_SCLK 4
-#define GPIO_CS 1
-#endif
-
 #define SLAVE_HOST SPI2_HOST
 #define DMA_CHAN   SPI_DMA_CH_AUTO
 #define QUEUE_SIZE 4
+#endif
 
 /**
  * Helper Macros for Master-Slave synchronization, each setting is 4-byte-width
@@ -170,7 +151,7 @@ static bool get_tx_data(uint8_t *data, uint32_t max_len, uint32_t *out_len)
         return false;
     }
 
-    snprintf((char *)data, *out_len, "Transaction No.%"PRIu32" from slave, length: %"PRIu32, s_tx_data_id, *out_len);
+    snprintf((char *)data, *out_len, "Transaction No.%d from slave, length: %d", s_tx_data_id, *out_len);
     s_tx_data_id++;
     return true;
 }

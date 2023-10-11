@@ -373,11 +373,11 @@ static int do_sniffer_cmd(int argc, char **argv)
                 snf_rt.interf = SNIFFER_INTF_ETH;
                 snf_rt.interf_num = eth_intf_num;
             } else {
-                ESP_LOGE(SNIFFER_TAG, "interface %s not found", sniffer_args.interface->sval[0]);
+                ESP_LOGE(SNIFFER_TAG, "unsupported interface %s", sniffer_args.interface->sval[0]);
                 return 1;
             }
         } else {
-            ESP_LOGE(SNIFFER_TAG, "interface %s not found", sniffer_args.interface->sval[0]);
+            ESP_LOGE(SNIFFER_TAG, "unsupported interface %s", sniffer_args.interface->sval[0]);
             return 1;
         }
     } else {
@@ -430,7 +430,7 @@ static int do_sniffer_cmd(int argc, char **argv)
     snf_rt.packets_to_sniff = -1;
     if (sniffer_args.number->count) {
         snf_rt.packets_to_sniff = sniffer_args.number->ival[0];
-        ESP_LOGI(SNIFFER_TAG, "%" PRIi32 " packages will be captured", snf_rt.packets_to_sniff);
+        ESP_LOGI(SNIFFER_TAG, "%d packages will be captured", snf_rt.packets_to_sniff);
     }
 
     /* start sniffer */

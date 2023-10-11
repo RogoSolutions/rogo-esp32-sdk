@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 /*******************************************************************************
  * NOTICE
@@ -13,8 +21,10 @@
 #pragma once
 
 #include <stdlib.h>
-#include "soc/rtc_periph.h"
+#include "soc/rtc_io_periph.h"
+#include "soc/rtc_io_struct.h"
 #include "soc/sens_struct.h"
+#include "hal/rtc_io_types.h"
 #include "hal/gpio_types.h"
 
 #define RTCIO_LL_PIN_FUNC     0
@@ -210,7 +220,7 @@ static inline void rtcio_ll_pulldown_disable(int rtcio_num)
 }
 
 /**
- * Enable force hold function on an RTC IO pad.
+ * Enable force hold function for RTC IO pad.
  *
  * Enabling HOLD function will cause the pad to lock current status, such as,
  * input/output enable, input/output value, function, drive strength values.
@@ -225,7 +235,7 @@ static inline void rtcio_ll_force_hold_enable(int rtcio_num)
 }
 
 /**
- * Disable hold function on an RTC IO pad.
+ * Disable hold function on an RTC IO pad
  *
  * @note If disable the pad hold, the status of pad maybe changed in sleep mode.
  * @param rtcio_num The index of rtcio. 0 ~ MAX(rtcio).
@@ -236,7 +246,7 @@ static inline void rtcio_ll_force_hold_disable(int rtcio_num)
 }
 
 /**
- * Enable force hold function on all RTC IO pads.
+ * Enable force hold function for RTC IO pad.
  *
  * Enabling HOLD function will cause the pad to lock current status, such as,
  * input/output enable, input/output value, function, drive strength values.
@@ -251,7 +261,7 @@ static inline void rtcio_ll_force_hold_all(void)
 }
 
 /**
- * Disable hold function on all RTC IO pads.
+ * Disable hold function on an RTC IO pad
  *
  * @note If disable the pad hold, the status of pad maybe changed in sleep mode.
  * @param rtcio_num The index of rtcio. 0 ~ MAX(rtcio).
@@ -303,7 +313,7 @@ static inline void rtcio_ll_enable_output_in_sleep(gpio_num_t gpio_num)
  *
  * @param rtcio_num The index of rtcio. 0 ~ MAX(rtcio).
  */
-static inline void rtcio_ll_disable_output_in_sleep(gpio_num_t gpio_num)
+static inline void rtcio_ll_in_sleep_disable_output(gpio_num_t gpio_num)
 {
     if (rtc_io_desc[gpio_num].slpoe) {
         CLEAR_PERI_REG_MASK(rtc_io_desc[gpio_num].reg, rtc_io_desc[gpio_num].slpoe);
@@ -315,7 +325,7 @@ static inline void rtcio_ll_disable_output_in_sleep(gpio_num_t gpio_num)
  *
  * @param rtcio_num The index of rtcio. 0 ~ MAX(rtcio).
  */
-static inline void rtcio_ll_enable_input_in_sleep(gpio_num_t gpio_num)
+static inline void rtcio_ll_in_sleep_enable_input(gpio_num_t gpio_num)
 {
     SET_PERI_REG_MASK(rtc_io_desc[gpio_num].reg, rtc_io_desc[gpio_num].slpie);
 }
@@ -325,7 +335,7 @@ static inline void rtcio_ll_enable_input_in_sleep(gpio_num_t gpio_num)
  *
  * @param rtcio_num The index of rtcio. 0 ~ MAX(rtcio).
  */
-static inline void rtcio_ll_disable_input_in_sleep(gpio_num_t gpio_num)
+static inline void rtcio_ll_in_sleep_disable_input(gpio_num_t gpio_num)
 {
     CLEAR_PERI_REG_MASK(rtc_io_desc[gpio_num].reg, rtc_io_desc[gpio_num].slpie);
 }
@@ -350,12 +360,6 @@ static inline void rtcio_ll_disable_sleep_setting(gpio_num_t gpio_num)
     CLEAR_PERI_REG_MASK(rtc_io_desc[gpio_num].reg, rtc_io_desc[gpio_num].slpsel);
 }
 
-/**
- * Set specific logic level on an RTC IO pin as a wakeup trigger.
- *
- * @param rtcio_num The index of rtcio. 0 ~ MAX(rtcio).
- * @param level Logic level (0)
- */
 static inline void rtcio_ll_ext0_set_wakeup_pin(int rtcio_num, int level)
 {
     REG_SET_FIELD(RTC_IO_EXT_WAKEUP0_REG, RTC_IO_EXT_WAKEUP0_SEL, rtcio_num);

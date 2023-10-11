@@ -1297,7 +1297,7 @@ UINT8 L2CA_GetChnlFcrMode (UINT16 lcid)
 
 #endif  ///CLASSIC_BT_INCLUDED == TRUE
 
-#if (BLE_L2CAP_COC_INCLUDED == TRUE)
+#if (BLE_INCLUDED == TRUE)
 /*******************************************************************************
 **
 ** Function         L2CA_RegisterLECoc
@@ -1608,7 +1608,7 @@ BOOLEAN L2CA_GetPeerLECocConfig (UINT16 lcid, tL2CAP_LE_CFG_INFO* peer_cfg)
 
     return TRUE;
 }
-#endif // (BLE_L2CAP_COC_INCLUDED == TRUE)
+#endif  ///BLE_INCLUDED == TRUE
 
 #if (L2CAP_NUM_FIXED_CHNLS > 0)
 /*******************************************************************************
@@ -1948,36 +1948,6 @@ BOOLEAN L2CA_RemoveFixedChnl (UINT16 fixed_cid, BD_ADDR rem_bda)
 
     return (TRUE);
 }
-
-#if BLE_INCLUDED == TRUE
-BOOLEAN L2CA_BleDisconnect (BD_ADDR rem_bda)
-{
-    tL2C_LCB    *p_lcb;
-    tGATT_TCB   *p_tcb;
-
-    p_lcb = l2cu_find_lcb_by_bd_addr (rem_bda, BT_TRANSPORT_LE);
-    if (p_lcb == NULL) {
-        return FALSE;
-    }
-
-    if (p_lcb->link_state != LST_CONNECTED) {
-        return FALSE;
-    }
-
-    p_lcb->disc_reason = HCI_ERR_CONN_CAUSE_LOCAL_HOST;
-    p_lcb->link_state = LST_DISCONNECTING;
-    btsnd_hcic_disconnect (p_lcb->handle, HCI_ERR_PEER_USER);
-
-    p_tcb = gatt_find_tcb_by_addr(rem_bda, BT_TRANSPORT_LE);
-    if (p_tcb == NULL) {
-        return FALSE;
-    }
-
-    gatt_set_ch_state(p_tcb, GATT_CH_CLOSING);
-
-    return TRUE;
-}
-#endif
 
 /*******************************************************************************
 **
@@ -2360,7 +2330,7 @@ void l2ble_update_att_acl_pkt_num(UINT8 type, tl2c_buff_param_t *param)
             break;
         }
 
-        if (!gatt_check_connection_state_by_tcb(p_tcb)) {
+        if ((GATT_CH_OPEN != gatt_get_ch_state(p_tcb)) || (p_tcb->payload_size == 0)) {
             L2CAP_TRACE_ERROR("connection not established\n");
             xSemaphoreGive(buff_semaphore);
             break;
@@ -2372,15 +2342,7 @@ void l2ble_update_att_acl_pkt_num(UINT8 type, tl2c_buff_param_t *param)
             xSemaphoreGive(buff_semaphore);
             break;
         }
-
-        tL2C_CCB *p_ccb = p_lcb->p_fixed_ccbs[L2CAP_ATT_CID - L2CAP_FIRST_FIXED_CHNL];
-        if(p_ccb == NULL) {
-            L2CAP_TRACE_ERROR("%s not found p_ccb", __func__);
-            xSemaphoreGive(buff_semaphore);
-            break;
-        }
-
-        fixed_queue_t * queue = p_ccb->xmit_hold_q;
+        fixed_queue_t * queue = p_lcb->p_fixed_ccbs[L2CAP_ATT_CID - L2CAP_FIRST_FIXED_CHNL]->xmit_hold_q;
         att_max_num = MIN(p_lcb->link_xmit_quota, L2CAP_CACHE_ATT_ACL_NUM);
         if (queue == NULL){
             L2CAP_TRACE_ERROR("%s not found queue", __func__);
@@ -2414,12 +2376,6 @@ void l2ble_update_att_acl_pkt_num(UINT8 type, tl2c_buff_param_t *param)
         xSemaphoreGive(buff_semaphore);
         vSemaphoreDelete(buff_semaphore);
         buff_semaphore = NULL;
-        break;
-    }
-    case L2CA_BUFF_FREE:{
-        xSemaphoreTake(buff_semaphore, portMAX_DELAY);
-        // Do nothing
-        xSemaphoreGive(buff_semaphore);
         break;
     }
     default:

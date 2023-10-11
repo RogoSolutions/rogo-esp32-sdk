@@ -1,7 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
 import argparse
-import logging
 import os
 import re
 import tarfile
@@ -15,15 +12,12 @@ import gitlab
 
 TR = Callable[..., Any]
 
-logging.basicConfig(level=logging.INFO)
-
 
 def retry(func: TR) -> TR:
     """
     This wrapper will only catch several exception types associated with
     "network issues" and retry the whole function.
     """
-
     @wraps(func)
     def wrapper(self: 'Gitlab', *args: Any, **kwargs: Any) -> Any:
         retried = 0
@@ -45,15 +39,12 @@ def retry(func: TR) -> TR:
                 if retried > self.DOWNLOAD_ERROR_MAX_RETRIES:
                     raise e  # get out of the loop
                 else:
-                    logging.warning(
-                        'Network failure in {}, retrying ({})'.format(getattr(func, '__name__', '(unknown callable)'),
-                                                                      retried))
+                    print('Network failure in {}, retrying ({})'.format(getattr(func, '__name__', '(unknown callable)'), retried))
                     time.sleep(2 ** retried)  # wait a bit more after each retry
                     continue
             else:
                 break
         return res
-
     return wrapper
 
 
@@ -145,7 +136,7 @@ class Gitlab(object):
             try:
                 data = job.artifact(a_path)  # type: bytes
             except gitlab.GitlabGetError as e:
-                logging.error("Failed to download '{}' from job {}".format(a_path, job_id))
+                print("Failed to download '{}' from job {}".format(a_path, job_id))
                 raise e
             raw_data_list.append(data)
             if destination:
@@ -184,8 +175,7 @@ class Gitlab(object):
         return job_id_list
 
     @retry
-    def download_archive(self, ref: str, destination: str, project_id: Optional[int] = None,
-                         cache_dir: Optional[str] = None) -> str:
+    def download_archive(self, ref: str, destination: str, project_id: Optional[int] = None) -> str:
         """
         Download archive of certain commit of a repository and extract to destination path
 
@@ -199,52 +189,20 @@ class Gitlab(object):
         else:
             project = self.gitlab_inst.projects.get(project_id)
 
-        if cache_dir:
-            local_archive_file = os.path.join(cache_dir, f'{ref}.tar.gz')
-            os.makedirs(os.path.dirname(local_archive_file), exist_ok=True)
-            if os.path.isfile(local_archive_file):
-                logging.info('Use cached archive file. Skipping download...')
-            else:
-                with open(local_archive_file, 'wb') as fw:
-                    try:
-                        project.repository_archive(sha=ref, streamed=True, action=fw.write)
-                    except gitlab.GitlabGetError as e:
-                        logging.error('Failed to archive from project {}'.format(project_id))
-                        raise e
-                logging.info('Downloaded archive size: {:.03f}MB'.format(
-                    float(os.path.getsize(local_archive_file)) / (1024 * 1024)))
-
-            return self.decompress_archive(local_archive_file, destination)
-
-        # no cache
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             try:
                 project.repository_archive(sha=ref, streamed=True, action=temp_file.write)
             except gitlab.GitlabGetError as e:
-                logging.error('Failed to archive from project {}'.format(project_id))
+                print('Failed to archive from project {}'.format(project_id))
                 raise e
 
-        logging.info('Downloaded archive size: {:.03f}MB'.format(float(os.path.getsize(temp_file.name)) / (1024 * 1024)))
+        print('archive size: {:.03f}MB'.format(float(os.path.getsize(temp_file.name)) / (1024 * 1024)))
 
-        return self.decompress_archive(temp_file.name, destination)
-
-    @staticmethod
-    def decompress_archive(path: str, destination: str) -> str:
-        with tarfile.open(path, 'r') as archive_file:
+        with tarfile.open(temp_file.name, 'r') as archive_file:
             root_name = archive_file.getnames()[0]
             archive_file.extractall(destination)
 
         return os.path.join(os.path.realpath(destination), root_name)
-
-    def get_job_tags(self, job_id: int) -> str:
-        """
-        Get tags of a job
-
-        :param job_id: job id
-        :return: comma-separated tags of the job
-        """
-        job = self.project.jobs.get(job_id)
-        return ','.join(job.tag_list)
 
 
 def main() -> None:
@@ -273,9 +231,6 @@ def main() -> None:
     elif args.action == 'get_project_id':
         ret = gitlab_inst.get_project_id(args.project_name)
         print('project id: {}'.format(ret))
-    elif args.action == 'get_job_tags':
-        ret = gitlab_inst.get_job_tags(args.job_id)
-        print(ret)
 
 
 if __name__ == '__main__':

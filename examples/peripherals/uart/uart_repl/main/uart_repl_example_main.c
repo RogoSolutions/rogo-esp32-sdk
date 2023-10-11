@@ -76,7 +76,7 @@ static void configure_uarts(void)
         .parity    = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
+        .source_clk = UART_SCLK_APB,
     };
 
     ESP_ERROR_CHECK(uart_driver_install(DEFAULT_UART_CHANNEL, READ_BUF_SIZE * 2, 0, 0, NULL, 0));
@@ -112,7 +112,7 @@ static void send_commands(void* arg) {
 
     /* Discard the first messages sent by the console. */
     do {
-        len = uart_read_bytes(DEFAULT_UART_CHANNEL, data, READ_BUF_SIZE, 100 / portTICK_PERIOD_MS);
+        len = uart_read_bytes(DEFAULT_UART_CHANNEL, data, READ_BUF_SIZE, 100 / portTICK_RATE_MS);
     } while (len == 0);
 
     if ( len == -1 ) {
@@ -126,7 +126,7 @@ static void send_commands(void* arg) {
 
     /* Get the answer back from the console, give it some delay. */
     do {
-        len = uart_read_bytes(DEFAULT_UART_CHANNEL, data, READ_BUF_SIZE - 1, 250 / portTICK_PERIOD_MS);
+        len = uart_read_bytes(DEFAULT_UART_CHANNEL, data, READ_BUF_SIZE - 1, 250 / portTICK_RATE_MS);
     } while (len == 0);
 
     if ( len == -1 ) {

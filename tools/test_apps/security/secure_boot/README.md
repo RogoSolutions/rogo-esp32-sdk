@@ -1,5 +1,5 @@
-| Supported Targets | ESP32 | ESP32-C3 | ESP32-C6 | ESP32-H2 | ESP32-S2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | -------- |
+| Supported Targets | ESP32 | ESP32-S2 | ESP32-C3 | ESP32-S3 |
+| ----------------- | ----- | -------- | -------- | -------- |
 
 # Secure Boot
 
@@ -95,22 +95,21 @@ Under `Security features`
 
 - Set UART ROM download mode to ENABLED (Required for the script to read the EFUSE)
 
-- Install pytest requirements
+- Install and export TTFW requirements
+```
+python -m pip install -r $IDF_PATH/tools/ci/python_packages/ttfw_idf/requirements.txt
 
-    ```
-    bash $IDF_PATH/install.sh --enable-pytest
-    ```
+export PYTHONPATH="$IDF_PATH/tools:$IDF_PATH/tools/ci/python_packages"
+```
 
 ### Build and test
 
 - Build the example
-
-    ```
-    idf.py build
-    ```
+```
+idf.py build
+```
 
 - Run the example test
-
-    ```
-    pytest --target esp32c3
-    ```
+```
+python example_test.py
+```

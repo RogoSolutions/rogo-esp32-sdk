@@ -1,15 +1,22 @@
-/*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #pragma once
 
 #include <stdint.h>
 #include "esp_attr.h"
 #include "esp_bit_defs.h"
-#include "soc/clk_tree_defs.h"
 #include "soc/soc_caps.h"
 #include "sdkconfig.h"
 
@@ -20,16 +27,8 @@ typedef enum {
 //SPI1 can be used as GPSPI only on ESP32
     SPI1_HOST=0,    ///< SPI1
     SPI2_HOST=1,    ///< SPI2
-#if SOC_SPI_PERIPH_NUM > 2
     SPI3_HOST=2,    ///< SPI3
-#endif
-    SPI_HOST_MAX,   ///< invalid host value
 } spi_host_device_t;
-
-/**
- * @brief Type of SPI clock source.
- */
-typedef soc_periph_spi_clk_src_t spi_clock_source_t;
 
 /// SPI Events
 typedef enum {
@@ -56,22 +55,6 @@ typedef struct {
     uint8_t data_lines;   ///< The line width of data phase, e.g. 4-line-data-phase.
 } spi_line_mode_t;
 
-/**
- * @brief SPI command.
- */
-typedef enum {
-     /* Slave HD Only */
-    SPI_CMD_HD_WRBUF    = BIT(0),
-    SPI_CMD_HD_RDBUF    = BIT(1),
-    SPI_CMD_HD_WRDMA    = BIT(2),
-    SPI_CMD_HD_RDDMA    = BIT(3),
-    SPI_CMD_HD_SEG_END  = BIT(4),
-    SPI_CMD_HD_EN_QPI   = BIT(5),
-    SPI_CMD_HD_WR_END   = BIT(6),
-    SPI_CMD_HD_INT0     = BIT(7),
-    SPI_CMD_HD_INT1     = BIT(8),
-    SPI_CMD_HD_INT2     = BIT(9),
-} spi_command_t;
 
 /** @cond */    //Doxy command to hide preprocessor definitions from docs */
 

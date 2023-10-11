@@ -126,7 +126,6 @@ static void bta_gattc_enable(tBTA_GATTC_CB *p_cb)
     if (p_cb->state == BTA_GATTC_STATE_DISABLED) {
         /* initialize control block */
         memset(&bta_gattc_cb, 0, sizeof(tBTA_GATTC_CB));
-        bta_gattc_cb.auto_disc = true;
         p_cb->state = BTA_GATTC_STATE_ENABLED;
     } else {
         APPL_TRACE_DEBUG("GATTC is already enabled");
@@ -693,11 +692,9 @@ void bta_gattc_conn(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
             } else
 #endif
             { /* cache is building */
-                if (bta_gattc_cb.auto_disc) {
-                    p_clcb->p_srcb->state = BTA_GATTC_SERV_DISC;
-                    /* cache load failure, start discovery */
-                    bta_gattc_start_discover(p_clcb, NULL);
-                }
+                p_clcb->p_srcb->state = BTA_GATTC_SERV_DISC;
+                /* cache load failure, start discovery */
+                bta_gattc_start_discover(p_clcb, NULL);
             }
         } else { /* cache is building */
             p_clcb->state = BTA_GATTC_DISCOVER_ST;
@@ -745,8 +742,7 @@ void bta_gattc_conncback(tBTA_GATTC_RCB *p_rcb, tBTA_GATTC_DATA *p_data)
     if (p_rcb) {
         bta_gattc_send_connect_cback(p_rcb,
                                      p_data->int_conn.remote_bda,
-                                     p_data->int_conn.hdr.layer_specific, p_data->int_conn.conn_params, p_data->int_conn.role,
-                                     p_data->int_conn.ble_addr_type, p_data->int_conn.conn_handle);
+                                     p_data->int_conn.hdr.layer_specific, p_data->int_conn.conn_params, p_data->int_conn.role);
 
     }
 }
@@ -767,7 +763,8 @@ void bta_gattc_disconncback(tBTA_GATTC_RCB *p_rcb, tBTA_GATTC_DATA *p_data)
         bta_gattc_send_disconnect_cback(p_rcb,
                                      p_data->int_conn.reason,
                                      p_data->int_conn.remote_bda,
-                                     p_data->int_conn.hdr.layer_specific);
+                                     p_data->int_conn.hdr.layer_specific,
+                                     p_data->int_conn.role);
 
     }
 }
@@ -822,6 +819,8 @@ void bta_gattc_close(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
     if (p_clcb->transport == BTA_TRANSPORT_BR_EDR) {
         bta_sys_conn_close( BTA_ID_GATTC , BTA_ALL_APP_ID, p_clcb->bda);
     }
+
+    bta_gattc_clcb_dealloc(p_clcb);
 
     if (p_data->hdr.event == BTA_GATTC_API_CLOSE_EVT) {
         cb_data.close.status = GATT_Disconnect(p_data->hdr.layer_specific);
@@ -1109,6 +1108,12 @@ void bta_gattc_read(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
 
         /* read fail */
         if (status != BTA_GATT_OK) {
+            /* Dequeue the data, if it was enqueued */
+            if (p_clcb->p_q_cmd == p_data) {
+                p_clcb->p_q_cmd = NULL;
+                bta_gattc_pop_command_to_send(p_clcb);
+            }
+
             bta_gattc_cmpl_sendmsg(p_clcb->bta_conn_id, GATTC_OPTYPE_READ, status, NULL);
         }
 }
@@ -1138,6 +1143,12 @@ void bta_gattc_read_by_type(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
 
     /* read fail */
     if (status != BTA_GATT_OK) {
+        /* Dequeue the data, if it was enqueued */
+        if (p_clcb->p_q_cmd == p_data) {
+            p_clcb->p_q_cmd = NULL;
+            bta_gattc_pop_command_to_send(p_clcb);
+        }
+
         bta_gattc_cmpl_sendmsg(p_clcb->bta_conn_id, GATTC_OPTYPE_READ, status, NULL);
     }
 }
@@ -1168,37 +1179,12 @@ void bta_gattc_read_multi(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
 
         /* read fail */
         if (status != BTA_GATT_OK) {
-            bta_gattc_cmpl_sendmsg(p_clcb->bta_conn_id, GATTC_OPTYPE_READ, status, NULL);
-        }
-    }
-}
-/*******************************************************************************
-**
-** Function         bta_gattc_read_multi_var
-**
-** Description      read multiple variable
-**
-** Returns          None.
-*********************************************************************************/
-void bta_gattc_read_multi_var(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
-{
-    tBTA_GATT_STATUS    status = BTA_GATT_OK;
-    tGATT_READ_PARAM    read_param;
+            /* Dequeue the data, if it was enqueued */
+            if (p_clcb->p_q_cmd == p_data) {
+                p_clcb->p_q_cmd = NULL;
+                bta_gattc_pop_command_to_send(p_clcb);
+            }
 
-    if (bta_gattc_enqueue(p_clcb, p_data)) {
-        memset(&read_param, 0, sizeof(tGATT_READ_PARAM));
-
-        if (status == BTA_GATT_OK) {
-            read_param.read_multiple.num_handles = p_data->api_read_multi.num_attr;
-            read_param.read_multiple.auth_req = p_data->api_read_multi.auth_req;
-            memcpy(&read_param.read_multiple.handles, p_data->api_read_multi.handles,
-                    sizeof(UINT16) * p_data->api_read_multi.num_attr);
-
-            status = GATTC_Read(p_clcb->bta_conn_id, GATT_READ_MULTIPLE_VAR, &read_param);
-        }
-
-        /* read fail */
-        if (status != BTA_GATT_OK) {
             bta_gattc_cmpl_sendmsg(p_clcb->bta_conn_id, GATTC_OPTYPE_READ, status, NULL);
         }
     }
@@ -1219,25 +1205,29 @@ void bta_gattc_write(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
     }
 
     tBTA_GATT_STATUS    status = BTA_GATT_OK;
+    tGATT_VALUE attr;
 
-    tGATT_CL_COMPLETE cl_data = {0};
-
-    cl_data.att_value.conn_id = p_clcb->bta_conn_id;
-    cl_data.att_value.handle = p_data->api_write.handle;
-    cl_data.att_value.offset = p_data->api_write.offset;
-    cl_data.att_value.len    = p_data->api_write.len;
-    cl_data.att_value.auth_req = p_data->api_write.auth_req;
+    attr.conn_id = p_clcb->bta_conn_id;
+    attr.handle = p_data->api_write.handle;
+    attr.offset = p_data->api_write.offset;
+    attr.len    = p_data->api_write.len;
+    attr.auth_req = p_data->api_write.auth_req;
 
     if (p_data->api_write.p_value) {
-        memcpy(cl_data.att_value.value, p_data->api_write.p_value, p_data->api_write.len);
+        memcpy(attr.value, p_data->api_write.p_value, p_data->api_write.len);
     }
 
-    status = GATTC_Write(p_clcb->bta_conn_id, p_data->api_write.write_type, &cl_data.att_value);
+    status = GATTC_Write(p_clcb->bta_conn_id, p_data->api_write.write_type, &attr);
 
     /* write fail */
     if (status != BTA_GATT_OK) {
-        cl_data.handle = p_data->api_write.handle;
-        bta_gattc_cmpl_sendmsg(p_clcb->bta_conn_id, GATTC_OPTYPE_WRITE, status, &cl_data);
+        /* Dequeue the data, if it was enqueued */
+        if (p_clcb->p_q_cmd == p_data) {
+            p_clcb->p_q_cmd = NULL;
+            bta_gattc_pop_command_to_send(p_clcb);
+        }
+
+        bta_gattc_cmpl_sendmsg(p_clcb->bta_conn_id, GATTC_OPTYPE_WRITE, status, NULL);
     }
 }
 /*******************************************************************************
@@ -1320,8 +1310,7 @@ void bta_gattc_read_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_OP_CMPL *p_data)
         cb_data.read.handle = p_clcb->p_q_cmd->api_read.handle;
     }
 
-    if (p_clcb->p_q_cmd->hdr.event != BTA_GATTC_API_READ_MULTI_EVT &&
-        p_clcb->p_q_cmd->hdr.event != BTA_GATTC_API_READ_MULTI_VAR_EVT) {
+    if (p_clcb->p_q_cmd->hdr.event != BTA_GATTC_API_READ_MULTI_EVT) {
         event = p_clcb->p_q_cmd->api_read.cmpl_evt;
     } else {
         event = p_clcb->p_q_cmd->api_read_multi.cmpl_evt;
@@ -1458,9 +1447,7 @@ void  bta_gattc_op_cmpl(tBTA_GATTC_CLCB *p_clcb, tBTA_GATTC_DATA *p_data)
             return;
         }
         if (p_clcb->p_q_cmd->hdr.event != bta_gattc_opcode_to_int_evt[op - GATTC_OPTYPE_READ]) {
-            if ((p_clcb->p_q_cmd->hdr.event != BTA_GATTC_API_READ_MULTI_EVT) &&
-                (p_clcb->p_q_cmd->hdr.event != BTA_GATTC_API_READ_BY_TYPE_EVT) &&
-                (p_clcb->p_q_cmd->hdr.event != BTA_GATTC_API_READ_MULTI_VAR_EVT)) {
+            if ((p_clcb->p_q_cmd->hdr.event != BTA_GATTC_API_READ_MULTI_EVT)&&(p_clcb->p_q_cmd->hdr.event != BTA_GATTC_API_READ_BY_TYPE_EVT)) {
                 mapped_op = p_clcb->p_q_cmd->hdr.event - BTA_GATTC_API_READ_EVT + GATTC_OPTYPE_READ;
                 if ( mapped_op > GATTC_OPTYPE_INDICATION) {
                     mapped_op = 0;
@@ -1724,18 +1711,13 @@ static void bta_gattc_conn_cback(tGATT_IF gattc_if, BD_ADDR bda, UINT16 conn_id,
                 p_buf->int_conn.conn_params.interval = p_lcb->current_used_conn_interval;
                 p_buf->int_conn.conn_params.latency = p_lcb->current_used_conn_latency;
                 p_buf->int_conn.conn_params.timeout = p_lcb->current_used_conn_timeout;
-                #if (BLE_INCLUDED == TRUE)
-                p_buf->int_conn.ble_addr_type = p_lcb->ble_addr_type;
-                #endif
-                p_buf->int_conn.conn_handle = p_lcb->handle;
-
             } else {
                 APPL_TRACE_WARNING("gattc_conn_cb: conn params not found");
             }
         }
         p_buf->int_conn.hdr.layer_specific   = conn_id;
         p_buf->int_conn.client_if            = gattc_if;
-        p_buf->int_conn.role                 = L2CA_GetBleConnRole(bda);
+        p_buf->int_conn.role                 = l2cu_find_link_role_by_bd_addr(bda, BT_TRANSPORT_LE);
         p_buf->int_conn.reason               = reason;
         p_buf->int_conn.transport            = transport;
         bdcpy(p_buf->int_conn.remote_bda, bda);

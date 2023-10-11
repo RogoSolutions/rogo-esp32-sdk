@@ -62,9 +62,6 @@
 
 #define EV_STR(s) "================ "s" ================"
 
-//skip interrupt regs.
-#define SLAVE_ADDR(i)   ((i) >= 28? (i) + 4: (i))
-
 typedef enum {
     JOB_IDLE = 0,
     JOB_RESET = 1,
@@ -115,7 +112,7 @@ static esp_err_t task_hostint(void)
         sdio_slave_send_host_int(i);
         //check reset for quick response to RESET signal
         if (s_job & JOB_RESET) break;
-        vTaskDelay(500/portTICK_PERIOD_MS);
+        vTaskDelay(500/portTICK_RATE_MS);
     }
     return ESP_OK;
 }
@@ -126,15 +123,19 @@ static esp_err_t task_write_reg(void)
 {
     //the host write REG1, the slave should write its registers according to value of REG1
     uint8_t read = sdio_slave_read_reg(1);
-    for (int i = 0; i < 60; i++) {
-        sdio_slave_write_reg(SLAVE_ADDR(i), read + 3*i);
+    for (int i = 0; i < 64; i++) {
+        //skip interrupt regs.
+        if (i >= 28 && i <= 31) continue;
+        sdio_slave_write_reg(i, read+3*i);
     }
-    uint8_t reg[60] = {0};
-    for (int i = 0; i < 60; i++) {
-        reg[i] = sdio_slave_read_reg(SLAVE_ADDR(i));
+    uint8_t reg[64] = {0};
+    for (int i = 0; i < 64; i++) {
+        //skip interrupt regs.
+        if (i >= 28 && i <= 31) continue;
+        reg[i] = sdio_slave_read_reg(i);
     }
     ESP_LOGI(TAG, "write regs:");
-    ESP_LOG_BUFFER_HEXDUMP(TAG, reg, 60, ESP_LOG_INFO);
+    ESP_LOG_BUFFER_HEXDUMP(TAG, reg, 64, ESP_LOG_INFO);
     return ESP_OK;
 }
 

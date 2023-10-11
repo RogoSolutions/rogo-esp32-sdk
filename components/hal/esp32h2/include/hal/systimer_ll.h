@@ -1,16 +1,29 @@
-/*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2020 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 #pragma once
 
 #include <stdint.h>
 #include <stdbool.h>
 #include "soc/systimer_struct.h"
-#include "soc/clk_tree_defs.h"
-#include "soc/pcr_struct.h"
 #include "hal/assert.h"
+
+#define SYSTIMER_LL_COUNTER_CLOCK       (0) // Counter used for "wallclock" time
+#define SYSTIMER_LL_COUNTER_OS_TICK     (1) // Counter used for OS tick
+#define SYSTIMER_LL_ALARM_OS_TICK_CORE0 (0) // Alarm used for OS tick of CPU core 0
+#define SYSTIMER_LL_ALARM_CLOCK         (2) // Alarm used for "wallclock" time
+
+#define SYSTIMER_LL_TICKS_PER_US        (16) // 16 systimer ticks == 1us
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,24 +37,6 @@ extern "C" {
 __attribute__((always_inline)) static inline void systimer_ll_enable_clock(systimer_dev_t *dev, bool en)
 {
     dev->conf.clk_en = en;
-}
-
-// Set clock source: XTAL(default) or RC_FAST
-static inline void systimer_ll_set_clock_source(soc_periph_systimer_clk_src_t clk_src)
-{
-    PCR.systimer_func_clk_conf.systimer_func_clk_sel = (clk_src == SYSTIMER_CLK_SRC_RC_FAST) ? 1 : 0;
-}
-
-static inline soc_periph_systimer_clk_src_t systimer_ll_get_clock_source(void)
-{
-    return (PCR.systimer_func_clk_conf.systimer_func_clk_sel == 1) ? SYSTIMER_CLK_SRC_RC_FAST : SYSTIMER_CLK_SRC_XTAL;
-}
-
-/********************** ETM *****************************/
-
-__attribute__((always_inline)) static inline void systimer_ll_enable_etm(systimer_dev_t *dev, bool en)
-{
-    dev->conf.etm_en = en;
 }
 
 /******************* Counter *************************/

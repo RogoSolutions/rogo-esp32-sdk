@@ -346,8 +346,7 @@ int bt_mesh_client_send_msg(bt_mesh_client_common_param_t *param,
     return err;
 }
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+// Ninh.D.h 21.06.2023
 int bt_mesh_client_rogo_send_msg(bt_mesh_client_rogo_param_t *param,
                             struct net_buf_simple *msg, bool need_ack,
                             k_work_handler_t timer_handler)
@@ -453,7 +452,6 @@ int bt_mesh_client_rogo_send_msg(bt_mesh_client_rogo_param_t *param,
 
     return err;
 }
-/* Rogo API *************************************************************************************/
 
 static bt_mesh_mutex_t client_model_lock;
 

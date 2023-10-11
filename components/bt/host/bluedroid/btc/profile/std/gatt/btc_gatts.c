@@ -127,7 +127,7 @@ void btc_gatts_arg_deep_copy(btc_msg_t *msg, void *p_dest, void *p_src)
         break;
     }
     case BTC_GATTS_ACT_CREATE_ATTR_TAB: {
-        uint16_t num_attr = src->create_attr_tab.max_nb_attr;
+        uint8_t num_attr = src->create_attr_tab.max_nb_attr;
         if (src->create_attr_tab.gatts_attr_db && (num_attr > 0)) {
             dst->create_attr_tab.gatts_attr_db = (esp_gatts_attr_db_t *) osi_malloc(sizeof(esp_gatts_attr_db_t) * num_attr);
             if (dst->create_attr_tab.gatts_attr_db) {
@@ -217,7 +217,7 @@ void btc_gatts_arg_deep_free(btc_msg_t *msg)
 
 static void btc_gatts_act_create_attr_tab(esp_gatts_attr_db_t *gatts_attr_db,
                                                         esp_gatt_if_t gatts_if,
-                                                        uint16_t max_nb_attr,
+                                                        uint8_t max_nb_attr,
                                                         uint8_t srvc_inst_id)
 {
     uint16_t uuid = 0;
@@ -498,11 +498,6 @@ esp_gatt_status_t btc_gatts_get_attr_value(uint16_t attr_handle, uint16_t *lengt
      return BTA_GetAttributeValue(attr_handle, length, value);
 }
 
-esp_gatt_status_t btc_gatts_show_local_database(void)
-{
-    BTA_GATTS_ShowLocalDatabase();
-    return ESP_GATT_OK;
-}
 
 static void btc_gatts_cb_param_copy_req(btc_msg_t *msg, void *p_dest, void *p_src)
 {
@@ -538,10 +533,9 @@ static void btc_gatts_cb_param_copy_req(btc_msg_t *msg, void *p_dest, void *p_sr
     }
 }
 
-static void btc_gatts_cb_param_copy_free(btc_msg_t *msg)
+static void btc_gatts_cb_param_copy_free(btc_msg_t *msg, tBTA_GATTS *p_data)
 {
     uint16_t event = msg->act;
-    tBTA_GATTS *p_data = (tBTA_GATTS *)msg->arg;
 
     switch (event) {
     case BTA_GATTS_READ_EVT:
@@ -574,24 +568,24 @@ static void btc_gatts_inter_cb(tBTA_GATTS_EVT event, tBTA_GATTS *p_data)
                 //save the service handle to the btc module after used
                 //the attribute table method to creat a service
                 bta_to_btc_uuid(&btc_creat_tab_env.svc_uuid, &p_data->create.uuid);
-                uint16_t index = btc_creat_tab_env.handle_idx;
+                uint8_t index = btc_creat_tab_env.handle_idx;
                 btc_creat_tab_env.svc_start_hdl = p_data->create.service_id;
                 btc_creat_tab_env.handles[index] = p_data->create.service_id;
                 break;
             }
             case BTA_GATTS_ADD_INCL_SRVC_EVT: {
-                uint16_t index = btc_creat_tab_env.handle_idx;
+                uint8_t index = btc_creat_tab_env.handle_idx;
                 btc_creat_tab_env.handles[index] = p_data->add_result.attr_id;
                 break;
             }
             case BTA_GATTS_ADD_CHAR_EVT: {
-                uint16_t index = btc_creat_tab_env.handle_idx;
+                uint8_t index = btc_creat_tab_env.handle_idx;
                 btc_creat_tab_env.handles[index] = p_data->add_result.attr_id - 1;
                 btc_creat_tab_env.handles[index+1] = p_data->add_result.attr_id;
                 break;
             }
             case BTA_GATTS_ADD_CHAR_DESCR_EVT: {
-                uint16_t index = btc_creat_tab_env.handle_idx;
+                uint8_t index = btc_creat_tab_env.handle_idx;
                 btc_creat_tab_env.handles[index] = p_data->add_result.attr_id;
                 break;
             }
@@ -602,8 +596,8 @@ static void btc_gatts_inter_cb(tBTA_GATTS_EVT event, tBTA_GATTS *p_data)
         future_ready(btc_creat_tab_env.complete_future, FUTURE_SUCCESS);
         return;
     }
-    status = btc_transfer_context(&msg, p_data, sizeof(tBTA_GATTS),
-                                    btc_gatts_cb_param_copy_req, btc_gatts_cb_param_copy_free);
+    status = btc_transfer_context(&msg, p_data,
+                                  sizeof(tBTA_GATTS), btc_gatts_cb_param_copy_req);
 
     if (status != BT_STATUS_SUCCESS) {
         BTC_TRACE_ERROR("%s btc_transfer_context failed\n", __func__);
@@ -746,9 +740,6 @@ void btc_gatts_call_handler(btc_msg_t *msg)
         BTA_GATTS_SendServiceChangeIndication(arg->send_service_change.gatts_if, remote_bda);
         break;
     }
-    case BTC_GATTS_ACT_SHOW_LOCAL_DATABASE:
-        BTA_GATTS_ShowLocalDatabase();
-        break;
     default:
         break;
     }
@@ -906,14 +897,13 @@ void btc_gatts_cb_handler(btc_msg_t *msg)
         param.connect.conn_params.interval = p_data->conn.conn_params.interval;
         param.connect.conn_params.latency = p_data->conn.conn_params.latency;
         param.connect.conn_params.timeout = p_data->conn.conn_params.timeout;
-        param.connect.ble_addr_type = p_data->conn.ble_addr_type;
-        param.connect.conn_handle = p_data->conn.conn_handle;
         btc_gatts_cb_to_app(ESP_GATTS_CONNECT_EVT, gatts_if, &param);
         break;
     case BTA_GATTS_DISCONNECT_EVT:
         gatts_if = p_data->conn.server_if;
         param.disconnect.conn_id = BTC_GATT_GET_CONN_ID(p_data->conn.conn_id);
         param.disconnect.reason = p_data->conn.reason;
+        param.disconnect.link_role = p_data->conn.link_role;
         memcpy(param.disconnect.remote_bda, p_data->conn.remote_bda, ESP_BD_ADDR_LEN);
 
         btc_gatts_cb_to_app(ESP_GATTS_DISCONNECT_EVT, gatts_if, &param);
@@ -964,7 +954,7 @@ void btc_gatts_cb_handler(btc_msg_t *msg)
         break;
     }
 
-    btc_gatts_cb_param_copy_free(msg);
+    btc_gatts_cb_param_copy_free(msg, p_data);
 }
 
 void btc_congest_callback(tBTA_GATTS *param)

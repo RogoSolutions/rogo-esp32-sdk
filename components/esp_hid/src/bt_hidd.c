@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2017-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2017-2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 #include "bt_hidd.h"
 
 #if CONFIG_BT_HID_DEVICE_ENABLED
@@ -569,7 +577,7 @@ void bt_hidd_cb(esp_hidd_cb_event_t event, esp_hidd_cb_param_t *param)
     case ESP_HIDD_REGISTER_APP_EVT: {
         if (param->register_app.status == ESP_HIDD_SUCCESS) {
             ESP_LOGD(TAG, "Setting hid parameters success!");
-            if (param->register_app.in_use) {
+            if (param->register_app.in_use && param->register_app.bd_addr != NULL) {
                 ESP_LOGI(TAG, "Start virtual cable plug!");
                 esp_bt_hid_device_connect(param->register_app.bd_addr);
             }

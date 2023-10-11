@@ -1,15 +1,14 @@
-/*
- * Iperf example - wifi commands
- *
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
+/* Iperf Example - wifi commands
+
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
 
 #include <stdio.h>
 #include <string.h>
-#include <inttypes.h>
-
 #include "esp_log.h"
 #include "esp_console.h"
 #include "argtable3/argtable3.h"
@@ -163,7 +162,7 @@ static bool wifi_cmd_sta_join(const char *ssid, const char *pass)
         reconnect = false;
         xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
         ESP_ERROR_CHECK( esp_wifi_disconnect() );
-        xEventGroupWaitBits(wifi_event_group, DISCONNECTED_BIT, 0, 1, portTICK_PERIOD_MS);
+        xEventGroupWaitBits(wifi_event_group, DISCONNECTED_BIT, 0, 1, portTICK_RATE_MS);
     }
 
     reconnect = true;
@@ -172,7 +171,7 @@ static bool wifi_cmd_sta_join(const char *ssid, const char *pass)
     ESP_ERROR_CHECK( esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
     esp_wifi_connect();
 
-    xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, 0, 1, 5000 / portTICK_PERIOD_MS);
+    xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, 0, 1, 5000 / portTICK_RATE_MS);
 
     return true;
 }
@@ -395,8 +394,7 @@ static int wifi_cmd_iperf(int argc, char **argv)
         }
     }
 
-    ESP_LOGI(TAG, "mode=%s-%s sip=%" PRIu32 ".%" PRIu32 ".%" PRIu32 ".%" PRIu32 ":%d, \
-             dip=%" PRIu32 ".%" PRIu32 ".%" PRIu32 ".%" PRIu32 ":%d, interval=%" PRIu32 ", time=%" PRIu32,
+    ESP_LOGI(TAG, "mode=%s-%s sip=%d.%d.%d.%d:%d, dip=%d.%d.%d.%d:%d, interval=%d, time=%d",
              cfg.flag & IPERF_FLAG_TCP ? "tcp" : "udp",
              cfg.flag & IPERF_FLAG_SERVER ? "server" : "client",
              cfg.source_ip4 & 0xFF, (cfg.source_ip4 >> 8) & 0xFF, (cfg.source_ip4 >> 16) & 0xFF,
@@ -419,7 +417,7 @@ static int restart(int argc, char **argv)
 static int heap_size(int argc, char **argv)
 {
     uint32_t heap_size = heap_caps_get_minimum_free_size(MALLOC_CAP_DEFAULT);
-    ESP_LOGI(TAG, "min heap size: %" PRIu32, heap_size);
+    ESP_LOGI(TAG, "min heap size: %u", heap_size);
     return 0;
 }
 

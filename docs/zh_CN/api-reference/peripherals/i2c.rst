@@ -10,7 +10,13 @@ I2C 是一种串行同步半双工通信协议，总线上可以同时挂载多�
 
 I2C 具有简单且制造成本低廉等优点，主要用于低速外围设备的短距离通信（一英尺以内）。
 
-{IDF_TARGET_NAME} 有{IDF_TARGET_SOC_I2C_NUM}个 I2C 控制器（也称为端口），负责处理在 I2C 总线上的通信。每个控制器都可以设置为主机或从机。
+.. only:: esp32c3
+
+    {IDF_TARGET_NAME} 只有一个 I2C 控制器（也称为端口），负责处理在 I2C 总线上的通信。每个控制器都可以设置为主机或从机。
+
+.. only:: not esp32c3
+
+    {IDF_TARGET_NAME} 有两个 I2C 控制器（也称为端口），负责处理在 I2C 两根总线上的通信。每个控制器都可以设置为主机或从机。例如，可以同时让一个控制器用作主机，另一个用作从机。
 
 驱动程序的功能
 ---------------
@@ -18,18 +24,12 @@ I2C 具有简单且制造成本低廉等优点，主要用于低速外围设备�
 I2C 驱动程序管理在 I2C 总线上设备的通信，该驱动程序具备以下功能：
 
 - 在主机模式下读写字节
-
-.. only:: SOC_I2C_SUPPORT_SLAVE
-
-    - 支持从机模式
-
+- 支持从机模式
 - 读取并写入寄存器，然后由主机读取/写入
 
 
 使用驱动程序
 ---------------
-
-{IDF_TARGET_I2C_ROLE:default="主机或从机", esp32c2="主机"}
 
 以下部分将指导您完成 I2C 驱动程序配置和工作的基本步骤：
 
@@ -38,10 +38,7 @@ I2C 驱动程序管理在 I2C 总线上设备的通信，该驱动程序具备�
 3. 根据是为主机还是从机配置驱动程序，选择合适的项目
 
    a) :ref:`i2c-api-master-mode` - 发起通信（主机模式）
-
-   .. only:: SOC_I2C_SUPPORT_SLAVE
-
-       b) :ref:`i2c-api-slave-mode` - 响应主机消息（从机模式）
+   b) :ref:`i2c-api-slave-mode` - 响应主机消息（从机模式）
 
 4. :ref:`i2c-api-interrupt-handling` - 配置 I2C 中断服务
 5. :ref:`i2c-api-customized-configuration` - 调整默认的 I2C 通信参数（如时序、位序等）
@@ -63,13 +60,10 @@ I2C 驱动程序管理在 I2C 总线上设备的通信，该驱动程序具备�
     - 是否启用 {IDF_TARGET_NAME} 的内部上拉电阻
 
 - （仅限主机模式）设置 I2C **时钟速度**
+- （仅限从机模式）设置以下内容：
 
-.. only:: SOC_I2C_SUPPORT_SLAVE
-
-    - （仅限从机模式）设置以下内容：
-
-        * 是否应启用 **10 位寻址模式**
-        * 定义 **从机地址**
+    * 是否应启用 **10 位寻址模式**
+    * 定义 **从机地址**
 
 然后，初始化给定 I2C 端口的配置，请使用端口号和 :cpp:type:`i2c_config_t` 作为函数调用参数来调用 :cpp:func:`i2c_param_config` 函数。
 
@@ -80,32 +74,28 @@ I2C 驱动程序管理在 I2C 总线上设备的通信，该驱动程序具备�
     int i2c_master_port = 0;
     i2c_config_t conf = {
         .mode = I2C_MODE_MASTER,
-        .sda_io_num = I2C_MASTER_SDA_IO,         // 配置 SDA 的 GPIO
+        .sda_io_num = I2C_MASTER_SDA_IO,         // select GPIO specific to your project
         .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_io_num = I2C_MASTER_SCL_IO,         // 配置 SCL 的 GPIO
+        .scl_io_num = I2C_MASTER_SCL_IO,         // select GPIO specific to your project
         .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = I2C_MASTER_FREQ_HZ,  // 为项目选择频率
-        .clk_flags = 0,          // 可选项，可以使用 I2C_SCLK_SRC_FLAG_* 标志来选择 I2C 源时钟
+        .master.clk_speed = I2C_MASTER_FREQ_HZ,  // select frequency specific to your project
+        // .clk_flags = 0,          /*!< Optional, you can use I2C_SCLK_SRC_FLAG_* flags to choose i2c source clock here. */
     };
 
-.. only:: SOC_I2C_SUPPORT_SLAVE
+配置示例（从机）：
 
-    配置示例（从机）：
+.. code-block:: c
 
-    .. code-block:: c
-
-        int i2c_slave_port = I2C_SLAVE_NUM;
-        i2c_config_t conf_slave = {
-            .sda_io_num = I2C_SLAVE_SDA_IO,            // 配置 SDA 的 GPIO
-            .sda_pullup_en = GPIO_PULLUP_ENABLE,
-            .scl_io_num = I2C_SLAVE_SCL_IO,            // 配置 SCL 的 GPIO
-            .scl_pullup_en = GPIO_PULLUP_ENABLE,
-            .mode = I2C_MODE_SLAVE,
-            .slave.addr_10bit_en = 0,
-            .slave.slave_addr = ESP_SLAVE_ADDR,        // 项目从机地址
-            .slave.maximum_speed = I2C_SLAVE_MAX_SPEED // 预期的最大时钟速度
-            .clk_flags = 0,                            // 可选项，可以使用 I2C_SCLK_SRC_FLAG_* 标志来选择 I2C 源时钟
-        };
+    int i2c_slave_port = I2C_SLAVE_NUM;
+    i2c_config_t conf_slave = {
+        .sda_io_num = I2C_SLAVE_SDA_IO,          // select GPIO specific to your project
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_io_num = I2C_SLAVE_SCL_IO,          // select GPIO specific to your project
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .mode = I2C_MODE_SLAVE,
+        .slave.addr_10bit_en = 0,
+        .slave.slave_addr = ESP_SLAVE_ADDR,      // address of your project
+    };
 
 在此阶段，:cpp:func:`i2c_param_config` 还将其他 I2C 配置参数设置为 I2C 总线协议规范中定义的默认值。有关默认值及修改默认值的详细信息，请参考 :ref:`i2c-api-customized-configuration`。
 
@@ -206,12 +196,6 @@ I2C 驱动程序管理在 I2C 总线上设备的通信，该驱动程序具备�
 
     在主机模式下，SCL 的时钟频率不应大于上表中提到的 SCL 的最大频率。
 
-.. note::
-
-    SCL 的时钟频率会被上拉电阻和线上电容（或是从机电容）一起影响。因此，用户需要自己选择合适的上拉电阻去保证 SCL 时钟频率是准确的。尽管 I2C 协议推荐上拉电阻值为 1 K 欧姆到 10 K 欧姆，但是需要根据不同的频率需要选择不同的上拉电阻。
-
-    通常来说，所选择的频率越高，需要的上拉电阻越小（但是不要小于 1 K 欧姆）。这是因为高电阻会减小电流，这会延长上升时间从而使频率变慢。通常我们推荐的上拉阻值范围为 2 K 欧姆到 5 K 欧姆，但是用户可能也需要根据他们的实际情况做出一些调整。
-
 .. _i2c-api-install-driver:
 
 安装驱动程序
@@ -221,11 +205,7 @@ I2C 驱动程序管理在 I2C 总线上设备的通信，该驱动程序具备�
 
 - 端口号，从 :cpp:type:`i2c_port_t` 中二选一
 - 主机或从机模式，从 :cpp:type:`i2c_mode_t` 中选择
-
-.. only:: SOC_I2C_SUPPORT_SLAVE
-
-    - （仅限从机模式）分配用于在从机模式下发送和接收数据的缓存区大小。I2C 是一个以主机为中心的总线，数据只能根据主机的请求从从机传输到主机。因此，从机通常有一个发送缓存区，供从应用程序写入数据使用。数据保留在发送缓存区中，由主机自行读取。
-
+- （仅限从机模式）分配用于在从机模式下发送和接收数据的缓存区大小。I2C 是一个以主机为中心的总线，数据只能根据主机的请求从从机传输到主机。因此，从机通常有一个发送缓存区，供从应用程序写入数据使用。数据保留在发送缓存区中，由主机自行读取。
 - 用于分配中断的标志（请参考 :component_file:`esp_hw_support/include/esp_intr_alloc.h` 中 ESP_INTR_FLAG_* 值）
 
 .. _i2c-api-master-mode:
@@ -302,46 +282,43 @@ I2C 驱动程序管理在 I2C 总线上设备的通信，该驱动程序具备�
     i2c_master_write_byte(cmd, (ESP_SLAVE_ADDR << 1) | I2C_MASTER_READ, ACK_EN);
 
 
-.. only:: SOC_I2C_SUPPORT_SLAVE
+.. _i2c-api-slave-mode:
 
-    .. _i2c-api-slave-mode:
+从机模式下通信
+^^^^^^^^^^^^^^^^^^^^^^
 
-    从机模式下通信
-    ^^^^^^^^^^^^^^^^^^^^^^
+安装 I2C 驱动程序后， {IDF_TARGET_NAME} 即可与其他 I2C 设备通信。
 
-    安装 I2C 驱动程序后， {IDF_TARGET_NAME} 即可与其他 I2C 设备通信。
+API 为从机提供以下功能：
 
-    API 为从机提供以下功能：
+- :cpp:func:`i2c_slave_read_buffer`
 
-    - :cpp:func:`i2c_slave_read_buffer`
+    当主机将数据写入从机时，从机将自动将其存储在接收缓存区中。从机应用程序可自行调用函数 :cpp:func:`i2c_slave_read_buffer`。如果接收缓存区中没有数据，此函数还具有一个参数用于指定阻塞时间。这将允许从机应用程序在指定的超时设定内等待数据到达缓存区。
 
-        当主机将数据写入从机时，从机将自动将其存储在接收缓存区中。从机应用程序可自行调用函数 :cpp:func:`i2c_slave_read_buffer`。如果接收缓存区中没有数据，此函数还具有一个参数用于指定阻塞时间。这将允许从机应用程序在指定的超时设定内等待数据到达缓存区。
+- :cpp:func:`i2c_slave_write_buffer`
 
-    - :cpp:func:`i2c_slave_write_buffer`
+    发送缓存区是用于存储从机要以 FIFO 顺序发送给主机的所有数据。在主机请求接收前，这些数据一直存储在发送缓存区。函数 :cpp:func:`i2c_slave_write_buffer` 有一个参数，用于指定发送缓存区已满时的块时间。这将允许从机应用程序在指定的超时设定内等待发送缓存区中足够的可用空间。
 
-        发送缓存区是用于存储从机要以 FIFO 顺序发送给主机的所有数据。在主机请求接收前，这些数据一直存储在发送缓存区。函数 :cpp:func:`i2c_slave_write_buffer` 有一个参数，用于指定发送缓存区已满时的块时间。这将允许从机应用程序在指定的超时设定内等待发送缓存区中足够的可用空间。
+在 :example:`peripherals/i2c` 中可找到介绍如何使用这些功能的代码示例。
 
-    在 :example:`peripherals/i2c` 中可找到介绍如何使用这些功能的代码示例。
 
-    .. _i2c-api-interrupt-handling:
-
-.. only:: not SOC_I2C_SUPPORT_SLAVE
-
-    .. _i2c-api-interrupt-handling:
+.. _i2c-api-interrupt-handling:
 
 中断处理
 ^^^^^^^^^^^
 
-安装驱动程序时，默认情况下会安装中断处理程序。
+安装驱动程序时，默认情况下会安装中断处理程序。但是，您可以通过调用函数 :cpp:func:`i2c_isr_register` 来注册自己的而不是默认的中断处理程序。在运行自己的中断处理程序时，可以参考 *{IDF_TARGET_NAME} 技术参考手册* > *I2C 控制器 (I2C)* > *中断* [`PDF <{IDF_TARGET_TRM_CN_URL}#i2c>`__]，以获取有关 I2C 控制器触发的中断描述。
+
+调用函数 :cpp:func:`i2c_isr_free` 删除中断处理程序。
 
 .. _i2c-api-customized-configuration:
 
 用户自定义配置
 ^^^^^^^^^^^^^^^
 
-如本节末尾所述 :ref:`i2c-api-configure-driver`，函数 :cpp:func:`i2c_param_config` 在初始化 I2C 端口的驱动程序配置时，也会将几个 I2C 通信参数设置为 I2C 总线协议规范规定的默认值。其他一些相关参数已在 I2C 控制器的寄存器中预先配置。
+如本节末尾所述 :ref:`i2c-api-configure-driver`，函数 :cpp:func:`i2c_param_config` 在初始化 I2C 端口的驱动程序配置时，也会将几个 I2C 通信参数设置为 `I2C 总线协议规范 <https://www.nxp.com/docs/en/user-guide/UM10204.pdf>`_ 规定的默认值。 其他一些相关参数已在 I2C 控制器的寄存器中预先配置。
 
-通过调用下表中提供的专用函数，可以将所有这些参数更改为用户自定义值。请注意，时序值是在 APB 时钟周期中定义。
+通过调用下表中提供的专用函数，可以将所有这些参数更改为用户自定义值。请注意，时序值是在 APB 时钟周期中定义。APB 的频率在 :cpp:type:`I2C_APB_CLK_FREQ` 中指定。
 
 .. list-table:: 其他可配置的 I2C 通信参数
    :widths: 65 35
@@ -365,13 +342,13 @@ I2C 驱动程序管理在 I2C 总线上设备的通信，该驱动程序具备�
 
 上述每个函数都有一个 *_get_* 对应项来检查当前设置的值。例如，调用 :cpp:func:`i2c_get_timeout` 来检查 I2C 超时值。
 
-要检查在驱动程序配置过程中设置的参数默认值，请参考文件 :component_file:`driver/i2c/i2c.c` 并查找带有后缀 ``_DEFAULT`` 的定义。
+要检查在驱动程序配置过程中设置的参数默认值，请参考文件 :component_file:`driver/i2c.c` 并查找带有后缀 ``_DEFAULT`` 的定义。
 
 通过函数 :cpp:func:`i2c_set_pin` 可以为 SDA 和 SCL 信号选择不同的管脚并改变上拉配置。如果要修改已经输入的值，请使用函数 :cpp:func:`i2c_param_config`。
 
 .. 注解 ::
 
-    {IDF_TARGET_NAME} 的内部上拉电阻范围为几万欧姆，因此在大多数情况下，它们本身不足以用作 I2C 上拉电阻。建议用户使用阻值在 I2C 总线协议规范规定范围内的上拉电阻。计算阻值的具体方法，可参考 `TI 应用说明 <https://www.ti.com/lit/an/slva689/slva689.pdf>`_
+    {IDF_TARGET_NAME} 的内部上拉电阻范围为几万欧姆，因此在大多数情况下，它们本身不足以用作 I2C 上拉电阻。建议用户使用阻值在 `I2C 总线协议规范 <https://www.nxp.com/docs/en/user-guide/UM10204.pdf>`_ 规定范围内的上拉电阻。
 
 
 .. _i2c-api-error-handling:
@@ -379,7 +356,7 @@ I2C 驱动程序管理在 I2C 总线上设备的通信，该驱动程序具备�
 错误处理
 ^^^^^^^^^^
 
-大多数 I2C 驱动程序的函数在成功完成时会返回 ``ESP_OK`` ，或在失败时会返回特定的错误代码。实时检查返回的值并进行错误处理是一种好习惯。驱动程序也会打印日志消息，其中包含错误说明，例如检查输入配置的正确性。有关详细信息，请参考文件 :component_file:`driver/i2c/i2c.c` 并用后缀 ``_ERR_STR`` 查找定义。
+大多数 I2C 驱动程序的函数在成功完成时会返回 ``ESP_OK`` ，或在失败时会返回特定的错误代码。实时检查返回的值并进行错误处理是一种好习惯。驱动程序也会打印日志消息，其中包含错误说明，例如检查输入配置的正确性。有关详细信息，请参考文件 :component_file:`driver/i2c.c` 并用后缀 ``_ERR_STR`` 查找定义。
 
 使用专用中断来捕获通信故障。例如，如果从机将数据发送回主机耗费太长时间，会触发 ``I2C_TIME_OUT_INT`` 中断。详细信息请参考 :ref:`i2c-api-interrupt-handling`。
 

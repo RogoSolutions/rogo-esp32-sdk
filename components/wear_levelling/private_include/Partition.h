@@ -1,9 +1,3 @@
-/*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
 #ifndef _Partition_H_
 #define _Partition_H_
 
@@ -11,7 +5,6 @@
 
 #include "Flash_Access.h"
 #include "esp_partition.h"
-#include "spi_flash_mmap.h"  // for SPI_FLASH_SEC_SIZE
 
 /**
 * @brief This class is used to access partition. Class implements Flash_Access interface

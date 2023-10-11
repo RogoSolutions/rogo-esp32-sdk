@@ -65,7 +65,6 @@ typedef struct {
         .max_cmdline_length = 0,          \
 }
 
-#if CONFIG_ESP_CONSOLE_UART_DEFAULT || CONFIG_ESP_CONSOLE_UART_CUSTOM
 /**
  * @brief Parameters for console device: UART
  *
@@ -77,7 +76,7 @@ typedef struct {
     int rx_gpio_num; //!< GPIO number for RX path, -1 means using default one
 } esp_console_dev_uart_config_t;
 
-#if CONFIG_ESP_CONSOLE_UART_CUSTOM
+#ifdef CONFIG_ESP_CONSOLE_UART_CUSTOM
 #define ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT()       \
 {                                                   \
     .channel = CONFIG_ESP_CONSOLE_UART_NUM,         \
@@ -93,10 +92,8 @@ typedef struct {
     .tx_gpio_num = -1,                             \
     .rx_gpio_num = -1,                             \
 }
-#endif // CONFIG_ESP_CONSOLE_UART_CUSTOM
-#endif // CONFIG_ESP_CONSOLE_UART_DEFAULT || CONFIG_ESP_CONSOLE_UART_CUSTOM
+#endif
 
-#if CONFIG_ESP_CONSOLE_USB_CDC || (defined __DOXYGEN__ && SOC_USB_OTG_SUPPORTED)
 /**
  * @brief Parameters for console device: USB CDC
  *
@@ -107,10 +104,11 @@ typedef struct {
 
 } esp_console_dev_usb_cdc_config_t;
 
-#define ESP_CONSOLE_DEV_CDC_CONFIG_DEFAULT() {}
-#endif // CONFIG_ESP_CONSOLE_USB_CDC || (defined __DOXYGEN__ && SOC_USB_OTG_SUPPORTED)
+#define ESP_CONSOLE_DEV_CDC_CONFIG_DEFAULT() \
+{                                            \
+}
 
-#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG || (defined __DOXYGEN__ && SOC_USB_SERIAL_JTAG_SUPPORTED)
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
 /**
  * @brief Parameters for console device: USB-SERIAL-JTAG
  *
@@ -122,7 +120,8 @@ typedef struct {
 } esp_console_dev_usb_serial_jtag_config_t;
 
 #define ESP_CONSOLE_DEV_USB_SERIAL_JTAG_CONFIG_DEFAULT() {}
-#endif // CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG || (defined __DOXYGEN__ && SOC_USB_SERIAL_JTAG_SUPPORTED)
+
+#endif // CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
 
 /**
  * @brief initialize console module
@@ -305,7 +304,6 @@ struct esp_console_repl_s {
     esp_err_t (*del)(esp_console_repl_t *repl);
 };
 
-#if CONFIG_ESP_CONSOLE_UART_DEFAULT || CONFIG_ESP_CONSOLE_UART_CUSTOM
 /**
  * @brief Establish a console REPL environment over UART driver
  *
@@ -313,7 +311,7 @@ struct esp_console_repl_s {
  * @param[in] repl_config REPL configuration
  * @param[out] ret_repl return REPL handle after initialization succeed, return NULL otherwise
  *
- * @note This is an all-in-one function to establish the environment needed for REPL, includes:
+ * @note This is a all-in-one function to establish the environment needed for REPL, includes:
  *       - Install the UART driver on the console UART (8n1, 115200, REF_TICK clock source)
  *       - Configures the stdin/stdout to go through the UART driver
  *       - Initializes linenoise
@@ -328,9 +326,7 @@ struct esp_console_repl_s {
  *      - ESP_FAIL Parameter error
  */
 esp_err_t esp_console_new_repl_uart(const esp_console_dev_uart_config_t *dev_config, const esp_console_repl_config_t *repl_config, esp_console_repl_t **ret_repl);
-#endif // CONFIG_ESP_CONSOLE_UART_DEFAULT || CONFIG_ESP_CONSOLE_UART_CUSTOM
 
-#if CONFIG_ESP_CONSOLE_USB_CDC || (defined __DOXYGEN__ && SOC_USB_OTG_SUPPORTED)
 /**
  * @brief Establish a console REPL environment over USB CDC
  *
@@ -351,9 +347,8 @@ esp_err_t esp_console_new_repl_uart(const esp_console_dev_uart_config_t *dev_con
  *      - ESP_FAIL Parameter error
  */
 esp_err_t esp_console_new_repl_usb_cdc(const esp_console_dev_usb_cdc_config_t *dev_config, const esp_console_repl_config_t *repl_config, esp_console_repl_t **ret_repl);
-#endif // CONFIG_ESP_CONSOLE_USB_CDC || (defined __DOXYGEN__ && SOC_USB_OTG_SUPPORTED)
 
-#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG || (defined __DOXYGEN__ && SOC_USB_SERIAL_JTAG_SUPPORTED)
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
 /**
  * @brief Establish a console REPL (Read-eval-print loop) environment over USB-SERIAL-JTAG
  *
@@ -361,7 +356,7 @@ esp_err_t esp_console_new_repl_usb_cdc(const esp_console_dev_usb_cdc_config_t *d
  * @param[in] repl_config REPL configuration
  * @param[out] ret_repl return REPL handle after initialization succeed, return NULL otherwise
  *
- * @note This is an all-in-one function to establish the environment needed for REPL, includes:
+ * @note This is a all-in-one function to establish the environment needed for REPL, includes:
  *       - Initializes linenoise
  *       - Spawn new thread to run REPL in the background
  *
@@ -374,12 +369,12 @@ esp_err_t esp_console_new_repl_usb_cdc(const esp_console_dev_usb_cdc_config_t *d
  *      - ESP_FAIL Parameter error
  */
 esp_err_t esp_console_new_repl_usb_serial_jtag(const esp_console_dev_usb_serial_jtag_config_t *dev_config, const esp_console_repl_config_t *repl_config, esp_console_repl_t **ret_repl);
-#endif // CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG || (defined __DOXYGEN__ && SOC_USB_SERIAL_JTAG_SUPPORTED)
+#endif // CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
 
 /**
  * @brief Start REPL environment
  * @param[in] repl REPL handle returned from esp_console_new_repl_xxx
- * @note Once the REPL gets started, it won't be stopped until the user calls repl->del(repl) to destroy the REPL environment.
+ * @note Once the REPL got started, it won't be stopped until user call repl->del(repl) to destory the REPL environment.
  * @return
  *      - ESP_OK on success
  *      - ESP_ERR_INVALID_STATE, if repl has started already

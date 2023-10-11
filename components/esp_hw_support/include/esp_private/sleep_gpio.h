@@ -15,10 +15,10 @@ extern "C" {
 /**
  * @file sleep_gpio.h
  *
- * This file contains declarations of GPIO related functions in sleep modes.
+ * This file contains declarations of GPIO related functions in light sleep mode.
  */
 
-#if CONFIG_GPIO_ESP32_SUPPORT_SWITCH_SLP_PULL
+#if SOC_GPIO_SUPPORT_SLP_SWITCH && CONFIG_GPIO_ESP32_SUPPORT_SWITCH_SLP_PULL
 
 /**
  * @brief Save GPIO pull-up and pull-down configuration information in the wake-up state
@@ -39,12 +39,7 @@ void gpio_sleep_mode_config_apply(void);
  */
 void gpio_sleep_mode_config_unapply(void);
 
-#endif // CONFIG_GPIO_ESP32_SUPPORT_SWITCH_SLP_PULL
-
-/**
- * @brief Call once in startup to disable the wakeup IO pins and release their holding state after waking up from Deep-sleep
- */
-void esp_deep_sleep_wakeup_io_reset(void);
+#endif // SOC_GPIO_SUPPORT_SLP_SWITCH && CONFIG_GPIO_ESP32_SUPPORT_SWITCH_SLP_PULL
 
 #ifdef __cplusplus
 }

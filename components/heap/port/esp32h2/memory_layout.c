@@ -1,8 +1,17 @@
-/*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2020 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#ifndef BOOTLOADER_BUILD
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -20,38 +29,27 @@
  *
  * - For a normal malloc (MALLOC_CAP_DEFAULT), give away the DRAM-only memory first, then pass off any dual-use IRAM regions, finally eat into the application memory.
  * - For a malloc where 32-bit-aligned-only access is okay, first allocate IRAM, then DRAM, finally application IRAM.
+ * - Application mallocs (PIDx) will allocate IRAM first, if possible, then DRAM.
  * - Most other malloc caps only fit in one region anyway.
  *
  */
-/* Index of memory in `soc_memory_types[]` */
-enum {
-    SOC_MEMORY_TYPE_DRAM        = 0,
-    SOC_MEMORY_TYPE_STACK_DRAM  = 1,
-    SOC_MEMORY_TYPE_DIRAM       = 2,
-    SOC_MEMORY_TYPE_STACK_DIRAM = 3,
-    SOC_MEMORY_TYPE_RTCRAM      = 4,
-    SOC_MEMORY_TYPE_NUM,
-};
-
-const soc_memory_type_desc_t soc_memory_types[SOC_MEMORY_TYPE_NUM] = {
+const soc_memory_type_desc_t soc_memory_types[] = {
     // Type 0: DRAM
-    [SOC_MEMORY_TYPE_DRAM] = { "DRAM", { MALLOC_CAP_8BIT | MALLOC_CAP_DEFAULT, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA | MALLOC_CAP_32BIT, 0 }, false, false},
+    { "DRAM", { MALLOC_CAP_8BIT | MALLOC_CAP_DEFAULT, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA | MALLOC_CAP_32BIT, 0 }, false, false},
     // Type 1: DRAM used for startup stacks
-    [SOC_MEMORY_TYPE_STACK_DRAM] = { "STACK/DRAM", { MALLOC_CAP_8BIT | MALLOC_CAP_DEFAULT, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA | MALLOC_CAP_32BIT, MALLOC_CAP_RETENTION }, false, true},
+    { "STACK/DRAM", { MALLOC_CAP_8BIT | MALLOC_CAP_DEFAULT,  MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA | MALLOC_CAP_32BIT, MALLOC_CAP_RETENTION }, false, true},
     // Type 2: DRAM which has an alias on the I-port
-    [SOC_MEMORY_TYPE_DIRAM] = { "D/IRAM", { 0, MALLOC_CAP_DMA | MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL | MALLOC_CAP_DEFAULT, MALLOC_CAP_32BIT | MALLOC_CAP_EXEC }, true, false},
-    // Type 3: DIRAM used for startup stacks
-    [SOC_MEMORY_TYPE_STACK_DIRAM] = { "STACK/DIRAM", { MALLOC_CAP_8BIT | MALLOC_CAP_DEFAULT | MALLOC_CAP_RETENTION, MALLOC_CAP_EXEC | MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA | MALLOC_CAP_32BIT, 0 }, true, true},
-    // Type 4: RTCRAM   // TODO: IDF-5667 Better to rename to LPRAM
-    [SOC_MEMORY_TYPE_RTCRAM] = { "RTCRAM", { MALLOC_CAP_RTCRAM, MALLOC_CAP_8BIT | MALLOC_CAP_DEFAULT, MALLOC_CAP_INTERNAL | MALLOC_CAP_32BIT }, false, false},
+    { "D/IRAM", { 0, MALLOC_CAP_DMA | MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL | MALLOC_CAP_DEFAULT, MALLOC_CAP_32BIT | MALLOC_CAP_EXEC }, true, false},
+    // Type 3: IRAM
+    { "IRAM", { MALLOC_CAP_EXEC | MALLOC_CAP_32BIT | MALLOC_CAP_INTERNAL, 0, 0 }, false, false},
+    // Type 4: RTCRAM
+    { "RTCRAM", { MALLOC_CAP_RTCRAM, MALLOC_CAP_8BIT|MALLOC_CAP_DEFAULT, MALLOC_CAP_INTERNAL|MALLOC_CAP_32BIT }, false, false},
 };
 
 #ifdef CONFIG_ESP_SYSTEM_MEMPROT_FEATURE
-#define SOC_MEMORY_TYPE_DEFAULT SOC_MEMORY_TYPE_DRAM
-#define SOC_MEMORY_TYPE_STACK_DEFAULT SOC_MEMORY_TYPE_STACK_DRAM
+#define SOC_MEMORY_TYPE_DEFAULT 0
 #else
-#define SOC_MEMORY_TYPE_DEFAULT SOC_MEMORY_TYPE_DIRAM
-#define SOC_MEMORY_TYPE_STACK_DEFAULT SOC_MEMORY_TYPE_STACK_DIRAM
+#define SOC_MEMORY_TYPE_DEFAULT 2
 #endif
 
 const size_t soc_memory_type_count = sizeof(soc_memory_types) / sizeof(soc_memory_type_desc_t);
@@ -63,21 +61,12 @@ const size_t soc_memory_type_count = sizeof(soc_memory_types) / sizeof(soc_memor
  *       this list should always be sorted from low to high by start address.
  *
  */
-
-/**
- * Register the shared buffer area of the last memory block into the heap during heap initialization
- */
-#define APP_USABLE_DRAM_END           (SOC_ROM_STACK_START - SOC_ROM_STACK_SIZE)
-
 const soc_memory_region_t soc_memory_regions[] = {
-    { 0x40800000,           0x10000,                                    SOC_MEMORY_TYPE_DEFAULT,    0x40800000}, //D/IRAM level 0
-    { 0x40810000,           0x10000,                                    SOC_MEMORY_TYPE_DEFAULT,    0x40810000}, //D/IRAM level 1
-    { 0x40820000,           0x10000,                                    SOC_MEMORY_TYPE_DEFAULT,    0x40820000}, //D/IRAM level 2
-    { 0x40830000,           0x10000,                                    SOC_MEMORY_TYPE_DEFAULT,    0x40830000}, //D/IRAM level 3
-    { 0x40840000,           APP_USABLE_DRAM_END-0x40840000,             SOC_MEMORY_TYPE_DEFAULT,    0x40840000}, //D/IRAM level 4
-    { APP_USABLE_DRAM_END,  (SOC_DIRAM_DRAM_HIGH-APP_USABLE_DRAM_END),  SOC_MEMORY_TYPE_STACK_DEFAULT, APP_USABLE_DRAM_END}, //D/IRAM level 4
+    { 0x3FC80000, 0x20000, SOC_MEMORY_TYPE_DEFAULT, 0x40380000}, //Block 4,  can be remapped to ROM, can be used as trace memory
+    { 0x3FCA0000, 0x20000, SOC_MEMORY_TYPE_DEFAULT, 0x403A0000}, //Block 5,  can be remapped to ROM, can be used as trace memory
+    { 0x3FCC0000, 0x20000, 1, 0x403C0000}, //Block 9,  can be used as trace memory
 #ifdef CONFIG_ESP_SYSTEM_ALLOW_RTC_FAST_MEM_AS_HEAP
-    { 0x50000000, 0x1000,  SOC_MEMORY_TYPE_RTCRAM, 0}, //Fast RTC memory
+    { 0x50000000, 0x2000,  4, 0}, //Fast RTC memory
 #endif
 };
 
@@ -85,7 +74,6 @@ const size_t soc_memory_region_count = sizeof(soc_memory_regions) / sizeof(soc_m
 
 
 extern int _data_start, _heap_start, _iram_start, _iram_end, _rtc_force_slow_end;
-extern int _rtc_reserved_start, _rtc_reserved_end;
 
 /**
  * Reserved memory regions.
@@ -96,12 +84,16 @@ extern int _rtc_reserved_start, _rtc_reserved_end;
 // Static data region. DRAM used by data+bss and possibly rodata
 SOC_RESERVE_MEMORY_REGION((intptr_t)&_data_start, (intptr_t)&_heap_start, dram_data);
 
-// Target has a shared D/IRAM virtual address, no need to calculate I_D_OFFSET like previous chips
-SOC_RESERVE_MEMORY_REGION((intptr_t)&_iram_start, (intptr_t)&_iram_end, iram_code);
+// Target has a big D/IRAM region, the part used by code is reserved
+// The address of the D/I bus are in the same order, directly shift IRAM address to get reserved DRAM address
+#define I_D_OFFSET (SOC_DIRAM_IRAM_LOW - SOC_DIRAM_DRAM_LOW)
+SOC_RESERVE_MEMORY_REGION((intptr_t)&_iram_start - I_D_OFFSET, (intptr_t)&_iram_end - I_D_OFFSET, iram_code);
 
 #ifdef CONFIG_ESP_SYSTEM_ALLOW_RTC_FAST_MEM_AS_HEAP
-// TODO: IDF-6019 check reserved lp mem region
+/* We use _rtc_force_slow_end not _rtc_noinit_end here, as rtc "fast" memory ends up in RTC SLOW
+   region on H2, no differentiation. And _rtc_force_slow_end is the end of all the static RTC sections.
+*/
 SOC_RESERVE_MEMORY_REGION(SOC_RTC_DRAM_LOW, (intptr_t)&_rtc_force_slow_end, rtcram_data);
 #endif
 
-SOC_RESERVE_MEMORY_REGION((intptr_t)&_rtc_reserved_start, (intptr_t)&_rtc_reserved_end, rtc_reserved_data);
+#endif // BOOTLOADER_BUILD

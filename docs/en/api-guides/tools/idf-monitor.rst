@@ -4,64 +4,67 @@ IDF Monitor
 
 :link_to_translation:`zh_CN:[中文]`
 
-IDF Monitor uses the esp-idf-monitor_ package as a serial terminal program which relays serial data to and from the target device's serial port. It also provides some IDF-specific features.
+The IDF monitor tool is mainly a serial terminal program which relays serial data to and from the target device's serial port. It also provides some IDF-specific features.
 
-IDF Monitor can be launched from an IDF project by running ``idf.py monitor``.
+This tool can be launched from an IDF project by running ``idf.py monitor``. 
+
+For the legacy GNU Make system, run ``make monitor``.
+
 
 Keyboard Shortcuts
 ==================
 
 For easy interaction with IDF Monitor, use the keyboard shortcuts given in the table.
 
-.. list-table::
-   :header-rows: 1
-   :widths: 15 25 55
-
+.. list-table::               
+   :header-rows: 1                
+   :widths: 15 25 55                
+                              
    * - Keyboard Shortcut
      - Action
-     - Description
+     - Description                
    * - Ctrl+]
      - Exit the program
-     -
+     -                
    * - Ctrl+T
      - Menu escape key
-     - Press and follow it by one of the keys given below.
+     - Press and follow it by one of the keys given below.                 
    * - * Ctrl+T
      - Send the menu character itself to remote
-     -
+     -                
    * - * Ctrl+]
      - Send the exit character itself to remote
-     -
+     -                
    * - * Ctrl+P
      - Reset target into bootloader to pause app via RTS line
-     - Resets the target, into bootloader via the RTS line (if connected), so that the board runs nothing. Useful when you need to wait for another device to startup.
+     - Resets the target, into bootloader via the RTS line (if connected), so that the board runs nothing. Useful when you need to wait for another device to startup.                
    * - * Ctrl+R
      - Reset target board via RTS
-     - Resets the target board and re-starts the application via the RTS line (if connected).
+     - Resets the target board and re-starts the application via the RTS line (if connected).               
    * - * Ctrl+F
      - Build and flash the project
-     - Pauses idf_monitor to run the project ``flash`` target, then resumes idf_monitor. Any changed source files are recompiled and then re-flashed. Target ``encrypted-flash`` is run if idf_monitor was started with argument ``-E``.
+     - Pauses idf_monitor to run the project ``flash`` target, then resumes idf_monitor. Any changed source files are recompiled and then re-flashed. Target ``encrypted-flash`` is run if idf_monitor was started with argument ``-E``.                
    * - * Ctrl+A (or A)
      - Build and flash the app only
-     - Pauses idf_monitor to run the ``app-flash`` target, then resumes idf_monitor. Similar to the ``flash`` target, but only the main app is built and re-flashed. Target ``encrypted-app-flash`` is run if idf_monitor was started with argument ``-E``.
+     - Pauses idf_monitor to run the ``app-flash`` target, then resumes idf_monitor. Similar to the ``flash`` target, but only the main app is built and re-flashed. Target ``encrypted-app-flash`` is run if idf_monitor was started with argument ``-E``.                
    * - * Ctrl+Y
      - Stop/resume log output printing on screen
-     - Discards all incoming serial data while activated. Allows to quickly pause and examine log output without quitting the monitor.
+     - Discards all incoming serial data while activated. Allows to quickly pause and examine log output without quitting the monitor.                
    * - * Ctrl+L
      - Stop/resume log output saved to file
-     - Creates a file in the project directory and the output is written to that file until this is disabled with the same keyboard shortcut (or IDF Monitor exits).
+     - Creates a file in the project directory and the output is written to that file until this is disabled with the same keyboard shortcut (or IDF Monitor exits).                
    * - * Ctrl+I (or I)
      - Stop/resume printing timestamps
      - IDF Monitor can print a timestamp in the beginning of each line. The timestamp format can be changed by the ``--timestamp-format`` command line argument.
    * - * Ctrl+H (or H)
      - Display all keyboard shortcuts
-     -
+     -                
    * - * Ctrl+X (or X)
      - Exit the program
-     -
+     -                
    * - Ctrl+C
      - Interrupt running application
-     - Pauses IDF Monitor and runs GDB_ project debugger to debug the application at runtime. This requires :ref:CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME option to be enabled.
+     - Pauses IDF monitor and run GDB_ project debugger to debug the application at runtime. This requires :ref:CONFIG_ESP_SYSTEM_GDBSTUB_RUNTIME option to be enabled.     
 
 Any keys pressed, other than ``Ctrl-]`` and ``Ctrl-T``, will be sent through the serial port.
 
@@ -72,13 +75,13 @@ IDF-specific features
 Automatic Address Decoding
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Whenever the chip outputs a hexadecimal address that points to executable code, IDF monitor looks up the location in the source code (file name and line number) and prints the location on the next line in yellow.
+Whenever ESP-IDF outputs a hexadecimal code address of the form ``0x4_______``, IDF Monitor uses addr2line_ to look up the location in the source code and find the function name.
 
 .. highlight:: none
 
 .. only:: CONFIG_IDF_TARGET_ARCH_XTENSA
 
-  If an ESP-IDF app crashes and panics, a register dump and backtrace are produced, such as the following::
+  If an ESP-IDF app crashes and panics, a register dump and backtrace is produced, such as the following::
 
       Guru Meditation Error of type StoreProhibited occurred on core  0. Exception was unhandled.
       Register dump:
@@ -180,76 +183,26 @@ To decode each address, IDF Monitor runs the following command in the background
 
   {IDF_TARGET_TOOLCHAIN_PREFIX}-addr2line -pfiaC -e build/PROJECT.elf ADDRESS
 
-.. only:: CONFIG_IDF_TARGET_ARCH_XTENSA
-
-  If an address is not matched in the app source code, IDF monitor also checks the ROM code. Instead of printing the source file name and line number, only the function name followed by ``in ROM`` is displayed::
-
-    abort() was called at PC 0x40007c69 on core 0
-    0x40007c69: ets_write_char in ROM
-
-    Backtrace: 0x40081656:0x3ffb4ac0 0x40085729:0x3ffb4ae0 0x4008a7ce:0x3ffb4b00 0x40007c69:0x3ffb4b70 0x40008148:0x3ffb4b90 0x400d51d7:0x3ffb4c20 0x400e31bc:0x3ffb4c50 0x40087bc5:0x3ffb4c80
-    0x40081656: panic_abort at /Users/espressif/esp-idf/components/esp_system/panic.c:452
-    0x40085729: esp_system_abort at /Users/espressif/esp-idf/components/esp_system/port/esp_system_chip.c:90
-    0x4008a7ce: abort at /Users/espressif/esp-idf/components/newlib/abort.c:38
-    0x40007c69: ets_write_char in ROM
-    0x40008148: ets_printf in ROM
-    0x400d51d7: app_main at /Users/espressif/esp-idf/examples/get-started/hello_world/main/hello_world_main.c:49
-    0x400e31bc: main_task at /Users/espressif/esp-idf/components/freertos/app_startup.c:208 (discriminator 13)
-    0x40087bc5: vPortTaskWrapper at /Users/espressif/esp-idf/components/freertos/FreeRTOS-Kernel/portable/xtensa/port.c:162
-    .....
-
-.. only:: CONFIG_IDF_TARGET_ARCH_RISCV
-
-  If an address is not matched in the app source code, IDF monitor also checks the ROM code. Instead of printing the source file name and line number, only the function name followed by ``in ROM`` is displayed::
-
-    abort() was called at PC 0x400481c1 on core 0
-    0x400481c1: ets_rsa_pss_verify in ROM
-
-    Stack dump detected
-    Core  0 register dump:
-    MEPC    : 0x4038051c  RA      : 0x40383840  SP      : 0x3fc8f6b0  GP      : 0x3fc8b000
-    0x4038051c: panic_abort at /Users/espressif/esp-idf/components/esp_system/panic.c:452
-    0x40383840: __ubsan_include at /Users/espressif/esp-idf/components/esp_system/ubsan.c:313
-
-    TP      : 0x3fc8721c  T0      : 0x37363534  T1      : 0x7271706f  T2      : 0x33323130
-    S0/FP   : 0x00000004  S1      : 0x3fc8f714  A0      : 0x3fc8f6dc  A1      : 0x3fc8f712
-    A2      : 0x00000000  A3      : 0x3fc8f709  A4      : 0x00000001  A5      : 0x3fc8c000
-    A6      : 0x7a797877  A7      : 0x76757473  S2      : 0x00000000  S3      : 0x3fc8f750
-    S4      : 0x3fc8f7e4  S5      : 0x00000000  S6      : 0x400481b0  S7      : 0x3c025841
-    0x400481b0: ets_rsa_pss_verify in ROM
-    .....
-
-The ROM ELF file is automatically loaded from a location based on the ``IDF_PATH`` and ``ESP_ROM_ELF_DIR`` environment variables. This can be overridden by calling ``esp_idf_monitor`` and providing a path to a specific ROM ELF file: ``python -m esp_idf_monitor --rom-elf-file [path to ROM ELF file]``.
-
 .. note::
 
-    Set environment variable ``ESP_MONITOR_DECODE`` to ``0`` or call esp_idf_monitor with specific command line option: ``python -m esp_idf_monitor --disable-address-decoding`` to disable address decoding.
-
-Target Reset on Connection
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-By default, IDF Monitor will reset the target when connecting to it. The reset of the target chip is performed using the DTR and RTS serial lines. To prevent IDF Monitor from automatically resetting the target on connection, call IDF Monitor with the ``--no-reset`` option (e.g., ``idf.py monitor --no-reset``).
-
-.. note::
-
-    The ``--no-reset`` option applies the same behavior even when connecting IDF Monitor to a particular port (e.g., ``idf.py monitor --no-reset -p [PORT]``).
-
+    Set environment variable ``ESP_MONITOR_DECODE`` to ``0`` or call idf_monitor.py with specific command line option: ``idf_monitor.py --disable-address-decoding`` to disable address decoding.
 
 Launching GDB with GDBStub
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-GDBStub is a useful runtime debugging feature that runs on the target and connects to the host over the serial port to receive debugging commands. GDBStub supports commands such as reading memory and variables, examining call stack frames etc. Although GDBStub is less versatile than JTAG debugging, it does not require any special hardware (such as a JTAG to USB bridge) as communication is done entirely over the serial port.
+By default, if esp-idf crashes, the panic handler prints relevant registers and the stack dump (similar to the ones above) over the serial port. Then it resets the board.
 
-A target can be configured to run GDBStub in the background by setting the :ref:`CONFIG_ESP_SYSTEM_PANIC` to ``GDBStub on runtime``. GDBStub will run in the background until a ``Ctrl+C`` message is sent over the serial port and causes the GDBStub to break (i.e., stop the execution of) the program, thus allowing GDBStub to handle debugging commands.
+Furthermore, the application can be configured to run GDBStub in the background and handle the Ctrl+C event from the monitor.
 
-Furthermore, the panic handler can be configured to run GDBStub on a crash by setting the :ref:`CONFIG_ESP_SYSTEM_PANIC` to ``GDBStub on panic``. When a crash occurs, GDBStub will output a special string pattern over the serial port to indicate that it is running.
+Optionally, the panic handler can be configured to run GDBStub, the tool which can communicate with  GDB_ project debugger. GDBStub allows to read memory, examine call stack frames and variables, etc. It is not as versatile as JTAG debugging, but this method does not require any special hardware.
 
-In both cases (i.e., sending the ``Ctrl+C`` message, or receiving the special string pattern), IDF Monitor will automatically launch GDB in order to allow the user to send debugging commands. After GDB exits, the target is reset via the RTS serial line. If this line is not connected, users can reset their target (by pressing the board's Reset button).
+To enable GDBStub on panic, open the project configuration menu (``idf.py menuconfig``) and set :ref:`CONFIG_ESP_SYSTEM_PANIC` to ``GDBStub on panic`` or set :ref:`CONFIG_ESP_SYSTEM_PANIC` to ``GDBStub on runtime``.
 
-.. note::
-    In the background, IDF Monitor runs the following command to launch GDB::
+In this case, if the panic handler or Ctrl+C command is triggered, as soon as IDF Monitor sees that GDBStub has loaded, it automatically pauses serial monitoring and runs GDB with necessary arguments. After GDB exits, the board is reset via the RTS serial line. If this line is not connected, please reset the board manually by pressing its Reset button.
 
-        {IDF_TARGET_TOOLCHAIN_PREFIX}-gdb -ex "set serial baud BAUD" -ex "target remote PORT" -ex interrupt build/PROJECT.elf :idf_target:`Hello NAME chip`
+In the background, IDF Monitor runs the following command::
+
+  {IDF_TARGET_TOOLCHAIN_PREFIX}-gdb -ex "set serial baud BAUD" -ex "target remote PORT" -ex interrupt build/PROJECT.elf :idf_target:`Hello NAME chip`
 
 
 Output Filtering
@@ -268,7 +221,7 @@ Your app tags must not contain spaces, asterisks ``*``, or colons ``:`` to be co
 
 If the last line of the output in your app is not followed by a carriage return, the output filtering might get confused, i.e., the monitor starts to print the line and later finds out that the line should not have been written. This is a known issue and can be avoided by always adding a carriage return (especially when no output follows immediately afterwards).
 
-Examples of Filtering Rules:
+Examples Of Filtering Rules:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - ``*`` can be used to match any tags. However, the string ``PRINT_FILTER="*:I tag1:E"`` with regards to ``tag1`` prints errors only, because the rule for ``tag1`` has a higher priority over the rule for ``*``.
@@ -318,11 +271,10 @@ Issues Observed on Windows
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - Arrow keys, as well as some other keys, do not work in GDB due to Windows Console limitations.
-- Occasionally, when "idf.py" exits, it might stall for up to 30 seconds before IDF Monitor resumes.
+- Occasionally, when "idf.py" or "make" exits, it might stall for up to 30 seconds before IDF Monitor resumes.
 - When "gdb" is run, it might stall for a short time before it begins communicating with the GDBStub.
 
 .. _addr2line: https://sourceware.org/binutils/docs/binutils/addr2line.html
-.. _esp-idf-monitor: https://github.com/espressif/esp-idf-monitor
 .. _gdb: https://sourceware.org/gdb/download/onlinedocs/
 .. _pySerial: https://github.com/pyserial/pyserial
 .. _miniterm: https://pyserial.readthedocs.org/en/latest/tools.html#module-serial.tools.miniterm

@@ -20,7 +20,7 @@ See common pin assignments for USB Device examples from [upper level](../../../R
 
 ### Build and Flash
 
-1. Build and flash [tusb_serial_device example](../../../device/tusb_serial_device) to USB device board.
+1. Build and flash [tusb_serial_device example](../../../tusb_serial_device) to USB device board.
 2. Build this project and flash it to the USB host board, then run monitor tool to view serial output:
 
 ```bash
@@ -38,12 +38,18 @@ See the Getting Started Guide for full steps to configure and use ESP-IDF to bui
 After the flashing you should see the output at idf monitor:
 
 ```
-...
 I (256) USB-CDC: USB Host installed
 I (256) USB-CDC: Opening CDC ACM device 0x303A:0x4001
-...
-Device descriptor is printed here
-...
+CDC Header Descriptor:
+        bcdCDC: 1.20
+CDC Call Descriptor:
+        bmCapabilities: 0x00
+        bDataInterface: 1
+CDC ACM Descriptor:
+        bmCapabilities: 0x02
+CDC Union Descriptor:
+        bControlInterface: 0
+        bSubordinateInterface[0]: 1
 I (1666) USB-CDC: Data received
 I (1666) USB-CDC: 0x3ffc4c20   41 54 0d                                          |AT.|
 I (2666) USB-CDC: Data received

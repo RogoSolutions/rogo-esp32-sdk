@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2017-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2017-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,21 +7,26 @@
 #define _ESP_TLS_H_
 
 #include <stdbool.h>
+#include <sys/socket.h>
+#include <fcntl.h>
 #include "esp_err.h"
 #include "esp_tls_errors.h"
-#include "sdkconfig.h"
 #ifdef CONFIG_ESP_TLS_USING_MBEDTLS
+#include "mbedtls/platform.h"
+#include "mbedtls/net_sockets.h"
+#include "mbedtls/esp_debug.h"
 #include "mbedtls/ssl.h"
-#ifdef CONFIG_ESP_TLS_SERVER_SESSION_TICKETS
-#include "mbedtls/ssl_ticket.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
+#include "mbedtls/error.h"
+#include "mbedtls/certs.h"
+#ifdef CONFIG_ESP_TLS_SERVER_SESSION_TICKETS
+#include "mbedtls/ssl_ticket.h"
 #endif
 #elif CONFIG_ESP_TLS_USING_WOLFSSL
 #include "wolfssl/wolfcrypt/settings.h"
 #include "wolfssl/ssl.h"
 #endif
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -70,15 +75,6 @@ typedef struct tls_keep_alive_cfg {
     int keep_alive_interval;              /*!< Keep-alive interval time (second) */
     int keep_alive_count;                 /*!< Keep-alive packet retry send count */
 } tls_keep_alive_cfg_t;
-
-/*
-* @brief ESP-TLS Address families
-*/
-typedef enum esp_tls_addr_family {
-    ESP_TLS_AF_UNSPEC = 0,                /**< Unspecified address family. */
-    ESP_TLS_AF_INET,                      /**< IPv4 address family. */
-    ESP_TLS_AF_INET6,                     /**< IPv6 address family. */
-} esp_tls_addr_family_t;
 
 /**
  * @brief      ESP-TLS configuration parameters
@@ -157,10 +153,7 @@ typedef struct esp_tls_cfg {
     bool use_secure_element;                /*!< Enable this option to use secure element or
                                                  atecc608a chip ( Integrated with ESP32-WROOM-32SE ) */
 
-    int timeout_ms;                         /*!< Network timeout in milliseconds.
-                                                 Note: If this value is not set, by default the timeout is
-                                                 set to 10 seconds. If you wish that the session should wait
-                                                 indefinitely then please use a larger value e.g., INT32_MAX */
+    int timeout_ms;                         /*!< Network timeout in milliseconds */
 
     bool use_global_ca_store;               /*!< Use a global ca_store for all the connections in which
                                                  this bool is set. */
@@ -191,8 +184,6 @@ typedef struct esp_tls_cfg {
 #ifdef CONFIG_ESP_TLS_CLIENT_SESSION_TICKETS
     esp_tls_client_session_t *client_session; /*! Pointer for the client session ticket context. */
 #endif /* CONFIG_ESP_TLS_CLIENT_SESSION_TICKETS */
-
-    esp_tls_addr_family_t addr_family;      /*!< The address family to use when connecting to a host. */
 } esp_tls_cfg_t;
 
 #ifdef CONFIG_ESP_TLS_SERVER
@@ -209,18 +200,6 @@ typedef struct esp_tls_server_session_ticket_ctx {
     mbedtls_ssl_ticket_context ticket_ctx;                                     /*!< Session ticket generation context */
 } esp_tls_server_session_ticket_ctx_t;
 #endif
-
-
-/**
- * @brief tls handshake callback
- * Can be used to configure per-handshake attributes for the TLS connection.
- * E.g. Client certificate / Key, Authmode, Client CA verification, etc.
- *
- * @param ssl mbedtls_ssl_context that can be used for changing settings
- * @return The reutn value of the callback must be 0 if successful,
- *         or a specific MBEDTLS_ERR_XXX code, which will cause the handhsake to abort
- */
-typedef mbedtls_ssl_hs_cb_t esp_tls_handshake_callback;
 
 typedef struct esp_tls_cfg_server {
     const char **alpn_protos;                   /*!< Application protocols required for HTTP2.
@@ -273,10 +252,6 @@ typedef struct esp_tls_cfg_server {
     unsigned int serverkey_password_len;        /*!< String length of the password pointed to by
                                                      serverkey_password */
 
-    bool use_secure_element;                    /*!< Enable this option to use secure element or
-                                                 atecc608a chip ( Integrated with ESP32-WROOM-32SE ) */
-
-
 #if defined(CONFIG_ESP_TLS_SERVER_SESSION_TICKETS)
     esp_tls_server_session_ticket_ctx_t * ticket_ctx; /*!< Session ticket generation context.
                                                     You have to call esp_tls_cfg_server_session_tickets_init
@@ -284,15 +259,6 @@ typedef struct esp_tls_cfg_server {
                                                     Call esp_tls_cfg_server_session_tickets_free
                                                     to free the data associated with this context. */
 #endif
-
-    void *userdata;                             /*!< User data to be added to the ssl context.
-                                                  Can be retrieved by callbacks */
-#if defined(CONFIG_ESP_TLS_SERVER_CERT_SELECT_HOOK)
-    esp_tls_handshake_callback cert_select_cb;  /*!< Certificate selection callback that gets called after ClientHello is processed.
-                                                     Can be used as an SNI callback, but also has access to other
-                                                     TLS extensions, such as ALPN and server_certificate_type . */
-#endif
-
 } esp_tls_cfg_server_t;
 
 /**
@@ -321,7 +287,67 @@ esp_err_t esp_tls_cfg_server_session_tickets_init(esp_tls_cfg_server_t *cfg);
 void esp_tls_cfg_server_session_tickets_free(esp_tls_cfg_server_t *cfg);
 #endif /* ! CONFIG_ESP_TLS_SERVER */
 
-typedef struct esp_tls esp_tls_t;
+/**
+ * @brief      ESP-TLS Connection Handle
+ */
+typedef struct esp_tls {
+#ifdef CONFIG_ESP_TLS_USING_MBEDTLS
+    mbedtls_ssl_context ssl;                                                    /*!< TLS/SSL context */
+
+    mbedtls_entropy_context entropy;                                            /*!< mbedTLS entropy context structure */
+
+    mbedtls_ctr_drbg_context ctr_drbg;                                          /*!< mbedTLS ctr drbg context structure.
+                                                                                     CTR_DRBG is deterministic random
+                                                                                     bit generation based on AES-256 */
+
+    mbedtls_ssl_config conf;                                                    /*!< TLS/SSL configuration to be shared
+                                                                                     between mbedtls_ssl_context
+                                                                                     structures */
+
+    mbedtls_net_context server_fd;                                              /*!< mbedTLS wrapper type for sockets */
+
+    mbedtls_x509_crt cacert;                                                    /*!< Container for the X.509 CA certificate */
+
+    mbedtls_x509_crt *cacert_ptr;                                               /*!< Pointer to the cacert being used. */
+
+    mbedtls_x509_crt clientcert;                                                /*!< Container for the X.509 client certificate */
+
+    mbedtls_pk_context clientkey;                                               /*!< Container for the private key of the client
+                                                                                     certificate */
+#ifdef CONFIG_ESP_TLS_SERVER
+    mbedtls_x509_crt servercert;                                                /*!< Container for the X.509 server certificate */
+
+    mbedtls_pk_context serverkey;                                               /*!< Container for the private key of the server
+                                                                                   certificate */
+#endif
+#elif CONFIG_ESP_TLS_USING_WOLFSSL
+    void *priv_ctx;
+    void *priv_ssl;
+#endif
+    int sockfd;                                                                 /*!< Underlying socket file descriptor. */
+
+    ssize_t (*read)(struct esp_tls  *tls, char *data, size_t datalen);          /*!< Callback function for reading data from TLS/SSL
+                                                                                     connection. */
+
+    ssize_t (*write)(struct esp_tls *tls, const char *data, size_t datalen);    /*!< Callback function for writing data to TLS/SSL
+                                                                                     connection. */
+
+    esp_tls_conn_state_t  conn_state;                                           /*!< ESP-TLS Connection state */
+
+    fd_set rset;                                                                /*!< read file descriptors */
+
+    fd_set wset;                                                                /*!< write file descriptors */
+
+    bool is_tls;                                                                /*!< indicates connection type (TLS or NON-TLS) */
+
+    esp_tls_role_t role;                                                        /*!< esp-tls role
+                                                                                     - ESP_TLS_CLIENT
+                                                                                     - ESP_TLS_SERVER */
+
+    esp_tls_error_handle_t error_handle;                                        /*!< handle to error descriptor */
+
+} esp_tls_t;
+
 
 /**
  * @brief      Create TLS connection
@@ -333,21 +359,29 @@ typedef struct esp_tls esp_tls_t;
  */
 esp_tls_t *esp_tls_init(void);
 
+
+
+
 /**
- * @brief      Create a new blocking TLS/SSL connection with a given "HTTP" url
+ * @brief      Create a new blocking TLS/SSL connection
+ *
+ * This function establishes a TLS/SSL connection with the specified host in blocking manner.
  *
  * Note: This API is present for backward compatibility reasons. Alternative function
- * with the same functionality is `esp_tls_conn_http_new_sync` (and its asynchronous version
- * `esp_tls_conn_http_new_async`)
+ * with the same functionality is `esp_tls_conn_new_sync` (and its asynchronous version
+ * `esp_tls_conn_new_async`)
  *
- * @param[in]  url  url of host.
- * @param[in]  cfg  TLS configuration as esp_tls_cfg_t. If you wish to open
- *                  non-TLS connection, keep this NULL. For TLS connection,
- *                  a pass pointer to 'esp_tls_cfg_t'. At a minimum, this
- *                  structure should be zero-initialized.
+ * @param[in]  hostname  Hostname of the host.
+ * @param[in]  hostlen   Length of hostname.
+ * @param[in]  port      Port number of the host.
+ * @param[in]  cfg       TLS configuration as esp_tls_cfg_t. If you wish to open
+ *                       non-TLS connection, keep this NULL. For TLS connection,
+ *                       a pass pointer to esp_tls_cfg_t. At a minimum, this
+ *                       structure should be zero-initialized.
+ *
  * @return pointer to esp_tls_t, or NULL if connection couldn't be opened.
  */
-esp_tls_t *esp_tls_conn_http_new(const char *url, const esp_tls_cfg_t *cfg) __attribute__((deprecated("Please use esp_tls_conn_http_new_sync (or its asynchronous version esp_tls_conn_http_new_async) instead")));
+esp_tls_t *esp_tls_conn_new(const char *hostname, int hostlen, int port, const esp_tls_cfg_t *cfg)  __attribute__ ((deprecated));
 
 /**
  * @brief      Create a new blocking TLS/SSL connection
@@ -373,21 +407,16 @@ int esp_tls_conn_new_sync(const char *hostname, int hostlen, int port, const esp
 /**
  * @brief      Create a new blocking TLS/SSL connection with a given "HTTP" url
  *
- * The behaviour is same as esp_tls_conn_new_sync() API. However this API accepts host's url.
+ * The behaviour is same as esp_tls_conn_new() API. However this API accepts host's url.
  *
- * @param[in]  url       url of host.
- * @param[in]  cfg       TLS configuration as esp_tls_cfg_t. If you wish to open
- *                       non-TLS connection, keep this NULL. For TLS connection,
- *                       a pass pointer to 'esp_tls_cfg_t'. At a minimum, this
- *                       structure should be zero-initialized.
- * @param[in]  tls       Pointer to esp-tls as esp-tls handle.
- *
- * @return
- *             - -1      If connection establishment fails.
- *             -  1      If connection establishment is successful.
- *             -  0      If connection state is in progress.
+ * @param[in]  url  url of host.
+ * @param[in]  cfg  TLS configuration as esp_tls_cfg_t. If you wish to open
+ *                  non-TLS connection, keep this NULL. For TLS connection,
+ *                  a pass pointer to 'esp_tls_cfg_t'. At a minimum, this
+ *                  structure should be zero-initialized.
+ * @return pointer to esp_tls_t, or NULL if connection couldn't be opened.
  */
-int esp_tls_conn_http_new_sync(const char *url, const esp_tls_cfg_t *cfg, esp_tls_t *tls);
+esp_tls_t *esp_tls_conn_http_new(const char *url, const esp_tls_cfg_t *cfg);
 
 /**
  * @brief      Create a new non-blocking TLS/SSL connection
@@ -412,7 +441,7 @@ int esp_tls_conn_new_async(const char *hostname, int hostlen, int port, const es
 /**
  * @brief      Create a new non-blocking TLS/SSL connection with a given "HTTP" url
  *
- * The behaviour is same as esp_tls_conn_new_async() API. However this API accepts host's url.
+ * The behaviour is same as esp_tls_conn_new() API. However this API accepts host's url.
  *
  * @param[in]  url     url of host.
  * @param[in]  cfg     TLS configuration as esp_tls_cfg_t.
@@ -442,7 +471,10 @@ int esp_tls_conn_http_new_async(const char *url, const esp_tls_cfg_t *cfg, esp_t
  *                  if the handshake is incomplete and waiting for data to be available for reading.
  *                  In this case this functions needs to be called again when the underlying transport is ready for operation.
  */
-ssize_t esp_tls_conn_write(esp_tls_t *tls, const void *data, size_t datalen);
+static inline ssize_t esp_tls_conn_write(esp_tls_t *tls, const void *data, size_t datalen)
+{
+    return tls->write(tls, (char *)data, datalen);
+}
 
 /**
  * @brief      Read from specified tls connection into the buffer 'data'.
@@ -459,14 +491,25 @@ ssize_t esp_tls_conn_write(esp_tls_t *tls, const void *data, size_t datalen);
  *             - <0  if read operation was not successful, because either an
  *                   error occured or an action must be taken by the calling process.
  */
-ssize_t esp_tls_conn_read(esp_tls_t *tls, void  *data, size_t datalen);
+static inline ssize_t esp_tls_conn_read(esp_tls_t *tls, void  *data, size_t datalen)
+{
+    return tls->read(tls, (char *)data, datalen);
+}
+
+/**
+ * @brief      Compatible version of esp_tls_conn_destroy() to close the TLS/SSL connection
+ *
+ * @note This API will be removed in IDFv5.0
+ *
+ * @param[in]  tls  pointer to esp-tls as esp-tls handle.
+ */
+void esp_tls_conn_delete(esp_tls_t *tls);
 
 /**
  * @brief      Close the TLS/SSL connection and free any allocated resources.
  *
- * This function should be called to close each tls connection opened with
- * esp_tls_conn_new_sync() (or esp_tls_conn_http_new_sync()) and
- * esp_tls_conn_new_async() (or esp_tls_conn_http_new_async()) APIs.
+ * This function should be called to close each tls connection opened with esp_tls_conn_new() or
+ * esp_tls_conn_http_new() APIs.
  *
  * @param[in]  tls  pointer to esp-tls as esp-tls handle.
  *
@@ -501,53 +544,6 @@ ssize_t esp_tls_get_bytes_avail(esp_tls_t *tls);
  *             - ESP_ERR_INVALID_ARG if (tls == NULL || sockfd == NULL)
  */
 esp_err_t esp_tls_get_conn_sockfd(esp_tls_t *tls, int *sockfd);
-
-/**
- * @brief       Sets the connection socket file descriptor for the esp_tls session
- *
- * @param[in]   tls          handle to esp_tls context
- *
- * @param[in]   sockfd       sockfd value to set.
- *
- * @return     - ESP_OK on success and value of sockfd for the tls connection shall updated withthe provided value
- *             - ESP_ERR_INVALID_ARG if (tls == NULL || sockfd < 0)
- */
-esp_err_t esp_tls_set_conn_sockfd(esp_tls_t *tls, int sockfd);
-
-/**
- * @brief       Gets the connection state for the esp_tls session
- *
- * @param[in]   tls          handle to esp_tls context
- *
- * @param[out]   conn_state   pointer to the connection state value.
- *
- * @return     - ESP_OK on success and value of sockfd for the tls connection shall updated withthe provided value
- *             - ESP_ERR_INVALID_ARG (Invalid arguments)
- */
-esp_err_t esp_tls_get_conn_state(esp_tls_t *tls, esp_tls_conn_state_t *conn_state);
-
-/**
- * @brief       Sets the connection state for the esp_tls session
- *
- * @param[in]   tls          handle to esp_tls context
- *
- * @param[in]   conn_state   connection state value to set.
- *
- * @return     - ESP_OK on success and value of sockfd for the tls connection shall updated withthe provided value
- *             - ESP_ERR_INVALID_ARG (Invalid arguments)
- */
-esp_err_t esp_tls_set_conn_state(esp_tls_t *tls, esp_tls_conn_state_t conn_state);
-
-/**
- * @brief       Returns the ssl context
- *
- * @param[in]   tls          handle to esp_tls context
- *
- *
- * @return     - ssl_ctx pointer to ssl context of underlying TLS layer on success
- *             - NULL  in case of error
- */
-void *esp_tls_get_ssl_context(esp_tls_t *tls);
 
 /**
  * @brief      Create a global CA store, initially empty.
@@ -620,20 +616,6 @@ esp_err_t esp_tls_get_and_clear_last_error(esp_tls_error_handle_t h, int *esp_tl
  */
 esp_err_t esp_tls_get_and_clear_error_type(esp_tls_error_handle_t h, esp_tls_error_type_t err_type, int *error_code);
 
-/**
- * @brief       Returns the ESP-TLS error_handle
- *
- * @param[in]   tls             handle to esp_tls context
- *
- * @param[out]  error_handle    pointer to the error handle.
- *
- * @return
- *             - ESP_OK             on success and error_handle will be updated with the ESP-TLS error handle.
- *
- *             - ESP_ERR_INVALID_ARG if (tls == NULL || error_handle == NULL)
- */
-esp_err_t esp_tls_get_error_handle(esp_tls_t *tls, esp_tls_error_handle_t *error_handle);
-
 #if CONFIG_ESP_TLS_USING_MBEDTLS
 /**
  * @brief      Get the pointer to the global CA store currently being used.
@@ -698,7 +680,7 @@ esp_err_t esp_tls_plain_tcp_connect(const char *host, int hostlen, int port, con
  * @brief Obtain the client session ticket
  *
  * This function should be called when the TLS connection is already established.
- * This can be passed again in the esp_tls_cfg_t structure, to appropriate tls session create (e.g. esp_tls_conn_http_new_sync) API for session resumption.
+ * This can be passed again in the esp_tls_cfg_t structure, to appropriate tls session create (e.g. esp_tls_conn_http_new) API for session resumption.
  *
  * @param[in]  esp_tls context as esp_tls_t
  * @return

@@ -8,7 +8,7 @@ Overview
 
 The SD/SDIO/MMC driver currently supports SD memory, SDIO cards, and eMMC chips. This is a protocol level driver built on top of SDMMC and SD SPI host drivers.
 
-SDMMC and SD SPI host drivers (:component_file:`driver/sdmmc/include/driver/sdmmc_host.h` and :component_file:`driver/spi/include/driver/sdspi_host.h`) provide API functions for:
+SDMMC and SD SPI host drivers (:component_file:`driver/include/driver/sdmmc_host.h` and :component_file:`driver/include/driver/sdspi_host.h`) provide API functions for:
 
 - Sending commands to slave devices
 - Sending and receiving data
@@ -62,7 +62,7 @@ An example which combines the SDMMC driver with the FATFS library is provided in
     Using API with SDIO cards
     ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    Initialization and the probing process are the same as with SD memory cards. The only difference is in data transfer commands in SDIO mode.
+    Initialization and the probing process is the same as with SD memory cards. The only difference is in data transfer commands in SDIO mode.
 
     During the card initialization and probing, performed with :cpp:func:`sdmmc_card_init`, the driver only configures the following registers of the IO card:
 

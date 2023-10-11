@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // The LL layer for UART register operations.
 // Note that most of the register operations in this layer are non-atomic operations.
@@ -49,7 +57,6 @@ typedef enum {
     UART_INTR_RS485_FRM_ERR    = (0x1<<16),
     UART_INTR_RS485_CLASH      = (0x1<<17),
     UART_INTR_CMD_CHAR_DET     = (0x1<<18),
-    UART_INTR_WAKEUP           = (0x1 << 19),
 } uart_intr_t;
 
 /**
@@ -80,18 +87,30 @@ FORCE_INLINE_ATTR void uart_ll_get_sclk(uart_dev_t *hw, uart_sclk_t* source_clk)
 }
 
 /**
+ * @brief  Get the UART source clock frequency.
+ *
+ * @param  hw Beginning address of the peripheral registers.
+ *
+ * @return Current source clock frequency
+ */
+FORCE_INLINE_ATTR uint32_t uart_ll_get_sclk_freq(uart_dev_t *hw)
+{
+    return (hw->conf0.tick_ref_always_on) ? APB_CLK_FREQ : REF_CLK_FREQ;
+}
+
+/**
  * @brief  Configure the baud-rate.
  *
  * @param  hw Beginning address of the peripheral registers.
  * @param  baud The baud rate to be set. When the source clock is APB, the max baud rate is `UART_LL_BITRATE_MAX`
- * @param  sclk_freq Frequency of the clock source of UART, in Hz.
 
  * @return None
  */
-FORCE_INLINE_ATTR void uart_ll_set_baudrate(uart_dev_t *hw, uint32_t baud, uint32_t sclk_freq)
+FORCE_INLINE_ATTR void uart_ll_set_baudrate(uart_dev_t *hw, uint32_t baud)
 {
-    uint32_t clk_div;
+    uint32_t sclk_freq, clk_div;
 
+    sclk_freq = uart_ll_get_sclk_freq(hw);
     clk_div = ((sclk_freq) << 4) / baud;
     // The baud rate configuration register is divided into
     // an integer part and a fractional part.
@@ -103,14 +122,13 @@ FORCE_INLINE_ATTR void uart_ll_set_baudrate(uart_dev_t *hw, uint32_t baud, uint3
  * @brief  Get the current baud-rate.
  *
  * @param  hw Beginning address of the peripheral registers.
- * @param  sclk_freq Frequency of the clock source of UART, in Hz.
  *
  * @return The current baudrate
  */
-FORCE_INLINE_ATTR uint32_t uart_ll_get_baudrate(uart_dev_t *hw, uint32_t sclk_freq)
+FORCE_INLINE_ATTR uint32_t uart_ll_get_baudrate(uart_dev_t *hw)
 {
-    typeof(hw->clk_div) div_reg;
-    div_reg.val = hw->clk_div.val;
+    uint32_t sclk_freq = uart_ll_get_sclk_freq(hw);
+    typeof(hw->clk_div) div_reg = hw->clk_div;
     return ((sclk_freq << 4)) / ((div_reg.div_int << 4) | div_reg.div_frag);
 }
 
@@ -138,18 +156,6 @@ FORCE_INLINE_ATTR void uart_ll_ena_intr_mask(uart_dev_t *hw, uint32_t mask)
 FORCE_INLINE_ATTR void uart_ll_disable_intr_mask(uart_dev_t *hw, uint32_t mask)
 {
     hw->int_ena.val &= (~mask);
-}
-
-/**
- * @brief  Get the UART raw interrupt status.
- *
- * @param  hw Beginning address of the peripheral registers.
- *
- * @return The UART interrupt status.
- */
-static inline uint32_t uart_ll_get_intraw_mask(uart_dev_t *hw)
-{
-    return hw->int_raw.val;
 }
 
 /**
@@ -298,7 +304,7 @@ FORCE_INLINE_ATTR void uart_ll_set_stop_bits(uart_dev_t *hw, uart_stop_bits_t st
  */
 FORCE_INLINE_ATTR void uart_ll_get_stop_bits(uart_dev_t *hw, uart_stop_bits_t *stop_bit)
 {
-    *stop_bit = (uart_stop_bits_t)hw->conf0.stop_bit_num;
+    *stop_bit = hw->conf0.stop_bit_num;
 }
 
 /**
@@ -328,7 +334,7 @@ FORCE_INLINE_ATTR void uart_ll_set_parity(uart_dev_t *hw, uart_parity_t parity_m
 FORCE_INLINE_ATTR void uart_ll_get_parity(uart_dev_t *hw, uart_parity_t *parity_mode)
 {
     if(hw->conf0.parity_en) {
-        *parity_mode = (uart_parity_t)(0x2 | hw->conf0.parity);
+        *parity_mode = 0X2 | hw->conf0.parity;
     } else {
         *parity_mode = UART_PARITY_DISABLE;
     }
@@ -444,10 +450,10 @@ FORCE_INLINE_ATTR void uart_ll_get_hw_flow_ctrl(uart_dev_t *hw, uart_hw_flowcont
 {
     *flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
     if(hw->conf1.rx_flow_en) {
-        *flow_ctrl = (uart_hw_flowcontrol_t)((unsigned int)(*flow_ctrl) | (unsigned int)UART_HW_FLOWCTRL_RTS);
+        *flow_ctrl |= UART_HW_FLOWCTRL_RTS;
     }
     if(hw->conf0.tx_flow_en) {
-        *flow_ctrl = (uart_hw_flowcontrol_t)((unsigned int)(*flow_ctrl) | (unsigned int)UART_HW_FLOWCTRL_CTS);
+        *flow_ctrl |= UART_HW_FLOWCTRL_CTS;
     }
 }
 
@@ -702,7 +708,7 @@ FORCE_INLINE_ATTR uint32_t uart_ll_get_wakeup_thrd(uart_dev_t *hw)
  */
 FORCE_INLINE_ATTR void uart_ll_get_data_bit_num(uart_dev_t *hw, uart_word_length_t *data_bit)
 {
-    *data_bit = (uart_word_length_t)hw->conf0.bit_num;
+    *data_bit = hw->conf0.bit_num;
 }
 
 /**
@@ -765,8 +771,7 @@ FORCE_INLINE_ATTR void uart_ll_set_loop_back(uart_dev_t *hw, bool loop_back_en)
  */
 FORCE_INLINE_ATTR void uart_ll_inverse_signal(uart_dev_t *hw, uint32_t inv_mask)
 {
-    typeof(hw->conf0) conf0_reg;
-    conf0_reg.val = hw->conf0.val;
+    typeof(hw->conf0) conf0_reg = hw->conf0;
     conf0_reg.irda_tx_inv = (inv_mask & UART_SIGNAL_IRDA_TX_INV) ? 1 : 0;
     conf0_reg.irda_rx_inv = (inv_mask & UART_SIGNAL_IRDA_RX_INV) ? 1 : 0;
     conf0_reg.rxd_inv = (inv_mask & UART_SIGNAL_RXD_INV) ? 1 : 0;
@@ -923,18 +928,6 @@ FORCE_INLINE_ATTR void uart_ll_force_xon(uart_port_t uart_num)
 FORCE_INLINE_ATTR uint32_t uart_ll_get_fsm_status(uart_port_t uart_num)
 {
     return REG_GET_FIELD(UART_FSM_STATUS_REG(uart_num), UART_ST_UTX_OUT);
-}
-
-/**
- * @brief  Configure UART whether to discard when receiving wrong data
- *
- * @param  hw Beginning address of the peripheral registers.
- * @param  discard true: Receiver stops storing data into FIFO when data is wrong
- *                false: Receiver continue storing data into FIFO when data is wrong
- */
-FORCE_INLINE_ATTR void uart_ll_discard_error_data(uart_dev_t *hw, bool discard)
-{
-    hw->conf0.err_wr_mask = discard ? 1 : 0;
 }
 
 #ifdef __cplusplus

@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <string.h>
 #include "esp_bt_defs.h"
@@ -300,7 +308,7 @@ static void bte_search_devices_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH *p_d
         msg.pid = BTC_PID_GAP_BT;
         msg.act = BTC_GAP_BT_SEARCH_DEVICES_EVT;
 
-        btc_transfer_context(&msg, &search, sizeof(tBTA_DM_SEARCH_PARAM), search_devices_copy_cb, NULL);
+        btc_transfer_context(&msg, &search, sizeof(tBTA_DM_SEARCH_PARAM), search_devices_copy_cb);
     } while (0);
 }
 
@@ -451,7 +459,7 @@ static void bte_dm_remote_service_record_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_S
         msg.sig = BTC_SIG_API_CB;
         msg.pid = BTC_PID_GAP_BT;
         msg.act = BTC_GAP_BT_SEARCH_SERVICE_RECORD_EVT;
-        btc_transfer_context(&msg, &search, sizeof(tBTA_DM_SEARCH_PARAM), search_service_record_copy_cb, NULL);
+        btc_transfer_context(&msg, &search, sizeof(tBTA_DM_SEARCH_PARAM), search_service_record_copy_cb);
     } while (0);
 
 }
@@ -544,7 +552,7 @@ static void bte_dm_search_services_evt(tBTA_DM_SEARCH_EVT event, tBTA_DM_SEARCH 
         msg.sig = BTC_SIG_API_CB;
         msg.pid = BTC_PID_GAP_BT;
         msg.act = BTC_GAP_BT_SEARCH_SERVICES_EVT;
-        btc_transfer_context(&msg, &search, sizeof(tBTA_DM_SEARCH_PARAM), search_services_copy_cb, NULL);
+        btc_transfer_context(&msg, &search, sizeof(tBTA_DM_SEARCH_PARAM), search_services_copy_cb);
     } while (0);
 }
 
@@ -622,7 +630,7 @@ static void btc_gap_bt_read_rssi_delta_cmpl_callback(void *p_data)
     param.read_rssi_delta.rssi_delta = result->rssi;
 
     ret = btc_transfer_context(&msg, &param,
-                               sizeof(esp_bt_gap_cb_param_t), NULL, NULL);
+                               sizeof(esp_bt_gap_cb_param_t), NULL);
 
     if (ret != BT_STATUS_SUCCESS) {
         BTC_TRACE_ERROR("%s btc_transfer_context failed\n", __func__);
@@ -689,7 +697,6 @@ static void btc_gap_bt_config_eir(btc_gap_bt_args_t *arg)
     esp_bt_eir_data_t *eir_data = &arg->config_eir.eir_data;
 
     eir_config.bta_dm_eir_fec_required = eir_data->fec_required;
-    eir_config.bta_dm_eir_included_name = eir_data->include_name;
     eir_config.bta_dm_eir_included_tx_power = eir_data->include_txpower;
     eir_config.bta_dm_eir_included_uuid = eir_data->include_uuid;
     eir_config.bta_dm_eir_flags = eir_data->flag;
@@ -714,7 +721,7 @@ static void btc_gap_bt_set_afh_channels_cmpl_callback(void *p_data)
     param.set_afh_channels.stat = btc_btm_status_to_esp_status(result->status);
 
     ret = btc_transfer_context(&msg, &param,
-                               sizeof(esp_bt_gap_cb_param_t), NULL, NULL);
+                               sizeof(esp_bt_gap_cb_param_t), NULL);
 
     if (ret != BT_STATUS_SUCCESS) {
         BTC_TRACE_ERROR("%s btc_transfer_context failed\n", __func__);
@@ -740,7 +747,7 @@ static void btc_gap_bt_read_remote_name_cmpl_callback(void *p_data)
     param.read_rmt_name.stat = btc_btm_status_to_esp_status(result->status);
     memcpy(param.read_rmt_name.rmt_name,result->remote_bd_name,ESP_BT_GAP_MAX_BDNAME_LEN);
 
-    ret = btc_transfer_context(&msg, &param, sizeof(esp_bt_gap_cb_param_t), NULL, NULL);
+    ret = btc_transfer_context(&msg, &param, sizeof(esp_bt_gap_cb_param_t), NULL);
     if (ret != BT_STATUS_SUCCESS) {
         BTC_TRACE_ERROR("%s btc_transfer_context failed\n", __func__);
     }
@@ -766,7 +773,7 @@ static void btc_gap_bt_set_qos_cmpl_callback(void *p_data)
     param.qos_cmpl.t_poll = result->flow.latency / 625;
     memcpy(param.qos_cmpl.bda,result->rem_bda,BD_ADDR_LEN);
 
-    ret = btc_transfer_context(&msg, &param, sizeof(esp_bt_gap_cb_param_t), NULL, NULL);
+    ret = btc_transfer_context(&msg, &param, sizeof(esp_bt_gap_cb_param_t), NULL);
     if (ret != BT_STATUS_SUCCESS) {
         BTC_TRACE_ERROR("%s btc_transfer_context failed\n", __func__);
     }
@@ -900,7 +907,7 @@ void btc_gap_bt_call_handler(btc_msg_t *msg)
         break;
     }
     case BTC_GAP_BT_ACT_START_DISCOVERY: {
-        btc_gap_bt_start_discovery(arg);
+        btc_gap_bt_start_discovery(msg->arg);
         break;
     }
     case BTC_GAP_BT_ACT_CANCEL_DISCOVERY: {
@@ -908,23 +915,23 @@ void btc_gap_bt_call_handler(btc_msg_t *msg)
         break;
     }
     case BTC_GAP_BT_ACT_GET_REMOTE_SERVICES: {
-        btc_gap_bt_get_remote_services((bt_bdaddr_t *)msg->arg);
+        btc_gap_bt_get_remote_services(msg->arg);
         break;
     }
     case BTC_GAP_BT_ACT_GET_REMOTE_SERVICE_RECORD: {
-        btc_gap_bt_get_remote_service_record(arg);
+        btc_gap_bt_get_remote_service_record(msg->arg);
         break;
     }
     case BTC_GAP_BT_ACT_SET_COD: {
-        btc_gap_bt_set_cod(arg);
+        btc_gap_bt_set_cod(msg->arg);
         break;
     }
     case BTC_GAP_BT_ACT_READ_RSSI_DELTA: {
-        btc_gap_bt_read_rssi_delta(arg);
+        btc_gap_bt_read_rssi_delta(msg->arg);
         break;
     }
     case BTC_GAP_BT_ACT_REMOVE_BOND_DEVICE:{
-        btc_gap_bt_remove_bond_device(arg);
+        btc_gap_bt_remove_bond_device(msg->arg);
         break;
     }
     case BTC_GAP_BT_ACT_SET_PIN_TYPE:{
@@ -1027,15 +1034,15 @@ void btc_gap_bt_cb_handler(btc_msg_t *msg)
 {
     switch (msg->act) {
     case BTC_GAP_BT_SEARCH_DEVICES_EVT: {
-        btc_gap_bt_search_devices_evt((tBTA_DM_SEARCH_PARAM *)msg->arg);
+        btc_gap_bt_search_devices_evt(msg->arg);
         break;
     }
     case BTC_GAP_BT_SEARCH_SERVICES_EVT: {
-        btc_gap_bt_search_services((char *)msg->arg);
+        btc_gap_bt_search_services(msg->arg);
         break;
     }
     case BTC_GAP_BT_SEARCH_SERVICE_RECORD_EVT: {
-        btc_gap_bt_search_service_record((char *)msg->arg);
+        btc_gap_bt_search_service_record(msg->arg);
         break;
     }
     case BTC_GAP_BT_READ_RSSI_DELTA_EVT:{

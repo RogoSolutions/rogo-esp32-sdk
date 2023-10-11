@@ -1,11 +1,16 @@
 /*
- * SPDX-FileCopyrightText: 2019-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2019-2022 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <string.h>
-#include <inttypes.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include "freertos/semphr.h"
+
 #include "esp_err.h"
 
 #include "utils/includes.h"
@@ -20,7 +25,7 @@
 #include "crypto/crypto.h"
 
 #include "utils/ext_password.h"
-#include "crypto/tls.h"
+#include "tls/tls.h"
 #include "eap_peer/eap_i.h"
 #include "eap_peer/eap_config.h"
 #include "eap_peer/eap.h"
@@ -32,16 +37,11 @@
 #include "esp_wifi_driver.h"
 #include "esp_private/wifi.h"
 #include "esp_wpa_err.h"
-#ifdef CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
-#include "esp_crt_bundle.h"
-#endif
-#include "esp_wpas_glue.h"
-#include "esp_wpa2_i.h"
 
 #define WPA2_VERSION    "v2.0"
 
-#define DATA_MUTEX_TAKE() os_mutex_lock(s_wpa2_data_lock)
-#define DATA_MUTEX_GIVE() os_mutex_unlock(s_wpa2_data_lock)
+#define DATA_MUTEX_TAKE() xSemaphoreTakeRecursive(s_wpa2_data_lock,portMAX_DELAY)
+#define DATA_MUTEX_GIVE() xSemaphoreGiveRecursive(s_wpa2_data_lock)
 
 //length of the string "fast_provisioning={0/1/2} "
 #define FAST_PROVISIONING_CONFIG_STR_LEN 20
@@ -64,8 +64,7 @@ static int wpa2_start_eapol_internal(void);
 int wpa2_post(uint32_t sig, uint32_t par);
 
 #ifdef USE_WPA2_TASK
-#define WPA2_TASK_PRIORITY 7
-static void *s_wpa2_task_hdl = NULL;
+static TaskHandle_t s_wpa2_task_hdl = NULL;
 static void *s_wpa2_queue = NULL;
 static wpa2_state_t s_wpa2_state = WPA2_STATE_DISABLED;
 static void *s_wpa2_api_lock = NULL;
@@ -75,20 +74,20 @@ static bool s_disable_time_check = true;
 static void wpa2_api_lock(void)
 {
     if (s_wpa2_api_lock == NULL) {
-        s_wpa2_api_lock = os_recursive_mutex_create();
+        s_wpa2_api_lock = xSemaphoreCreateRecursiveMutex();
         if (!s_wpa2_api_lock) {
             wpa_printf(MSG_ERROR, "WPA2: failed to create wpa2 api lock");
             return;
         }
     }
 
-    os_mutex_lock(s_wpa2_api_lock);
+    xSemaphoreTakeRecursive(s_wpa2_api_lock, portMAX_DELAY);
 }
 
 static void wpa2_api_unlock(void)
 {
     if (s_wpa2_api_lock) {
-        os_mutex_unlock(s_wpa2_api_lock);
+        xSemaphoreGiveRecursive(s_wpa2_api_lock);
     }
 }
 
@@ -117,18 +116,9 @@ static void wpa2_set_eap_state(wpa2_ent_eap_state_t state)
     esp_wifi_set_wpa2_ent_state_internal(state);
 }
 
-wpa2_ent_eap_state_t wpa2_get_eap_state(void)
-{
-    if (!gEapSm) {
-        return WPA2_ENT_EAP_STATE_NOT_START;
-    }
-
-    return gEapSm->finish_state;
-}
-
 static inline void wpa2_task_delete(void *arg)
 {
-    void *my_task_hdl = os_task_get_current_task();
+    void *my_task_hdl = xTaskGetCurrentTaskHandle();
     int ret = ESP_OK;
 
     if (my_task_hdl == s_wpa2_task_hdl) {
@@ -204,13 +194,13 @@ void wpa2_task(void *pvParameters )
     }
 
     for (;;) {
-        if ( TRUE == os_queue_recv(s_wpa2_queue, &e, OS_BLOCK) ) {
+        if ( pdPASS == xQueueReceive(s_wpa2_queue, &e, portMAX_DELAY) ) {
             if (e->sig < SIG_WPA2_MAX) {
                 DATA_MUTEX_TAKE();
                 if(sm->wpa2_sig_cnt[e->sig]) {
                     sm->wpa2_sig_cnt[e->sig]--;
                 } else {
-                    wpa_printf(MSG_ERROR, "wpa2_task: invalid sig cnt, sig=%" PRId32 " cnt=%d", e->sig, sm->wpa2_sig_cnt[e->sig]);
+                    wpa_printf(MSG_ERROR, "wpa2_task: invalid sig cnt, sig=%d cnt=%d", e->sig, sm->wpa2_sig_cnt[e->sig]);
                 }
                 DATA_MUTEX_GIVE();
             }
@@ -241,8 +231,8 @@ void wpa2_task(void *pvParameters )
             break;
         } else {
             if (s_wifi_wpa2_sync_sem) {
-                wpa_printf(MSG_DEBUG, "WPA2: wifi->wpa2 api completed sig(%" PRId32 ")", e->sig);
-                os_semphr_give(s_wifi_wpa2_sync_sem);
+                wpa_printf(MSG_DEBUG, "WPA2: wifi->wpa2 api completed sig(%d)", e->sig);
+                xSemaphoreGive(s_wifi_wpa2_sync_sem);
             } else {
                 wpa_printf(MSG_ERROR, "WPA2: null wifi->wpa2 sync sem");
             }
@@ -250,18 +240,18 @@ void wpa2_task(void *pvParameters )
     }
 
     wpa_printf(MSG_DEBUG, "WPA2: queue deleted");
-    os_queue_delete(s_wpa2_queue);
+    vQueueDelete(s_wpa2_queue);
     wpa_printf(MSG_DEBUG, "WPA2: task deleted");
     s_wpa2_queue = NULL;
     if (s_wifi_wpa2_sync_sem) {
-        wpa_printf(MSG_DEBUG, "WPA2: wifi->wpa2 api completed sig(%" PRId32 ")", e->sig);
-        os_semphr_give(s_wifi_wpa2_sync_sem);
+        wpa_printf(MSG_DEBUG, "WPA2: wifi->wpa2 api completed sig(%d)", e->sig);
+        xSemaphoreGive(s_wifi_wpa2_sync_sem);
     } else {
         wpa_printf(MSG_ERROR, "WPA2: null wifi->wpa2 sync sem");
     }
 
     /* At this point, we completed */
-    os_task_delete(NULL);
+    vTaskDelete(NULL);
 }
 
 int wpa2_post(uint32_t sig, uint32_t par)
@@ -279,7 +269,7 @@ int wpa2_post(uint32_t sig, uint32_t par)
     } else {
         ETSEvent *evt = (ETSEvent *)os_malloc(sizeof(ETSEvent));
         if (evt == NULL) {
-            wpa_printf(MSG_ERROR, "WPA2: E N M");
+            wpa_printf(MSG_ERROR, "WPA2: E N M\n");
             DATA_MUTEX_GIVE();
             return ESP_FAIL;
         }
@@ -287,12 +277,12 @@ int wpa2_post(uint32_t sig, uint32_t par)
         DATA_MUTEX_GIVE();
         evt->sig = sig;
         evt->par = par;
-        if (os_queue_send(s_wpa2_queue, &evt, os_task_ms_to_tick(10)) != TRUE) {
+        if ( xQueueSend(s_wpa2_queue, &evt, 10 / portTICK_PERIOD_MS ) != pdPASS) {
             wpa_printf(MSG_ERROR, "WPA2: Q S E");
             return ESP_FAIL;
         } else {
             if (s_wifi_wpa2_sync_sem) {
-                os_semphr_take(s_wifi_wpa2_sync_sem, OS_BLOCK);
+                xSemaphoreTake(s_wifi_wpa2_sync_sem, portMAX_DELAY);
                 wpa_printf(MSG_DEBUG, "WPA2: wpa2 api return, sm->state(%d)", sm->finish_state);
             } else {
                 wpa_printf(MSG_ERROR, "WPA2: null wifi->wpa2 sync sem");
@@ -304,6 +294,74 @@ int wpa2_post(uint32_t sig, uint32_t par)
 
 #endif /* USE_WPA2_TASK */
 
+static void wpa2_sendto_wrapper(void *buffer, uint16_t len)
+{
+    esp_wifi_internal_tx(WIFI_IF_STA, buffer, len);
+}
+
+static inline int wpa2_sm_ether_send(struct eap_sm *sm, const u8 *dest, u16 proto,
+                                     const u8 *data, size_t data_len)
+{
+    void *buffer = (void *)(data - sizeof(struct l2_ethhdr));
+    struct l2_ethhdr *eth = NULL;
+
+    if (!buffer) {
+        wpa_printf(MSG_ERROR, "wpa2: invalid data");
+        return ESP_FAIL;
+    } else {
+        eth = (struct l2_ethhdr *)buffer;
+        memcpy(eth->h_dest, dest, ETH_ALEN);
+        memcpy(eth->h_source, sm->ownaddr, ETH_ALEN);
+        eth->h_proto = host_to_be16(proto);
+        wpa2_sendto_wrapper(buffer, sizeof(struct l2_ethhdr) + data_len);
+    }
+
+    return ESP_OK;
+}
+
+u8 *wpa2_sm_alloc_eapol(struct eap_sm *sm, u8 type,
+                        const void *data, u16 data_len,
+                        size_t *msg_len, void **data_pos)
+{
+    void *buffer;
+    struct ieee802_1x_hdr *hdr;
+
+    *msg_len = sizeof(struct ieee802_1x_hdr) + data_len;
+    /* XXX: reserve l2_ethhdr is enough */
+    buffer = os_malloc(*msg_len + sizeof(struct l2_ethhdr));
+
+    if (buffer == NULL) {
+        return NULL;
+    }
+
+    hdr = (struct ieee802_1x_hdr *)((char *)buffer + sizeof(struct l2_ethhdr));
+    hdr->version = 0x01;
+    hdr->type = type;
+    hdr->length = host_to_be16(data_len);
+
+    if (data) {
+        memcpy(hdr + 1, data, data_len);
+    } else {
+        memset(hdr + 1, 0, data_len);
+    }
+
+    if (data_pos) {
+        *data_pos = hdr + 1;
+    }
+
+    return (u8 *) hdr;
+}
+
+
+void wpa2_sm_free_eapol(u8 *buffer)
+{
+    if (buffer != NULL) {
+        buffer = buffer - sizeof(struct l2_ethhdr);
+        os_free(buffer);
+    }
+
+}
+
 int eap_sm_send_eapol(struct eap_sm *sm, struct wpabuf *resp)
 {
     size_t outlen;
@@ -314,19 +372,19 @@ int eap_sm_send_eapol(struct eap_sm *sm, struct wpabuf *resp)
     ret = esp_wifi_get_assoc_bssid_internal(bssid);
 
     if (ret != 0) {
-        wpa_printf(MSG_DEBUG, "bssid is empty");
+        wpa_printf(MSG_DEBUG, "bssid is empty \n");
         return WPA_ERR_INVALID_BSSID;
     }
 
-    outbuf = wpa_alloc_eapol(sm, IEEE802_1X_TYPE_EAP_PACKET,
+    outbuf = wpa2_sm_alloc_eapol(sm, IEEE802_1X_TYPE_EAP_PACKET,
                                  wpabuf_head_u8(resp), wpabuf_len(resp),
                                  &outlen, NULL);
     if (!outbuf) {
         return ESP_ERR_NO_MEM;
     }
 
-    ret = wpa_ether_send(sm, bssid, ETH_P_EAPOL, outbuf, outlen);
-    wpa_free_eapol(outbuf);
+    ret = wpa2_sm_ether_send(sm, bssid, ETH_P_EAPOL, outbuf, outlen);
+    wpa2_sm_free_eapol(outbuf);
     if (ret) {
         return ESP_FAIL;
     }
@@ -396,10 +454,10 @@ int eap_sm_process_request(struct eap_sm *sm, struct wpabuf *reqData)
         }
 
         if (!eap_sm_allowMethod(sm, reqVendor, reqVendorMethod)) {
-            wpa_printf(MSG_DEBUG, "EAP: vendor %" PRIu32 " method %" PRIu32 " not allowed",
+            wpa_printf(MSG_DEBUG, "EAP: vendor %u method %u not allowed",
                     reqVendor, reqVendorMethod);
             wpa_msg(sm->msg_ctx, MSG_INFO, WPA_EVENT_EAP_PROPOSED_METHOD
-                    "vendor=%" PRIu32 " method=%" PRIu32 " -> NAK",
+                    "vendor=%u method=%u -> NAK",
                     reqVendor, reqVendorMethod);
             goto build_nak;
         }
@@ -409,7 +467,7 @@ int eap_sm_process_request(struct eap_sm *sm, struct wpabuf *reqData)
         sm->m = m;
         sm->eap_method_priv = sm->m->init(sm);
         if (sm->eap_method_priv == NULL) {
-            wpa_printf(MSG_ERROR, "Method private structure allocated failure");
+            wpa_printf(MSG_ERROR, "Method private structure allocated failure\n");
             sm->m = NULL;
             goto build_nak;
         }
@@ -510,7 +568,7 @@ static int wpa2_ent_rx_eapol(u8 *src_addr, u8 *buf, u32 len, uint8_t *bssid)
             ret = wpa_sm_rx_eapol(src_addr, buf, len);
 		    break;
 	    default:
-		wpa_printf(MSG_ERROR, "Unknown EAPOL packet type - %d", hdr->type);
+		wpa_printf(MSG_ERROR, "Unknown EAPOL packet type - %d\n", hdr->type);
 		    break;
     }
 
@@ -532,10 +590,12 @@ static int eap_sm_rx_eapol_internal(u8 *src_addr, u8 *buf, u32 len, uint8_t *bss
     }
 
     if (len < sizeof(*hdr) + sizeof(*ehdr)) {
+#ifdef DEBUG_PRINT
         wpa_printf(MSG_DEBUG, "WPA: EAPOL frame too short to be a WPA "
                    "EAPOL-Key (len %lu, expecting at least %lu)",
                    (unsigned long) len,
                    (unsigned long) sizeof(*hdr) + sizeof(*ehdr));
+#endif
         return ESP_FAIL;
     }
 
@@ -546,21 +606,27 @@ static int eap_sm_rx_eapol_internal(u8 *src_addr, u8 *buf, u32 len, uint8_t *bss
     plen = be_to_host16(hdr->length);
     data_len = plen + sizeof(*hdr);
 
-    wpa_printf(MSG_DEBUG, "IEEE 802.1X RX: version=%d type=%d length=%" PRId32 "",
+#ifdef DEBUG_PRINT
+    wpa_printf(MSG_DEBUG, "IEEE 802.1X RX: version=%d type=%d length=%d\n",
                hdr->version, hdr->type, plen);
+#endif
     if (hdr->version < EAPOL_VERSION) {
         /* TODO: backwards compatibility */
     }
     if (hdr->type != IEEE802_1X_TYPE_EAP_PACKET) {
+#ifdef DEBUG_PRINT
         wpa_printf(MSG_DEBUG, "WPA2: EAP frame (type %u) discarded, "
                    "not a EAP PACKET frame", hdr->type);
+#endif
         ret = -2;
         goto _out;
     }
     if (plen > len - sizeof(*hdr) || plen < sizeof(*ehdr)) {
+#ifdef DEBUG_PRINT
         wpa_printf(MSG_DEBUG, "WPA2: EAPOL frame payload size %lu "
                    "invalid (frame size %lu)",
                    (unsigned long) plen, (unsigned long) len);
+#endif
         ret = -2;
         goto _out;
     }
@@ -568,8 +634,10 @@ static int eap_sm_rx_eapol_internal(u8 *src_addr, u8 *buf, u32 len, uint8_t *bss
     wpa_hexdump(MSG_MSGDUMP, "WPA2: RX EAPOL-EAP PACKET", tmp, len);
 
     if (data_len < len) {
+#ifdef DEBUG_PRINT
         wpa_printf(MSG_DEBUG, "WPA: ignoring %lu bytes after the IEEE "
                    "802.1X data\n", (unsigned long) len - data_len);
+#endif
     }
 
 #ifdef EAP_PEER_METHOD
@@ -577,7 +645,7 @@ static int eap_sm_rx_eapol_internal(u8 *src_addr, u8 *buf, u32 len, uint8_t *bss
     case EAP_CODE_REQUEST:
         /* Handle EAP-reauthentication case */
         if (sm->finish_state == WPA2_ENT_EAP_STATE_SUCCESS) {
-                wpa_printf(MSG_INFO, ">>>>>wpa2 EAP Re-authentication in progress");
+                wpa_printf(MSG_INFO, ">>>>>wpa2 EAP Re-authentication in progress\n");
 		wpa2_set_eap_state(WPA2_ENT_EAP_STATE_IN_PROGRESS);
 	}
 
@@ -592,18 +660,18 @@ static int eap_sm_rx_eapol_internal(u8 *src_addr, u8 *buf, u32 len, uint8_t *bss
             wpa_set_pmk(sm->eapKeyData, NULL, false);
             os_free(sm->eapKeyData);
             sm->eapKeyData = NULL;
-            wpa_printf(MSG_INFO, ">>>>>wpa2 FINISH");
+            wpa_printf(MSG_INFO, ">>>>>wpa2 FINISH\n");
             ret = WPA2_ENT_EAP_STATE_SUCCESS;
             wpa2_set_eap_state(WPA2_ENT_EAP_STATE_SUCCESS);
 	    eap_deinit_prev_method(sm, "EAP Success");
         } else {
-            wpa_printf(MSG_INFO, ">>>>>wpa2 FAILED, receive EAP_SUCCESS but pmk is empty, potential attack!");
+            wpa_printf(MSG_INFO, ">>>>>wpa2 FAILED, receive EAP_SUCCESS but pmk is empty, potential attack!\n");
             ret = WPA2_ENT_EAP_STATE_FAIL;
             wpa2_set_eap_state(WPA2_ENT_EAP_STATE_FAIL);
         }
         break;
     case EAP_CODE_FAILURE:
-        wpa_printf(MSG_INFO, ">>>>>wpa2 FAILED");
+        wpa_printf(MSG_INFO, ">>>>>wpa2 FAILED\n");
         ret = WPA2_ENT_EAP_STATE_FAIL;
         wpa2_set_eap_state(WPA2_ENT_EAP_STATE_FAIL);
         break;
@@ -647,14 +715,14 @@ static int wpa2_start_eapol_internal(void)
         return WPA_ERR_INVALID_BSSID;
     }
 
-    buf = wpa_alloc_eapol(sm, IEEE802_1X_TYPE_EAPOL_START, (u8 *)"", 0, &len, NULL);
+    buf = wpa2_sm_alloc_eapol(sm, IEEE802_1X_TYPE_EAPOL_START, (u8 *)"", 0, &len, NULL);
     if (!buf) {
         return ESP_FAIL;
     }
 
     wpa2_set_eap_state(WPA2_ENT_EAP_STATE_IN_PROGRESS);
-    wpa_ether_send(sm, bssid, ETH_P_EAPOL, buf, len);
-    wpa_free_eapol(buf);
+    wpa2_sm_ether_send(sm, bssid, ETH_P_EAPOL, buf, len);
+    wpa2_sm_free_eapol(buf);
     return ESP_OK;
 }
 
@@ -689,7 +757,7 @@ static int eap_peer_sm_init(void)
     }
 
     gEapSm = sm;
-    s_wpa2_data_lock = os_recursive_mutex_create();
+    s_wpa2_data_lock = xSemaphoreCreateRecursiveMutex();
     if (!s_wpa2_data_lock) {
         wpa_printf(MSG_ERROR, "wpa2 eap_peer_sm_init: failed to alloc data lock");
         ret = ESP_ERR_NO_MEM;
@@ -701,19 +769,19 @@ static int eap_peer_sm_init(void)
     esp_wifi_get_macaddr_internal(WIFI_IF_STA, sm->ownaddr);
     ret = eap_peer_blob_init(sm);
     if (ret) {
-        wpa_printf(MSG_ERROR, "eap_peer_blob_init failed");
+        wpa_printf(MSG_ERROR, "eap_peer_blob_init failed\n");
         ret = ESP_FAIL;
         goto _err;
     }
 
     ret = eap_peer_config_init(sm, g_wpa_private_key_passwd, g_wpa_private_key_passwd_len);
     if (ret) {
-        wpa_printf(MSG_ERROR, "eap_peer_config_init failed");
+        wpa_printf(MSG_ERROR, "eap_peer_config_init failed\n");
         ret = ESP_FAIL;
         goto _err;
     }
 
-    sm->ssl_ctx = tls_init(NULL);
+    sm->ssl_ctx = tls_init();
     if (sm->ssl_ctx == NULL) {
         wpa_printf(MSG_WARNING, "SSL: Failed to initialize TLS context.");
         ret = ESP_FAIL;
@@ -724,21 +792,21 @@ static int eap_peer_sm_init(void)
 
     gEapSm = sm;
 #ifdef USE_WPA2_TASK
-    s_wpa2_queue = os_queue_create(SIG_WPA2_MAX, sizeof(s_wpa2_queue));
-    ret = os_task_create(wpa2_task, "wpa2T", WPA2_TASK_STACK_SIZE, NULL, WPA2_TASK_PRIORITY, &s_wpa2_task_hdl);
-    if (ret != TRUE) {
+    s_wpa2_queue = xQueueCreate(SIG_WPA2_MAX, sizeof(s_wpa2_queue));
+    ret = xTaskCreate(wpa2_task, "wpa2T", WPA2_TASK_STACK_SIZE, NULL, 2, &s_wpa2_task_hdl);
+    if (ret != pdPASS) {
         wpa_printf(MSG_ERROR, "wps enable: failed to create task");
         ret = ESP_FAIL;
         goto _err;
     }
-    s_wifi_wpa2_sync_sem = os_semphr_create(1, 0);
+    s_wifi_wpa2_sync_sem = xSemaphoreCreateCounting(1, 0);
     if (!s_wifi_wpa2_sync_sem) {
         wpa_printf(MSG_ERROR, "WPA2: failed create wifi wpa2 task sync sem");
         ret = ESP_FAIL;
         goto _err;
     }
 
-    wpa_printf(MSG_INFO, "wpa2_task prio:%d, stack:%d", WPA2_TASK_PRIORITY, WPA2_TASK_STACK_SIZE);
+    wpa_printf(MSG_INFO, "wpa2_task prio:%d, stack:%d\n", 2, WPA2_TASK_STACK_SIZE);
 #endif
     return ESP_OK;
 
@@ -776,18 +844,18 @@ static void eap_peer_sm_deinit(void)
     }
 
     if (s_wifi_wpa2_sync_sem) {
-        os_semphr_delete(s_wifi_wpa2_sync_sem);
+        vSemaphoreDelete(s_wifi_wpa2_sync_sem);
         s_wifi_wpa2_sync_sem = NULL;
     }
 
     if (s_wpa2_data_lock) {
-        os_semphr_delete(s_wpa2_data_lock);
+        vSemaphoreDelete(s_wpa2_data_lock);
         s_wpa2_data_lock = NULL;
         wpa_printf(MSG_DEBUG, "wpa2 eap_peer_sm_deinit: free data lock");
     }
 
     if (s_wpa2_queue) {
-        os_queue_delete(s_wpa2_queue);
+        vQueueDelete(s_wpa2_queue);
         s_wpa2_queue = NULL;
     }
     os_free(sm);
@@ -798,12 +866,12 @@ esp_err_t esp_wifi_sta_wpa2_ent_enable_fn(void *arg)
 {
     struct wpa2_funcs *wpa2_cb;
 
-    wpa_printf(MSG_INFO, "WPA2 ENTERPRISE VERSION: [%s] enable",
+    wpa_printf(MSG_INFO, "WPA2 ENTERPRISE VERSION: [%s] enable\n",
                WPA2_VERSION);
 
     wpa2_cb = (struct wpa2_funcs *)os_zalloc(sizeof(struct wpa2_funcs));
     if (wpa2_cb == NULL) {
-        wpa_printf(MSG_ERROR, "WPA2: no mem for wpa2 cb");
+        wpa_printf(MSG_ERROR, "WPA2: no mem for wpa2 cb\n");
         return ESP_ERR_NO_MEM;
     }
 
@@ -814,11 +882,11 @@ esp_err_t esp_wifi_sta_wpa2_ent_enable_fn(void *arg)
 
     esp_wifi_register_wpa2_cb_internal(wpa2_cb);
 
-    wpa_printf(MSG_DEBUG, "WPA2 ENTERPRISE CRYPTO INIT.\r");
+    wpa_printf(MSG_DEBUG, "WPA2 ENTERPRISE CRYPTO INIT.\r\n");
 
 #ifdef EAP_PEER_METHOD
     if (eap_peer_register_methods()) {
-        wpa_printf(MSG_ERROR, "Register EAP Peer methods Failure");
+        wpa_printf(MSG_ERROR, "Register EAP Peer methods Failure\n");
     }
 #endif
     return ESP_OK;
@@ -828,7 +896,6 @@ esp_err_t esp_wifi_sta_wpa2_ent_enable(void)
 {
     wifi_wpa2_param_t param;
     esp_err_t ret;
-    struct wpa_sm *sm = &gWpaSm;
 
     wpa2_api_lock();
 
@@ -845,7 +912,6 @@ esp_err_t esp_wifi_sta_wpa2_ent_enable(void)
 
     if (ESP_OK == ret) {
         wpa2_set_state(WPA2_STATE_ENABLED);
-        sm->wpa_sm_wpa2_ent_disable = esp_wifi_sta_wpa2_ent_disable;
     } else {
         wpa_printf(MSG_ERROR, "failed to enable wpa2 ret=%d", ret);
     }
@@ -857,19 +923,20 @@ esp_err_t esp_wifi_sta_wpa2_ent_enable(void)
 
 esp_err_t esp_wifi_sta_wpa2_ent_disable_fn(void *param)
 {
-    struct wpa_sm *sm = &gWpaSm;
-    wpa_printf(MSG_INFO, "WPA2 ENTERPRISE VERSION: [%s] disable", WPA2_VERSION);
+    wpa_printf(MSG_INFO, "WPA2 ENTERPRISE VERSION: [%s] disable\n", WPA2_VERSION);
     esp_wifi_unregister_wpa2_cb_internal();
 
     if (gEapSm) {
         eap_peer_sm_deinit();
     }
 
+#ifdef USE_WPA2_TASK
+#endif
+
 #ifdef EAP_PEER_METHOD
     eap_peer_unregister_methods();
 #endif
 
-    sm->wpa_sm_wpa2_ent_disable = NULL;
     return ESP_OK;
 }
 
@@ -1158,14 +1225,12 @@ esp_err_t esp_wifi_sta_wpa2_ent_set_fast_phase1_params(esp_eap_fast_config confi
 {
     char config_for_supplicant[PHASE1_PARAM_STRING_LEN] = "";
     if ((config.fast_provisioning > -1) && (config.fast_provisioning <= 2)) {
-        os_snprintf((char *) &config_for_supplicant, PHASE1_PARAM_STRING_LEN, "fast_provisioning=%d ", config.fast_provisioning);
+        os_sprintf((char *) &config_for_supplicant, "fast_provisioning=%d ", config.fast_provisioning);
     } else {
         return ESP_ERR_INVALID_ARG;
     }
     if (config.fast_max_pac_list_len && config.fast_max_pac_list_len < 100) {
-        os_snprintf((char *) &config_for_supplicant + strlen(config_for_supplicant),
-                   PHASE1_PARAM_STRING_LEN - strlen(config_for_supplicant),
-                   "fast_max_pac_list_len=%d ", config.fast_max_pac_list_len);
+        os_sprintf((char *) &config_for_supplicant + strlen(config_for_supplicant), "fast_max_pac_list_len=%d ", config.fast_max_pac_list_len);
     } else if (config.fast_max_pac_list_len >= 100) {
         return ESP_ERR_INVALID_ARG;
     }
@@ -1184,19 +1249,4 @@ esp_err_t esp_wifi_sta_wpa2_ent_set_fast_phase1_params(esp_eap_fast_config confi
     os_memcpy(g_wpa_phase1_options, &config_for_supplicant, sizeof(config_for_supplicant));
     return ESP_OK;
 
-}
-
-esp_err_t esp_wifi_sta_wpa2_use_default_cert_bundle(bool use_default_bundle)
-{
-#ifdef CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
-    g_wpa_default_cert_bundle = use_default_bundle;
-    if (use_default_bundle) {
-        esp_crt_bundle_attach_fn = esp_crt_bundle_attach;
-    } else {
-        esp_crt_bundle_attach_fn = NULL;
-    }
-    return ESP_OK;
-#else
-    return ESP_FAIL;
-#endif
 }

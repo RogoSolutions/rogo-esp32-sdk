@@ -47,11 +47,9 @@ typedef enum { FALSE = 0, TRUE = 1 } Boolean;
 #define WPA_KEY_MGMT_OSEN BIT(15)
 #define WPA_KEY_MGMT_IEEE8021X_SUITE_B BIT(16)
 #define WPA_KEY_MGMT_IEEE8021X_SUITE_B_192 BIT(17)
-#define WPA_KEY_MGMT_OWE BIT(22)
 
 static inline int wpa_key_mgmt_wpa_ieee8021x(int akm)
 {
-#ifdef CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT
 	return !!(akm & (WPA_KEY_MGMT_IEEE8021X |
 			 WPA_KEY_MGMT_FT_IEEE8021X |
 			 WPA_KEY_MGMT_CCKM |
@@ -59,9 +57,6 @@ static inline int wpa_key_mgmt_wpa_ieee8021x(int akm)
 			 WPA_KEY_MGMT_IEEE8021X_SHA256 |
 			 WPA_KEY_MGMT_IEEE8021X_SUITE_B |
 			 WPA_KEY_MGMT_IEEE8021X_SUITE_B_192));
-#else
-        return 0;
-#endif
 }
 
 static inline int wpa_key_mgmt_wpa_psk(int akm)
@@ -92,8 +87,7 @@ static inline int wpa_key_mgmt_sha256(int akm)
 			 WPA_KEY_MGMT_IEEE8021X_SHA256 |
 			 WPA_KEY_MGMT_OSEN |
 			 WPA_KEY_MGMT_SAE |
-			 WPA_KEY_MGMT_IEEE8021X_SUITE_B |
-			 WPA_KEY_MGMT_OWE));
+			 WPA_KEY_MGMT_IEEE8021X_SUITE_B));
 }
 
 static inline int wpa_key_mgmt_sha384(int akm)
@@ -107,17 +101,11 @@ static inline int wpa_key_mgmt_suite_b(int akm)
 			 WPA_KEY_MGMT_IEEE8021X_SUITE_B_192));
 }
 
-static inline int wpa_key_mgmt_owe(int akm)
-{
-	return akm == WPA_KEY_MGMT_OWE;
-}
-
 static inline int wpa_key_mgmt_wpa(int akm)
 {
 	return wpa_key_mgmt_wpa_ieee8021x(akm) ||
 		wpa_key_mgmt_wpa_psk(akm) ||
-		wpa_key_mgmt_sae(akm) ||
-		wpa_key_mgmt_owe(akm);
+		wpa_key_mgmt_sae(akm);
 }
 
 static inline int wpa_key_mgmt_wpa_any(int akm)
@@ -130,14 +118,6 @@ static inline int wpa_key_mgmt_cckm(int akm)
 	return akm == WPA_KEY_MGMT_CCKM;
 }
 
-#ifdef ESP_SUPPLICANT
-static inline int wpa_key_mgmt_supports_caching(int akm)
-{
-        return wpa_key_mgmt_wpa_ieee8021x(akm) ||
-		wpa_key_mgmt_sae(akm) ||
-		wpa_key_mgmt_owe(akm);
-}
-#endif
 
 #define WPA_PROTO_WPA BIT(0)
 #define WPA_PROTO_RSN BIT(1)
@@ -373,14 +353,6 @@ enum set_band {
 	WPA_SETBAND_AUTO,
 	WPA_SETBAND_5G,
 	WPA_SETBAND_2G
-};
-
-enum sae_pwe {
-    SAE_PWE_HUNT_AND_PECK = 0,
-    SAE_PWE_HASH_TO_ELEMENT = 1,
-    SAE_PWE_BOTH = 2,
-    SAE_PWE_FORCE_HUNT_AND_PECK = 3,
-    SAE_PWE_NOT_SET = 4,
 };
 
 #endif /* DEFS_H */

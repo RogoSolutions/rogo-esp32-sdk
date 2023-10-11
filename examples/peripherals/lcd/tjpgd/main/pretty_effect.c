@@ -1,21 +1,28 @@
 /*
- * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: CC0-1.0
- */
+   This code generates an effect that should pass the 'fancy graphics' qualification
+   as set in the comment in the spi_master code.
+
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
 
 #include <math.h>
 #include "pretty_effect.h"
 #include "sdkconfig.h"
 #include "decode_image.h"
 
-uint16_t *pixels;
+uint16_t **pixels;
 
 //Grab a rgb16 pixel from the esp32_tiles image
 static inline uint16_t get_bgnd_pixel(int x, int y)
 {
-    //Get color of the pixel on x,y coords
-    return (uint16_t) *(pixels + (y * IMAGE_W) + x);
+    //Image has an 8x8 pixel margin, so we can also resolve e.g. [-3, 243]
+    x+=8;
+    y+=8;
+    return pixels[y][x];
 }
 
 //This variable is used to detect the next frame.

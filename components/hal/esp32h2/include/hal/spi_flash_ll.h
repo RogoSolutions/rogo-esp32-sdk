@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2020 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 /*******************************************************************************
  * NOTICE
@@ -21,10 +29,14 @@
 extern "C" {
 #endif
 
-#define spi_flash_ll_calculate_clock_reg(host_id, clock_div) (((host_id)<=SPI1_HOST) ? spimem_flash_ll_calculate_clock_reg(clock_div) \
-                                            : gpspi_flash_ll_calculate_clock_reg(clock_div))
-
-#define spi_flash_ll_get_source_clock_freq_mhz(host_id)  (((host_id)<=SPI1_HOST) ? spimem_flash_ll_get_source_freq_mhz() : GPSPI_FLASH_LL_PERIPHERAL_FREQUENCY_MHZ)
+// For esp32s2, spimem is equivalent to traditional spi peripherals found
+// in esp32. Let the spi flash clock reg definitions reflect this.
+#define SPI_FLASH_LL_CLKREG_VAL_5MHZ   {.spimem=SPIMEM_FLASH_LL_CLKREG_VAL_5MHZ}
+#define SPI_FLASH_LL_CLKREG_VAL_10MHZ  {.spimem=SPIMEM_FLASH_LL_CLKREG_VAL_10MHZ}
+#define SPI_FLASH_LL_CLKREG_VAL_20MHZ  {.spimem=SPIMEM_FLASH_LL_CLKREG_VAL_20MHZ}
+#define SPI_FLASH_LL_CLKREG_VAL_26MHZ  {.spimem=SPIMEM_FLASH_LL_CLKREG_VAL_26MHZ}
+#define SPI_FLASH_LL_CLKREG_VAL_40MHZ  {.spimem=SPIMEM_FLASH_LL_CLKREG_VAL_40MHZ}
+#define SPI_FLASH_LL_CLKREG_VAL_80MHZ  {.spimem=SPIMEM_FLASH_LL_CLKREG_VAL_80MHZ}
 
 #define spi_flash_ll_get_hw(host_id)  (((host_id)<=SPI1_HOST ? (spi_dev_t*) spimem_flash_ll_get_hw(host_id) \
                                       : gpspi_flash_ll_get_hw(host_id)))
@@ -35,8 +47,7 @@ extern "C" {
                                      }\
                                      dev_id; \
                                     })
-// Since ESP32-H2, WB_mode is available, we extend 8 bits to occupy `Continuous Read Mode` bits.
-#define SPI_FLASH_LL_CONTINUOUS_MODE_BIT_NUMS  (8)
+
 
 typedef union  {
     gpspi_flash_ll_clock_reg_t gpspi;
@@ -62,9 +73,9 @@ typedef union  {
 #define spi_flash_ll_set_address(dev, addr)                  gpspi_flash_ll_set_address((spi_dev_t*)dev, addr)
 #define spi_flash_ll_set_usr_address(dev, addr, bitlen)      gpspi_flash_ll_set_usr_address((spi_dev_t*)dev, addr, bitlen)
 #define spi_flash_ll_set_dummy(dev, dummy)                   gpspi_flash_ll_set_dummy((spi_dev_t*)dev, dummy)
+#define spi_flash_ll_set_dummy_out(dev, en, lev)             gpspi_flash_ll_set_dummy_out((spi_dev_t*)dev, en, lev)
 #define spi_flash_ll_set_hold(dev, hold_n)                   gpspi_flash_ll_set_hold((spi_dev_t*)dev, hold_n)
 #define spi_flash_ll_set_cs_setup(dev, cs_setup_time)        gpspi_flash_ll_set_cs_setup((spi_dev_t*)dev, cs_setup_time)
-#define spi_flash_ll_set_extra_address(dev, extra_addr)      { /* Not supported on gpspi on ESP32-H2*/ }
 #else
 #define spi_flash_ll_reset(dev)                              spimem_flash_ll_reset((spi_mem_dev_t*)dev)
 #define spi_flash_ll_cmd_is_done(dev)                        spimem_flash_ll_cmd_is_done((spi_mem_dev_t*)dev)
@@ -89,9 +100,9 @@ typedef union  {
 #define spi_flash_ll_set_address(dev, addr)                  spimem_flash_ll_set_address((spi_mem_dev_t*)dev, addr)
 #define spi_flash_ll_set_usr_address(dev, addr, bitlen)      spimem_flash_ll_set_usr_address((spi_mem_dev_t*)dev, addr, bitlen)
 #define spi_flash_ll_set_dummy(dev, dummy)                   spimem_flash_ll_set_dummy((spi_mem_dev_t*)dev, dummy)
+#define spi_flash_ll_set_dummy_out(dev, en, lev)             spimem_flash_ll_set_dummy_out((spi_mem_dev_t*)dev, en, lev)
 #define spi_flash_ll_set_hold(dev, hold_n)                   spimem_flash_ll_set_hold((spi_mem_dev_t*)dev, hold_n)
 #define spi_flash_ll_set_cs_setup(dev, cs_setup_time)        spimem_flash_ll_set_cs_setup((spi_mem_dev_t*)dev, cs_setup_time)
-#define spi_flash_ll_set_extra_address(dev, extra_addr)      spimem_flash_ll_set_extra_address((spi_mem_dev_t*)dev, extra_addr)
 
 #endif
 

@@ -53,13 +53,10 @@ function(get_git_head_revision _refspecvar _hashvar _repo_dir)
         res
         OUTPUT_VARIABLE
         GIT_DIR
-        ERROR_VARIABLE
-        error
+        ERROR_QUIET
         OUTPUT_STRIP_TRAILING_WHITESPACE)
 
     if(NOT res EQUAL 0)
-        string(STRIP "${error}" error)
-        message(STATUS "git rev-parse returned '${error}'")
         return()
     endif()
 
@@ -126,12 +123,9 @@ function(git_describe _var _repo_dir)
         res
         OUTPUT_VARIABLE
         out
-        ERROR_VARIABLE
-        error
+        ERROR_QUIET
         OUTPUT_STRIP_TRAILING_WHITESPACE)
     if(NOT res EQUAL 0)
-        string(STRIP "${error}" error)
-        message(STATUS "git describe returned '${error}'")
         set(out "${out}-${res}-NOTFOUND")
     endif()
 

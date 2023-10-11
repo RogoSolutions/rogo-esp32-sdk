@@ -10,7 +10,6 @@ import os
 import re
 import subprocess
 import sys
-from typing import List, Optional
 
 from idf_ci_utils import IDF_PATH
 
@@ -18,7 +17,7 @@ CODEOWNERS_PATH = os.path.join(IDF_PATH, '.gitlab', 'CODEOWNERS')
 CODEOWNER_GROUP_PREFIX = '@esp-idf-codeowners/'
 
 
-def get_all_files() -> List[str]:
+def get_all_files():
     """
     Get list of all file paths in the repository.
     """
@@ -26,7 +25,7 @@ def get_all_files() -> List[str]:
     return subprocess.check_output(['git', 'ls-files'], cwd=IDF_PATH).decode('utf-8').strip().split('\n')
 
 
-def pattern_to_regex(pattern: str) -> str:
+def pattern_to_regex(pattern):
     """
     Convert the CODEOWNERS path pattern into a regular expression string.
     """
@@ -60,14 +59,14 @@ def pattern_to_regex(pattern: str) -> str:
     return re_pattern
 
 
-def files_by_regex(all_files: List, regex: re.Pattern) -> List:
+def files_by_regex(all_files, regex):
     """
     Return all files in the repository matching the given regular expresion.
     """
     return [file for file in all_files if regex.search('/' + file)]
 
 
-def files_by_pattern(all_files: list, pattern: Optional[str]=None) -> List:
+def files_by_pattern(all_files, pattern=None):
     """
     Return all the files in the repository matching the given CODEOWNERS pattern.
     """
@@ -77,7 +76,7 @@ def files_by_pattern(all_files: list, pattern: Optional[str]=None) -> List:
     return files_by_regex(all_files, re.compile(pattern_to_regex(pattern)))
 
 
-def action_identify(args: argparse.Namespace) -> None:
+def action_identify(args):
     best_match = []
     all_files = get_all_files()
     with open(CODEOWNERS_PATH) as f:
@@ -95,7 +94,7 @@ def action_identify(args: argparse.Namespace) -> None:
         print(owner)
 
 
-def action_test_pattern(args: argparse.Namespace) -> None:
+def action_test_pattern(args):
     re_pattern = pattern_to_regex(args.pattern)
 
     if args.regex:
@@ -107,10 +106,10 @@ def action_test_pattern(args: argparse.Namespace) -> None:
         print(f)
 
 
-def action_ci_check(args: argparse.Namespace) -> None:
+def action_ci_check(args):
     errors = []
 
-    def add_error(msg: str) -> None:
+    def add_error(msg):
         errors.append('{}:{}: {}'.format(CODEOWNERS_PATH, line_no, msg))
 
     all_files = get_all_files()
@@ -159,7 +158,7 @@ def action_ci_check(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
-def in_order(prev: str, current: str) -> bool:
+def in_order(prev, current):
     """
     Return True if the ordering is correct for these two lines ('prev' should be before 'current').
 
@@ -173,10 +172,10 @@ def in_order(prev: str, current: str) -> bool:
     if not prev:
         return True  # first element in file
 
-    def is_separator(c: str) -> bool:
+    def is_separator(c):
         return c in '-_/'  # ignore differences between separators for ordering purposes
 
-    def is_wildcard(c: str) -> bool:
+    def is_wildcard(c):
         return c in '?*'
 
     # looping until we see a different character
@@ -193,7 +192,7 @@ def in_order(prev: str, current: str) -> bool:
     return len(current) >= len(prev)
 
 
-def main() -> None:
+def main():
     parser = argparse.ArgumentParser(
         sys.argv[0], description='Internal helper script for working with the CODEOWNERS file.'
     )

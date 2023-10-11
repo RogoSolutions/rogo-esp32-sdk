@@ -1,24 +1,38 @@
 #!/usr/bin/env python
 #
-# SPDX-FileCopyrightText: 2018-2022 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2018 Espressif Systems (Shanghai) PTE LTD
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 
+from __future__ import print_function
+
 import argparse
-import asyncio
 import json
 import os
 import ssl
 import struct
 import sys
 import textwrap
-from getpass import getpass
+from builtins import input
 
 import proto_lc
+from future.utils import tobytes
 
 try:
     import esp_prov
     import security
+
 except ImportError:
     idf_path = os.environ['IDF_PATH']
     sys.path.insert(0, idf_path + '/components/protocomm/python')
@@ -63,7 +77,7 @@ def encode_prop_value(prop, value):
         elif prop['type'] == PROP_TYPE_BOOLEAN:
             return struct.pack('?', value)
         elif prop['type'] == PROP_TYPE_STRING:
-            return bytes(value, encoding='latin-1')
+            return tobytes(value)
         return value
     except struct.error as e:
         print(e)
@@ -113,22 +127,18 @@ def on_except(err):
         print(err)
 
 
-def get_security(secver, username, password, pop='', verbose=False):
-    if secver == 2:
-        return security.Security2(username, password, verbose)
+def get_security(secver, pop=None, verbose=False):
     if secver == 1:
         return security.Security1(pop, verbose)
-    if secver == 0:
+    elif secver == 0:
         return security.Security0(verbose)
     return None
 
 
-async def get_transport(sel_transport, service_name, check_hostname):
+def get_transport(sel_transport, service_name, check_hostname):
     try:
         tp = None
         if (sel_transport == 'http'):
-            tp = esp_prov.transport.Transport_HTTP(service_name, None)
-        elif (sel_transport == 'https'):
             example_path = os.environ['IDF_PATH'] + '/examples/protocols/esp_local_ctrl'
             cert_path = example_path + '/main/certs/rootCA.pem'
             ssl_ctx = ssl.create_default_context(cafile=cert_path)
@@ -141,19 +151,18 @@ async def get_transport(sel_transport, service_name, check_hostname):
                            'esp_local_ctrl/session': '0002',
                            'esp_local_ctrl/control': '0003'}
             )
-            await tp.connect(devname=service_name)
         return tp
     except RuntimeError as e:
         on_except(e)
         return None
 
 
-async def version_match(tp, protover, verbose=False):
+def version_match(tp, protover, verbose=False):
     try:
-        response = await tp.send_data('esp_local_ctrl/version', protover)
+        response = tp.send_data('proto-ver', protover)
 
         if verbose:
-            print('esp_local_ctrl/version response : ', response)
+            print('proto-ver response : ', response)
 
         # First assume this to be a simple version string
         if response.lower() == protover.lower():
@@ -177,14 +186,14 @@ async def version_match(tp, protover, verbose=False):
         return None
 
 
-async def has_capability(tp, capability='none', verbose=False):
+def has_capability(tp, capability='none', verbose=False):
     # Note : default value of `capability` argument cannot be empty string
     # because protocomm_httpd expects non zero content lengths
     try:
-        response = await tp.send_data('esp_local_ctrl/version', capability)
+        response = tp.send_data('proto-ver', capability)
 
         if verbose:
-            print('esp_local_ctrl/version response : ', response)
+            print('proto-ver response : ', response)
 
         try:
             # Interpret this as JSON structure containing
@@ -211,14 +220,14 @@ async def has_capability(tp, capability='none', verbose=False):
     return False
 
 
-async def establish_session(tp, sec):
+def establish_session(tp, sec):
     try:
         response = None
         while True:
             request = sec.security_session(response)
             if request is None:
                 break
-            response = await tp.send_data('esp_local_ctrl/session', request)
+            response = tp.send_data('esp_local_ctrl/session', request)
             if (response is None):
                 return False
         return True
@@ -227,17 +236,17 @@ async def establish_session(tp, sec):
         return None
 
 
-async def get_all_property_values(tp, security_ctx):
+def get_all_property_values(tp, security_ctx):
     try:
         props = []
         message = proto_lc.get_prop_count_request(security_ctx)
-        response = await tp.send_data('esp_local_ctrl/control', message)
+        response = tp.send_data('esp_local_ctrl/control', message)
         count = proto_lc.get_prop_count_response(security_ctx, response)
         if count == 0:
             raise RuntimeError('No properties found!')
         indices = [i for i in range(count)]
         message = proto_lc.get_prop_vals_request(security_ctx, indices)
-        response = await tp.send_data('esp_local_ctrl/control', message)
+        response = tp.send_data('esp_local_ctrl/control', message)
         props = proto_lc.get_prop_vals_response(security_ctx, response)
         if len(props) != count:
             raise RuntimeError('Incorrect count of properties!', len(props), count)
@@ -249,14 +258,14 @@ async def get_all_property_values(tp, security_ctx):
         return []
 
 
-async def set_property_values(tp, security_ctx, props, indices, values, check_readonly=False):
+def set_property_values(tp, security_ctx, props, indices, values, check_readonly=False):
     try:
         if check_readonly:
             for index in indices:
                 if prop_is_readonly(props[index]):
                     raise RuntimeError('Cannot set value of Read-Only property')
         message = proto_lc.set_prop_vals_request(security_ctx, indices, values)
-        response = await tp.send_data('esp_local_ctrl/control', message)
+        response = tp.send_data('esp_local_ctrl/control', message)
         return proto_lc.set_prop_vals_response(security_ctx, response)
     except RuntimeError as e:
         on_except(e)
@@ -270,7 +279,7 @@ def desc_format(*args):
     return desc
 
 
-async def main():
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(add_help=False)
 
     parser = argparse.ArgumentParser(description='Control an ESP32 running esp_local_ctrl service')
@@ -279,38 +288,26 @@ async def main():
                         help='Protocol version', default='')
 
     parser.add_argument('--transport', dest='transport', type=str,
-                        help='transport i.e http/https/ble', default='https')
+                        help='transport i.e http or ble', default='http')
 
     parser.add_argument('--name', dest='service_name', type=str,
                         help='BLE Device Name / HTTP Server hostname or IP', default='')
 
     parser.add_argument('--sec_ver', dest='secver', type=int, default=None,
                         help=desc_format(
-                            'Protocomm security scheme used for secure '
+                            'Protocomm security scheme used by the provisioning service for secure '
                             'session establishment. Accepted values are :',
                             '\t- 0 : No security',
                             '\t- 1 : X25519 key exchange + AES-CTR encryption',
-                            '\t- 2 : SRP6a + AES-GCM encryption',
-                            '\t      + Authentication using Proof of Possession (PoP)'))
+                            '\t      + Authentication using Proof of Possession (PoP)',
+                            'In case device side application uses IDF\'s provisioning manager, '
+                            'the compatible security version is automatically determined from '
+                            'capabilities retrieved via the version endpoint'))
 
     parser.add_argument('--pop', dest='pop', type=str, default='',
                         help=desc_format(
                             'This specifies the Proof of possession (PoP) when security scheme 1 '
                             'is used'))
-
-    parser.add_argument('--sec2_username', dest='sec2_usr', type=str, default='',
-                        help=desc_format(
-                            'Username for security scheme 2 (SRP6a)'))
-
-    parser.add_argument('--sec2_pwd', dest='sec2_pwd', type=str, default='',
-                        help=desc_format(
-                            'Password for security scheme 2 (SRP6a)'))
-
-    parser.add_argument('--sec2_gen_cred', help='Generate salt and verifier for security scheme 2 (SRP6a)', action='store_true')
-
-    parser.add_argument('--sec2_salt_len', dest='sec2_salt_len', type=int, default=16,
-                        help=desc_format(
-                            'Salt length for security scheme 2 (SRP6a)'))
 
     parser.add_argument('--dont-check-hostname', action='store_true',
                         # If enabled, the certificate won't be rejected for hostname mismatch.
@@ -318,42 +315,34 @@ async def main():
                         help=argparse.SUPPRESS)
 
     parser.add_argument('-v', '--verbose', dest='verbose', help='increase output verbosity', action='store_true')
-
     args = parser.parse_args()
 
-    if args.secver == 2 and args.sec2_gen_cred:
-        if not args.sec2_usr or not args.sec2_pwd:
-            raise ValueError('Username/password cannot be empty for security scheme 2 (SRP6a)')
-
-        print('==== Salt-verifier for security scheme 2 (SRP6a) ====')
-        security.sec2_gen_salt_verifier(args.sec2_usr, args.sec2_pwd, args.sec2_salt_len)
-        sys.exit()
-
     if args.version != '':
-        print(f'==== Esp_Ctrl Version: {args.version} ====')
+        print('==== Esp_Ctrl Version: ' + args.version + ' ====')
 
     if args.service_name == '':
         args.service_name = 'my_esp_ctrl_device'
-        if args.transport == 'http' or args.transport == 'https':
+        if args.transport == 'http':
             args.service_name += '.local'
 
-    obj_transport = await get_transport(args.transport, args.service_name, not args.dont_check_hostname)
+    obj_transport = get_transport(args.transport, args.service_name, not args.dont_check_hostname)
     if obj_transport is None:
-        raise RuntimeError('Failed to establish connection')
+        print('---- Invalid transport ----')
+        exit(1)
 
     # If security version not specified check in capabilities
     if args.secver is None:
         # First check if capabilities are supported or not
-        if not await has_capability(obj_transport):
-            print('Security capabilities could not be determined, please specify "--sec_ver" explicitly')
-            raise ValueError('Invalid Security Version')
+        if not has_capability(obj_transport):
+            print('Security capabilities could not be determined. Please specify \'--sec_ver\' explicitly')
+            print('---- Invalid Security Version ----')
+            exit(2)
 
         # When no_sec is present, use security 0, else security 1
-        args.secver = int(not await has_capability(obj_transport, 'no_sec'))
-        print(f'==== Security Scheme: {args.secver} ====')
+        args.secver = int(not has_capability(obj_transport, 'no_sec'))
+        print('Security scheme determined to be :', args.secver)
 
-    if (args.secver == 1):
-        if not await has_capability(obj_transport, 'no_pop'):
+        if (args.secver != 0) and not has_capability(obj_transport, 'no_pop'):
             if len(args.pop) == 0:
                 print('---- Proof of Possession argument not provided ----')
                 exit(2)
@@ -361,33 +350,30 @@ async def main():
             print('---- Proof of Possession will be ignored ----')
             args.pop = ''
 
-    if (args.secver == 2):
-        if len(args.sec2_usr) == 0:
-            args.sec2_usr = input('Security Scheme 2 - SRP6a Username required: ')
-        if len(args.sec2_pwd) == 0:
-            prompt_str = 'Security Scheme 2 - SRP6a Password required: '
-            args.sec2_pwd = getpass(prompt_str)
-
-    obj_security = get_security(args.secver, args.sec2_usr, args.sec2_pwd, args.pop, args.verbose)
+    obj_security = get_security(args.secver, args.pop, False)
     if obj_security is None:
-        raise ValueError('Invalid Security Version')
+        print('---- Invalid Security Version ----')
+        exit(2)
 
     if args.version != '':
         print('\n==== Verifying protocol version ====')
-        if not await version_match(obj_transport, args.version, args.verbose):
-            raise RuntimeError('Error in protocol version matching')
+        if not version_match(obj_transport, args.version, args.verbose):
+            print('---- Error in protocol version matching ----')
+            exit(2)
         print('==== Verified protocol version successfully ====')
 
     print('\n==== Starting Session ====')
-    if not await establish_session(obj_transport, obj_security):
+    if not establish_session(obj_transport, obj_security):
         print('Failed to establish session. Ensure that security scheme and proof of possession are correct')
-        raise RuntimeError('Error in establishing session')
+        print('---- Error in establishing session ----')
+        exit(3)
     print('==== Session Established ====')
 
     while True:
-        properties = await get_all_property_values(obj_transport, obj_security)
+        properties = get_all_property_values(obj_transport, obj_security)
         if len(properties) == 0:
-            raise RuntimeError('Error in reading property value')
+            print('---- Error in reading property values ----')
+            exit(4)
 
         print('\n==== Available Properties ====')
         print('{0: >4} {1: <16} {2: <10} {3: <16} {4: <16}'.format(
@@ -404,7 +390,7 @@ async def main():
                 inval = input('\nSelect properties to set (0 to re-read, \'q\' to quit) : ')
                 if inval.lower() == 'q':
                     print('Quitting...')
-                    exit(0)
+                    exit(5)
                 invals = inval.split(',')
                 selections = [int(val) for val in invals]
                 if min(selections) < 0 or max(selections) > len(properties):
@@ -430,8 +416,5 @@ async def main():
             set_values += [value]
             set_indices += [select - 1]
 
-        if not await set_property_values(obj_transport, obj_security, properties, set_indices, set_values):
+        if not set_property_values(obj_transport, obj_security, properties, set_indices, set_values):
             print('Failed to set values!')
-
-if __name__ == '__main__':
-    asyncio.run(main())

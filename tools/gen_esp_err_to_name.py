@@ -1,8 +1,34 @@
 #!/usr/bin/env python
 #
-# SPDX-FileCopyrightText: 2018-2022 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2018 Espressif Systems (Shanghai) PTE LTD
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
+from __future__ import print_function, unicode_literals
+
+import sys
+
+try:
+    from builtins import object, range, str
+except ImportError:
+    # This should not happen because the Python packages are checked before invoking this script. However, here is
+    # some output which should help if we missed something.
+    print('Import has failed probably because of the missing "future" package. Please install all the packages for '
+          'interpreter {} from the requirements.txt file.'.format(sys.executable))
+    # The path to requirements.txt is not provided because this script could be invoked from an IDF project (then the
+    # requirements.txt from the IDF_PATH should be used) or from the documentation project (then the requirements.txt
+    # for the documentation directory should be used).
+    sys.exit(1)
 import argparse
 import collections
 import fnmatch
@@ -11,10 +37,12 @@ import os
 import re
 import textwrap
 from io import open
-from typing import Any, List, Optional, TextIO
 
 # list files here which should not be parsed
-ignore_files: list  = list()
+ignore_files = [os.path.join('components', 'mdns', 'test_afl_fuzz_host', 'esp32_mock.h'),
+                # tcpip_adapter in compatibility mode from 4.1 (errors reused in esp-netif)
+                os.path.join('components', 'tcpip_adapter', 'include', 'tcpip_adapter_types.h')
+                ]
 
 # add directories here which should not be parsed, this is a tuple since it will be used with *.startswith()
 ignore_dirs = (os.path.join('examples'),
@@ -27,9 +55,6 @@ priority_headers = [os.path.join('components', 'esp_common', 'include', 'esp_err
 # The following headers won't be included. This is useful if they are permanently included from esp_err_to_name.c.in.
 dont_include = [os.path.join('soc', 'soc.h'),
                 os.path.join('esp_err.h')]
-
-# Don't search the following directories, e.g. test directories
-exclude_search_dirs = ['test_apps', 'unit-test-app']
 
 err_dict = collections.defaultdict(list)  # identified errors are stored here; mapped by the error code
 rev_err_dict = dict()  # map of error string to error code
@@ -46,7 +71,7 @@ class ErrItem(object):
     - rel_str - (optional) error string which is a base for the error
     - rel_off - (optional) offset in relation to the base error
     """
-    def __init__(self, name: str, file: str, include_as: Optional[Any]=None, comment: str='', rel_str: str='', rel_off: int=0) -> None:
+    def __init__(self, name, file, include_as=None, comment='', rel_str='', rel_off=0):
         self.name = name
         self.file = file
         self.include_as = include_as
@@ -54,7 +79,7 @@ class ErrItem(object):
         self.rel_str = rel_str
         self.rel_off = rel_off
 
-    def __str__(self) -> str:
+    def __str__(self):
         ret = self.name + ' from ' + self.file
         if (self.rel_str != ''):
             ret += ' is (' + self.rel_str + ' + ' + str(self.rel_off) + ')'
@@ -62,7 +87,7 @@ class ErrItem(object):
             ret += ' // ' + self.comment
         return ret
 
-    def __cmp__(self, other) -> int:
+    def __cmp__(self, other):
         if self.file in priority_headers and other.file not in priority_headers:
             return -1
         elif self.file not in priority_headers and other.file in priority_headers:
@@ -71,9 +96,9 @@ class ErrItem(object):
         base = '_BASE'
 
         if self.file == other.file:
-            if self.name.endswith(base) and not other.name.endswith(base):
+            if self.name.endswith(base) and not(other.name.endswith(base)):
                 return 1
-            elif not self.name.endswith(base) and other.name.endswith(base):
+            elif not(self.name.endswith(base)) and other.name.endswith(base):
                 return -1
 
         self_key = self.file + self.name
@@ -90,11 +115,11 @@ class InputError(RuntimeError):
     """
     Represents and error on the input
     """
-    def __init__(self, p: str, e: str) -> None:
+    def __init__(self, p, e):
         super(InputError, self).__init__(p + ': ' + e)
 
 
-def process(line: str, idf_path: str, include_as: Any) -> None:
+def process(line, idf_path, include_as):
     """
     Process a line of text from file idf_path (relative to IDF project).
     Fills the global list unproc_list and dictionaries err_dict, rev_err_dict
@@ -157,7 +182,7 @@ def process(line: str, idf_path: str, include_as: Any) -> None:
         unproc_list.append(ErrItem(words[1], idf_path, include_as, comment, related, num))
 
 
-def process_remaining_errors() -> None:
+def process_remaining_errors():
     """
     Create errors which could not be processed before because the error code
     for the BASE error code wasn't known.
@@ -178,7 +203,7 @@ def process_remaining_errors() -> None:
     del unproc_list[:]
 
 
-def path_to_include(path: str) -> str:
+def path_to_include(path):
     """
     Process the path (relative to the IDF project) in a form which can be used
     to include in a C file. Using just the filename does not work all the
@@ -199,7 +224,7 @@ def path_to_include(path: str) -> str:
         return os.sep.join(spl_path[i + 1:])  # subdirectories and filename in "include"
 
 
-def print_warning(error_list: List, error_code: int) -> None:
+def print_warning(error_list, error_code):
     """
     Print warning about errors with the same error code
     """
@@ -208,7 +233,7 @@ def print_warning(error_list: List, error_code: int) -> None:
         print('    ' + str(e))
 
 
-def max_string_width() -> int:
+def max_string_width():
     max = 0
     for k in err_dict:
         for e in err_dict[k]:
@@ -218,7 +243,7 @@ def max_string_width() -> int:
     return max
 
 
-def generate_c_output(fin: TextIO, fout: TextIO) -> None:
+def generate_c_output(fin, fout):
     """
     Writes the output to fout based on th error dictionary err_dict and
     template file fin.
@@ -283,7 +308,7 @@ def generate_c_output(fin: TextIO, fout: TextIO) -> None:
             fout.write(line)
 
 
-def generate_rst_output(fout: TextIO) -> None:
+def generate_rst_output(fout):
     for k in sorted(err_dict.keys()):
         v = err_dict[k][0]
         fout.write(':c:macro:`{}` '.format(v.name))
@@ -296,7 +321,7 @@ def generate_rst_output(fout: TextIO) -> None:
         fout.write('\n\n')
 
 
-def main() -> None:
+def main():
     if 'IDF_PATH' in os.environ:
         idf_path = os.environ['IDF_PATH']
     else:
@@ -312,10 +337,7 @@ def main() -> None:
     include_as_pattern = re.compile(r'\s*//\s*{}: [^"]* "([^"]+)"'.format(os.path.basename(__file__)))
     define_pattern = re.compile(r'\s*#define\s+(ESP_ERR_|ESP_OK|ESP_FAIL)')
 
-    for root, dirnames, filenames in os.walk(idf_path, topdown=True):
-        # When topdown is True, we can modify the dirnames list in-place
-        # walk() will only recurse into the subdirectories whose names remain in dirnames
-        dirnames[:] = [d for d in dirnames if d not in exclude_search_dirs]
+    for root, dirnames, filenames in os.walk(idf_path):
         for filename in fnmatch.filter(filenames, '*.[ch]'):
             full_path = os.path.join(root, filename)
             path_in_idf = os.path.relpath(full_path, idf_path)

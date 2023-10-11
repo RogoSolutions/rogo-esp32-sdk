@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -21,11 +21,6 @@
 #include "esp_vfs_private.h"
 #include "sdkconfig.h"
 
-// Warn about using deprecated option
-#ifdef CONFIG_LWIP_USE_ONLY_LWIP_SELECT
-#warning CONFIG_LWIP_USE_ONLY_LWIP_SELECT is deprecated: Please use CONFIG_VFS_SUPPORT_SELECT instead
-#endif
-
 #ifdef CONFIG_VFS_SUPPRESS_SELECT_DEBUG_OUTPUT
 #define LOG_LOCAL_LEVEL ESP_LOG_NONE
 #endif //CONFIG_VFS_SUPPRESS_SELECT_DEBUG_OUTPUT
@@ -33,16 +28,7 @@
 
 static const char *TAG = "vfs";
 
-/* Max number of VFS entries (registered filesystems) */
-#ifdef CONFIG_VFS_MAX_COUNT
-#define VFS_MAX_COUNT  CONFIG_VFS_MAX_COUNT
-#else
-/* If IO support is disabled, keep this defined to 1 to avoid compiler warnings in this file.
- * The s_vfs array and the functions defined here will be removed by the linker, anyway.
- */
-#define VFS_MAX_COUNT 1
-#endif
-
+#define VFS_MAX_COUNT   8   /* max number of VFS entries (registered filesystems) */
 #define LEN_PATH_PREFIX_IGNORED SIZE_MAX /* special length value for VFS which is never recognised by open() */
 #define FD_TABLE_ENTRY_UNUSED   (fd_table_t) { .permanent = false, .has_pending_close = false, .has_pending_select = false, .vfs_index = -1, .local_fd = -1 }
 
@@ -141,8 +127,8 @@ esp_err_t esp_vfs_register_fd_range(const esp_vfs_t *vfs, void *ctx, int min_fd,
         _lock_acquire(&s_fd_table_lock);
         for (int i = min_fd; i < max_fd; ++i) {
             if (s_fd_table[i].vfs_index != -1) {
-                free(s_vfs[index]);
-                s_vfs[index] = NULL;
+                free(s_vfs[i]);
+                s_vfs[i] = NULL;
                 for (int j = min_fd; j < i; ++j) {
                     if (s_fd_table[j].vfs_index == index) {
                         s_fd_table[j] = FD_TABLE_ENTRY_UNUSED;
@@ -157,9 +143,9 @@ esp_err_t esp_vfs_register_fd_range(const esp_vfs_t *vfs, void *ctx, int min_fd,
             s_fd_table[i].local_fd = i;
         }
         _lock_release(&s_fd_table_lock);
-
-        ESP_LOGW(TAG, "esp_vfs_register_fd_range is successful for range <%d; %d) and VFS ID %d", min_fd, max_fd, index);
     }
+
+    ESP_LOGD(TAG, "esp_vfs_register_fd_range is successful for range <%d; %d) and VFS ID %d", min_fd, max_fd, index);
 
     return ret;
 }
@@ -176,7 +162,7 @@ esp_err_t esp_vfs_register_with_id(const esp_vfs_t *vfs, void *ctx, esp_vfs_id_t
 
 esp_err_t esp_vfs_unregister_with_id(esp_vfs_id_t vfs_id)
 {
-    if (vfs_id < 0 || vfs_id >= VFS_MAX_COUNT || s_vfs[vfs_id] == NULL) {
+    if (vfs_id < 0 || vfs_id >= MAX_FDS || s_vfs[vfs_id] == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
     vfs_entry_t* vfs = s_vfs[vfs_id];
@@ -999,9 +985,7 @@ int esp_vfs_select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds
         const vfs_entry_t *vfs = get_vfs_for_index(i);
         fds_triple_t *item = &vfs_fds_triple[i];
 
-        if (vfs && !vfs->vfs.start_select) {
-            ESP_LOGD(TAG, "start_select function callback for this vfs (s_vfs[%d]) is not defined", vfs->offset);
-        } else if (vfs && vfs->vfs.start_select && item->isset) {
+        if (vfs && vfs->vfs.start_select && item->isset) {
             // call start_select for all non-socket VFSs with has at least one FD set in readfds, writefds, or errorfds
             // note: it can point to socket VFS but item->isset will be false for that
             ESP_LOGD(TAG, "calling start_select for VFS ID %d with the following local FDs", i);
@@ -1012,9 +996,7 @@ int esp_vfs_select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds
                     driver_args + i);
 
             if (err != ESP_OK) {
-                if (err != ESP_ERR_NOT_SUPPORTED) {
-                    call_end_selects(i, vfs_fds_triple, driver_args);
-                }
+                call_end_selects(i, vfs_fds_triple, driver_args);
                 (void) set_global_fd_sets(vfs_fds_triple, vfs_count, readfds, writefds, errorfds);
                 if (sel_sem.is_sem_local && sel_sem.sem) {
                     vSemaphoreDelete(sel_sem.sem);
@@ -1060,7 +1042,7 @@ int esp_vfs_select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds
              * 1 tick before triggering a timeout. Thus, we need to pass 2 ticks as a timeout
              * to `xSemaphoreTake`. */
             ticks_to_wait = ((timeout_ms + portTICK_PERIOD_MS - 1) / portTICK_PERIOD_MS) + 1;
-            ESP_LOGD(TAG, "timeout is %" PRIu32 "ms", timeout_ms);
+            ESP_LOGD(TAG, "timeout is %dms", timeout_ms);
         }
         ESP_LOGD(TAG, "waiting without calling socket_select");
         xSemaphoreTake(sel_sem.sem, ticks_to_wait);

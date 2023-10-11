@@ -1,6 +1,7 @@
 @echo off
 if defined MSYSTEM (
-	echo This .bat file is for Windows CMD.EXE shell only.
+	echo This .bat file is for Windows CMD.EXE shell only. When using MSYS, run:
+	echo   ./install.sh.
 	goto end
 )
 
@@ -17,16 +18,15 @@ if not "%MISSING_REQUIREMENTS%" == "" goto :error_missing_requirements
 set IDF_PATH=%~dp0
 set IDF_PATH=%IDF_PATH:~0,-1%
 
-for /f "delims=" %%i in ('python.exe "%IDF_PATH%\tools\install_util.py" extract targets "%*"') do set TARGETS=%%i
+set TARGETS="all"
+if NOT "%1"=="" set TARGETS=%*
 
 echo Installing ESP-IDF tools
 python.exe "%IDF_PATH%\tools\idf_tools.py" install --targets=%TARGETS%
 if %errorlevel% neq 0 goto :end
 
-for /f "delims=" %%i in ('python.exe "%IDF_PATH%\tools\install_util.py" extract features "%*"') do set FEATURES=%%i
-
 echo Setting up Python environment
-python.exe "%IDF_PATH%\tools\idf_tools.py" install-python-env --features=%FEATURES%
+python.exe "%IDF_PATH%\tools\idf_tools.py" install-python-env
 if %errorlevel% neq 0 goto :end
 
 echo All done! You can now run:

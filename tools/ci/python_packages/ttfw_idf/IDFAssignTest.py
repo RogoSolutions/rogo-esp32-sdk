@@ -1,13 +1,11 @@
-# SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
 """
 Command line tool to assign tests to CI test jobs.
 """
 import argparse
+import errno
 import json
 import os
 import re
-import sys
 from copy import deepcopy
 
 import yaml
@@ -23,20 +21,21 @@ from tiny_test_fw.Utility import CIAssignTest
 try:
     from idf_py_actions.constants import PREVIEW_TARGETS, SUPPORTED_TARGETS
 except ImportError:
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-
-    from idf_py_actions.constants import PREVIEW_TARGETS, SUPPORTED_TARGETS
+    SUPPORTED_TARGETS = []
+    PREVIEW_TARGETS = []
 
 IDF_PATH_FROM_ENV = os.getenv('IDF_PATH', '')
 
 
 class IDFCaseGroup(CIAssignTest.Group):
+    LOCAL_BUILD_DIR = None
     BUILD_JOB_NAMES = None
 
     @classmethod
     def get_artifact_index_file(cls):
+        assert cls.LOCAL_BUILD_DIR
         if IDF_PATH_FROM_ENV:
-            artifact_index_file = os.path.join(IDF_PATH_FROM_ENV, 'artifact_index.json')
+            artifact_index_file = os.path.join(IDF_PATH_FROM_ENV, cls.LOCAL_BUILD_DIR, 'artifact_index.json')
         else:
             artifact_index_file = 'artifact_index.json'
         return artifact_index_file
@@ -54,7 +53,7 @@ class IDFAssignTest(CIAssignTest.AssignTest):
         super(IDFAssignTest, self).__init__(test_case_path, ci_config_file, case_group)
 
     def format_build_log_path(self, parallel_num):
-        return 'list_job_{}.json'.format(parallel_num)
+        return '{}/list_job_{}.json'.format(self.case_group.LOCAL_BUILD_DIR, parallel_num)
 
     def create_artifact_index_file(self, project_id=None, pipeline_id=None):
         if project_id is None:
@@ -75,12 +74,18 @@ class IDFAssignTest(CIAssignTest.AssignTest):
                     build_info['ci_job_id'] = job_info['id']
                     artifact_index_list.append(build_info)
         artifact_index_file = self.case_group.get_artifact_index_file()
+        try:
+            os.makedirs(os.path.dirname(artifact_index_file))
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise e
+
         with open(artifact_index_file, 'w') as f:
             json.dump(artifact_index_list, f)
 
     def search_cases(self, case_filter=None):
         _filter = deepcopy(case_filter) if case_filter else {}
-        if 'NIGHTLY_RUN' in os.environ or 'BOT_LABEL_NIGHTLY_RUN' in os.environ:
+        if 'NIGHTLY_RUN' in os.environ:
             _filter.update({'nightly_run': True})
         return super().search_cases(_filter)
 
@@ -88,16 +93,19 @@ class IDFAssignTest(CIAssignTest.AssignTest):
 class ExampleGroup(IDFCaseGroup):
     SORT_KEYS = CI_JOB_MATCH_KEYS = ['env_tag', 'target']
 
+    LOCAL_BUILD_DIR = 'build_examples'  # type: ignore
     EXAMPLE_TARGETS = SUPPORTED_TARGETS + PREVIEW_TARGETS
     BUILD_JOB_NAMES = ['build_examples_cmake_{}'.format(target) for target in EXAMPLE_TARGETS]  # type: ignore
 
 
 class TestAppsGroup(ExampleGroup):
+    LOCAL_BUILD_DIR = 'build_test_apps'
     TEST_APP_TARGETS = SUPPORTED_TARGETS + PREVIEW_TARGETS
     BUILD_JOB_NAMES = ['build_test_apps_{}'.format(target) for target in TEST_APP_TARGETS]  # type: ignore
 
 
 class ComponentUTGroup(TestAppsGroup):
+    LOCAL_BUILD_DIR = 'build_component_ut'
     UNIT_TEST_TARGETS = SUPPORTED_TARGETS + PREVIEW_TARGETS
     BUILD_JOB_NAMES = ['build_component_ut_{}'.format(target) for target in UNIT_TEST_TARGETS]  # type: ignore
 
@@ -106,6 +114,7 @@ class UnitTestGroup(IDFCaseGroup):
     SORT_KEYS = ['test environment', 'tags', 'chip_target']
     CI_JOB_MATCH_KEYS = ['test environment']
 
+    LOCAL_BUILD_DIR = 'tools/unit-test-app/builds'  # type: ignore
     UNIT_TEST_TARGETS = SUPPORTED_TARGETS + PREVIEW_TARGETS
     BUILD_JOB_NAMES = ['build_esp_idf_tests_cmake_{}'.format(target) for target in UNIT_TEST_TARGETS]  # type: ignore
 
@@ -117,10 +126,7 @@ class UnitTestGroup(IDFCaseGroup):
         'esp32': 'ESP32DUT',
         'esp32s2': 'ESP32S2DUT',
         'esp32s3': 'ESP32S3DUT',
-        'esp32c2': 'ESP32C2DUT',
         'esp32c3': 'ESP32C3DUT',
-        'esp32c6': 'ESP32C6DUT',
-        'esp32h2': 'ESP32H2DUT',
         'esp8266': 'ESP8266DUT',
     }
 

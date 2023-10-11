@@ -1,17 +1,14 @@
 /*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2020-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-#include <stddef.h> /* Required for NULL constant */
 #include <stdint.h>
 #include <stdbool.h>
-#include "hal/gdma_types.h"
 #include "soc/gdma_struct.h"
 #include "soc/gdma_reg.h"
-#include "soc/soc_etm_source.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,74 +16,37 @@ extern "C" {
 
 #define GDMA_LL_GET_HW(id) (((id) == 0) ? (&GDMA) : NULL)
 
-#define GDMA_LL_CHANNEL_MAX_PRIORITY 5 // supported priority levels: [0,5]
+#define GDMA_LL_RX_EVENT_MASK       (0x06A7)
+#define GDMA_LL_TX_EVENT_MASK       (0x1958)
 
-#define GDMA_LL_RX_EVENT_MASK       (0x7F)
-#define GDMA_LL_TX_EVENT_MASK       (0x3F)
-
-// any "dummy" peripheral ID can be used for M2M mode
-#define GDMA_LL_M2M_FREE_PERIPH_ID_MASK (0xFC32)
-#define GDMA_LL_INVALID_PERIPH_ID       (0x3F)
-
-#define GDMA_LL_EVENT_TX_FIFO_UDF   (1<<5)
-#define GDMA_LL_EVENT_TX_FIFO_OVF   (1<<4)
-#define GDMA_LL_EVENT_RX_FIFO_UDF   (1<<6)
-#define GDMA_LL_EVENT_RX_FIFO_OVF   (1<<5)
-#define GDMA_LL_EVENT_TX_TOTAL_EOF  (1<<3)
-#define GDMA_LL_EVENT_RX_DESC_EMPTY (1<<4)
-#define GDMA_LL_EVENT_TX_DESC_ERROR (1<<2)
-#define GDMA_LL_EVENT_RX_DESC_ERROR (1<<3)
-#define GDMA_LL_EVENT_TX_EOF        (1<<1)
-#define GDMA_LL_EVENT_TX_DONE       (1<<0)
+#define GDMA_LL_EVENT_TX_FIFO_UDF   (1<<12)
+#define GDMA_LL_EVENT_TX_FIFO_OVF   (1<<11)
+#define GDMA_LL_EVENT_RX_FIFO_UDF   (1<<10)
+#define GDMA_LL_EVENT_RX_FIFO_OVF   (1<<9)
+#define GDMA_LL_EVENT_TX_TOTAL_EOF  (1<<8)
+#define GDMA_LL_EVENT_RX_DESC_EMPTY (1<<7)
+#define GDMA_LL_EVENT_TX_DESC_ERROR (1<<6)
+#define GDMA_LL_EVENT_RX_DESC_ERROR (1<<5)
+#define GDMA_LL_EVENT_TX_EOF        (1<<4)
+#define GDMA_LL_EVENT_TX_DONE       (1<<3)
 #define GDMA_LL_EVENT_RX_ERR_EOF    (1<<2)
 #define GDMA_LL_EVENT_RX_SUC_EOF    (1<<1)
 #define GDMA_LL_EVENT_RX_DONE       (1<<0)
 
-#define GDMA_LL_TX_ETM_EVENT_TABLE(group, chan, event)                                     \
-    (uint32_t[1][3][GDMA_ETM_EVENT_MAX]){{{                                                \
-                                              [GDMA_ETM_EVENT_EOF] = GDMA_EVT_OUT_EOF_CH0, \
-                                          },                                               \
-                                          {                                                \
-                                              [GDMA_ETM_EVENT_EOF] = GDMA_EVT_OUT_EOF_CH1, \
-                                          },                                               \
-                                          {                                                \
-                                              [GDMA_ETM_EVENT_EOF] = GDMA_EVT_OUT_EOF_CH2, \
-                                          }}}[group][chan][event]
-
-#define GDMA_LL_RX_ETM_EVENT_TABLE(group, chan, event)                                        \
-    (uint32_t[1][3][GDMA_ETM_EVENT_MAX]){{{                                                   \
-                                              [GDMA_ETM_EVENT_EOF] = GDMA_EVT_IN_SUC_EOF_CH0, \
-                                          },                                                  \
-                                          {                                                   \
-                                              [GDMA_ETM_EVENT_EOF] = GDMA_EVT_IN_SUC_EOF_CH1, \
-                                          },                                                  \
-                                          {                                                   \
-                                              [GDMA_ETM_EVENT_EOF] = GDMA_EVT_IN_SUC_EOF_CH2, \
-                                          }}}[group][chan][event]
-
-#define GDMA_LL_TX_ETM_TASK_TABLE(group, chan, task)                                          \
-    (uint32_t[1][3][GDMA_ETM_TASK_MAX]){{{                                                    \
-                                             [GDMA_ETM_TASK_START] = GDMA_TASK_OUT_START_CH0, \
-                                         },                                                   \
-                                         {                                                    \
-                                             [GDMA_ETM_TASK_START] = GDMA_TASK_OUT_START_CH1, \
-                                         },                                                   \
-                                         {                                                    \
-                                             [GDMA_ETM_TASK_START] = GDMA_TASK_OUT_START_CH2, \
-                                         }}}[group][chan][task]
-
-#define GDMA_LL_RX_ETM_TASK_TABLE(group, chan, task)                                         \
-    (uint32_t[1][3][GDMA_ETM_TASK_MAX]){{{                                                   \
-                                             [GDMA_ETM_TASK_START] = GDMA_TASK_IN_START_CH0, \
-                                         },                                                  \
-                                         {                                                   \
-                                             [GDMA_ETM_TASK_START] = GDMA_TASK_IN_START_CH1, \
-                                         },                                                  \
-                                         {                                                   \
-                                             [GDMA_ETM_TASK_START] = GDMA_TASK_IN_START_CH2, \
-                                         }}}[group][chan][task]
-
 ///////////////////////////////////// Common /////////////////////////////////////////
+/**
+ * @brief Enable DMA channel M2M mode (TX channel n forward data to RX channel n), disabled by default
+ */
+static inline void gdma_ll_enable_m2m_mode(gdma_dev_t *dev, uint32_t channel, bool enable)
+{
+    dev->channel[channel].in.in_conf0.mem_trans_en = enable;
+    if (enable) {
+        // to enable m2m mode, the tx chan has to be the same to rx chan, and set to a valid value
+        dev->channel[channel].in.in_peri_sel.sel = 0;
+        dev->channel[channel].out.out_peri_sel.sel = 0;
+    }
+}
+
 /**
  * @brief Enable DMA clock gating
  */
@@ -102,7 +62,7 @@ static inline void gdma_ll_enable_clock(gdma_dev_t *dev, bool enable)
 __attribute__((always_inline))
 static inline uint32_t gdma_ll_rx_get_interrupt_status(gdma_dev_t *dev, uint32_t channel)
 {
-    return dev->in_intr[channel].st.val & GDMA_LL_RX_EVENT_MASK;
+    return dev->intr[channel].st.val & GDMA_LL_RX_EVENT_MASK;
 }
 
 /**
@@ -111,9 +71,9 @@ static inline uint32_t gdma_ll_rx_get_interrupt_status(gdma_dev_t *dev, uint32_t
 static inline void gdma_ll_rx_enable_interrupt(gdma_dev_t *dev, uint32_t channel, uint32_t mask, bool enable)
 {
     if (enable) {
-        dev->in_intr[channel].ena.val |= (mask & GDMA_LL_RX_EVENT_MASK);
+        dev->intr[channel].ena.val |= (mask & GDMA_LL_RX_EVENT_MASK);
     } else {
-        dev->in_intr[channel].ena.val &= ~(mask & GDMA_LL_RX_EVENT_MASK);
+        dev->intr[channel].ena.val &= ~(mask & GDMA_LL_RX_EVENT_MASK);
     }
 }
 
@@ -123,7 +83,7 @@ static inline void gdma_ll_rx_enable_interrupt(gdma_dev_t *dev, uint32_t channel
 __attribute__((always_inline))
 static inline void gdma_ll_rx_clear_interrupt_status(gdma_dev_t *dev, uint32_t channel, uint32_t mask)
 {
-    dev->in_intr[channel].clr.val = (mask & GDMA_LL_RX_EVENT_MASK);
+    dev->intr[channel].clr.val = (mask & GDMA_LL_RX_EVENT_MASK);
 }
 
 /**
@@ -131,7 +91,7 @@ static inline void gdma_ll_rx_clear_interrupt_status(gdma_dev_t *dev, uint32_t c
  */
 static inline volatile void *gdma_ll_rx_get_interrupt_status_reg(gdma_dev_t *dev, uint32_t channel)
 {
-    return (volatile void *)(&dev->in_intr[channel].st);
+    return (volatile void *)(&dev->intr[channel].st);
 }
 
 /**
@@ -210,7 +170,7 @@ static inline uint32_t gdma_ll_rx_pop_data(gdma_dev_t *dev, uint32_t channel)
 __attribute__((always_inline))
 static inline void gdma_ll_rx_set_desc_addr(gdma_dev_t *dev, uint32_t channel, uint32_t addr)
 {
-    dev->channel[channel].in.in_link.inlink_addr = addr;
+    dev->channel[channel].in.in_link.addr = addr;
 }
 
 /**
@@ -219,7 +179,7 @@ static inline void gdma_ll_rx_set_desc_addr(gdma_dev_t *dev, uint32_t channel, u
 __attribute__((always_inline))
 static inline void gdma_ll_rx_start(gdma_dev_t *dev, uint32_t channel)
 {
-    dev->channel[channel].in.in_link.inlink_start = 1;
+    dev->channel[channel].in.in_link.start = 1;
 }
 
 /**
@@ -228,7 +188,7 @@ static inline void gdma_ll_rx_start(gdma_dev_t *dev, uint32_t channel)
 __attribute__((always_inline))
 static inline void gdma_ll_rx_stop(gdma_dev_t *dev, uint32_t channel)
 {
-    dev->channel[channel].in.in_link.inlink_stop = 1;
+    dev->channel[channel].in.in_link.stop = 1;
 }
 
 /**
@@ -237,7 +197,7 @@ static inline void gdma_ll_rx_stop(gdma_dev_t *dev, uint32_t channel)
 __attribute__((always_inline))
 static inline void gdma_ll_rx_restart(gdma_dev_t *dev, uint32_t channel)
 {
-    dev->channel[channel].in.in_link.inlink_restart = 1;
+    dev->channel[channel].in.in_link.restart = 1;
 }
 
 /**
@@ -245,7 +205,7 @@ static inline void gdma_ll_rx_restart(gdma_dev_t *dev, uint32_t channel)
  */
 static inline void gdma_ll_rx_enable_auto_return(gdma_dev_t *dev, uint32_t channel, bool enable)
 {
-    dev->channel[channel].in.in_link.inlink_auto_ret = enable;
+    dev->channel[channel].in.in_link.auto_ret = enable;
 }
 
 /**
@@ -253,7 +213,7 @@ static inline void gdma_ll_rx_enable_auto_return(gdma_dev_t *dev, uint32_t chann
  */
 static inline bool gdma_ll_rx_is_fsm_idle(gdma_dev_t *dev, uint32_t channel)
 {
-    return dev->channel[channel].in.in_link.inlink_park;
+    return dev->channel[channel].in.in_link.park;
 }
 
 /**
@@ -262,7 +222,7 @@ static inline bool gdma_ll_rx_is_fsm_idle(gdma_dev_t *dev, uint32_t channel)
 __attribute__((always_inline))
 static inline uint32_t gdma_ll_rx_get_success_eof_desc_addr(gdma_dev_t *dev, uint32_t channel)
 {
-    return dev->channel[channel].in.in_suc_eof_des_addr.val;
+    return dev->channel[channel].in.in_suc_eof_des_addr;
 }
 
 /**
@@ -271,7 +231,7 @@ static inline uint32_t gdma_ll_rx_get_success_eof_desc_addr(gdma_dev_t *dev, uin
 __attribute__((always_inline))
 static inline uint32_t gdma_ll_rx_get_error_eof_desc_addr(gdma_dev_t *dev, uint32_t channel)
 {
-    return dev->channel[channel].in.in_err_eof_des_addr.val;
+    return dev->channel[channel].in.in_err_eof_des_addr;
 }
 
 /**
@@ -280,7 +240,7 @@ static inline uint32_t gdma_ll_rx_get_error_eof_desc_addr(gdma_dev_t *dev, uint3
 __attribute__((always_inline))
 static inline uint32_t gdma_ll_rx_get_current_desc_addr(gdma_dev_t *dev, uint32_t channel)
 {
-    return dev->channel[channel].in.in_dscr.val;
+    return dev->channel[channel].in.in_dscr;
 }
 
 /**
@@ -294,29 +254,9 @@ static inline void gdma_ll_rx_set_priority(gdma_dev_t *dev, uint32_t channel, ui
 /**
  * @brief Connect DMA RX channel to a given peripheral
  */
-static inline void gdma_ll_rx_connect_to_periph(gdma_dev_t *dev, uint32_t channel, gdma_trigger_peripheral_t periph, int periph_id)
+static inline void gdma_ll_rx_connect_to_periph(gdma_dev_t *dev, uint32_t channel, int periph_id)
 {
-    dev->channel[channel].in.in_peri_sel.peri_in_sel = periph_id;
-    dev->channel[channel].in.in_conf0.mem_trans_en = (periph == GDMA_TRIG_PERIPH_M2M);
-}
-
-/**
- * @brief Disconnect DMA RX channel from peripheral
- */
-static inline void gdma_ll_rx_disconnect_from_periph(gdma_dev_t *dev, uint32_t channel)
-{
-    dev->channel[channel].in.in_peri_sel.peri_in_sel = GDMA_LL_INVALID_PERIPH_ID;
-    dev->channel[channel].in.in_conf0.mem_trans_en = false;
-}
-
-/**
- * @brief Whether to enable the ETM subsystem for RX channel
- *
- * @note When ETM_EN is 1, only ETM tasks can be used to configure the transfer direction and enable the channel.
- */
-static inline void gdma_ll_rx_enable_etm_task(gdma_dev_t *dev, uint32_t channel, bool enable)
-{
-    dev->channel[channel].in.in_conf0.in_etm_en = enable;
+    dev->channel[channel].in.in_peri_sel.sel = periph_id;
 }
 
 ///////////////////////////////////// TX /////////////////////////////////////////
@@ -326,7 +266,7 @@ static inline void gdma_ll_rx_enable_etm_task(gdma_dev_t *dev, uint32_t channel,
 __attribute__((always_inline))
 static inline uint32_t gdma_ll_tx_get_interrupt_status(gdma_dev_t *dev, uint32_t channel)
 {
-    return dev->out_intr[channel].st.val & GDMA_LL_TX_EVENT_MASK;
+    return dev->intr[channel].st.val & GDMA_LL_TX_EVENT_MASK;
 }
 
 /**
@@ -335,9 +275,9 @@ static inline uint32_t gdma_ll_tx_get_interrupt_status(gdma_dev_t *dev, uint32_t
 static inline void gdma_ll_tx_enable_interrupt(gdma_dev_t *dev, uint32_t channel, uint32_t mask, bool enable)
 {
     if (enable) {
-        dev->out_intr[channel].ena.val |= (mask & GDMA_LL_TX_EVENT_MASK);
+        dev->intr[channel].ena.val |= (mask & GDMA_LL_TX_EVENT_MASK);
     } else {
-        dev->out_intr[channel].ena.val &= ~(mask & GDMA_LL_TX_EVENT_MASK);
+        dev->intr[channel].ena.val &= ~(mask & GDMA_LL_TX_EVENT_MASK);
     }
 }
 
@@ -347,7 +287,7 @@ static inline void gdma_ll_tx_enable_interrupt(gdma_dev_t *dev, uint32_t channel
 __attribute__((always_inline))
 static inline void gdma_ll_tx_clear_interrupt_status(gdma_dev_t *dev, uint32_t channel, uint32_t mask)
 {
-    dev->out_intr[channel].clr.val = (mask & GDMA_LL_TX_EVENT_MASK);
+    dev->intr[channel].clr.val = (mask & GDMA_LL_TX_EVENT_MASK);
 }
 
 /**
@@ -355,7 +295,7 @@ static inline void gdma_ll_tx_clear_interrupt_status(gdma_dev_t *dev, uint32_t c
  */
 static inline volatile void *gdma_ll_tx_get_interrupt_status_reg(gdma_dev_t *dev, uint32_t channel)
 {
-    return (volatile void *)(&dev->out_intr[channel].st);
+    return (volatile void *)(&dev->intr[channel].st);
 }
 
 /**
@@ -450,7 +390,7 @@ static inline void gdma_ll_tx_push_data(gdma_dev_t *dev, uint32_t channel, uint3
 __attribute__((always_inline))
 static inline void gdma_ll_tx_set_desc_addr(gdma_dev_t *dev, uint32_t channel, uint32_t addr)
 {
-    dev->channel[channel].out.out_link.outlink_addr = addr;
+    dev->channel[channel].out.out_link.addr = addr;
 }
 
 /**
@@ -459,7 +399,7 @@ static inline void gdma_ll_tx_set_desc_addr(gdma_dev_t *dev, uint32_t channel, u
 __attribute__((always_inline))
 static inline void gdma_ll_tx_start(gdma_dev_t *dev, uint32_t channel)
 {
-    dev->channel[channel].out.out_link.outlink_start = 1;
+    dev->channel[channel].out.out_link.start = 1;
 }
 
 /**
@@ -468,7 +408,7 @@ static inline void gdma_ll_tx_start(gdma_dev_t *dev, uint32_t channel)
 __attribute__((always_inline))
 static inline void gdma_ll_tx_stop(gdma_dev_t *dev, uint32_t channel)
 {
-    dev->channel[channel].out.out_link.outlink_stop = 1;
+    dev->channel[channel].out.out_link.stop = 1;
 }
 
 /**
@@ -477,7 +417,7 @@ static inline void gdma_ll_tx_stop(gdma_dev_t *dev, uint32_t channel)
 __attribute__((always_inline))
 static inline void gdma_ll_tx_restart(gdma_dev_t *dev, uint32_t channel)
 {
-    dev->channel[channel].out.out_link.outlink_restart = 1;
+    dev->channel[channel].out.out_link.restart = 1;
 }
 
 /**
@@ -485,7 +425,7 @@ static inline void gdma_ll_tx_restart(gdma_dev_t *dev, uint32_t channel)
  */
 static inline bool gdma_ll_tx_is_fsm_idle(gdma_dev_t *dev, uint32_t channel)
 {
-    return dev->channel[channel].out.out_link.outlink_park;
+    return dev->channel[channel].out.out_link.park;
 }
 
 /**
@@ -494,7 +434,7 @@ static inline bool gdma_ll_tx_is_fsm_idle(gdma_dev_t *dev, uint32_t channel)
 __attribute__((always_inline))
 static inline uint32_t gdma_ll_tx_get_eof_desc_addr(gdma_dev_t *dev, uint32_t channel)
 {
-    return dev->channel[channel].out.out_eof_des_addr.val;
+    return dev->channel[channel].out.out_eof_des_addr;
 }
 
 /**
@@ -503,7 +443,7 @@ static inline uint32_t gdma_ll_tx_get_eof_desc_addr(gdma_dev_t *dev, uint32_t ch
 __attribute__((always_inline))
 static inline uint32_t gdma_ll_tx_get_current_desc_addr(gdma_dev_t *dev, uint32_t channel)
 {
-    return dev->channel[channel].out.out_dscr.val;
+    return dev->channel[channel].out.out_dscr;
 }
 
 /**
@@ -517,28 +457,9 @@ static inline void gdma_ll_tx_set_priority(gdma_dev_t *dev, uint32_t channel, ui
 /**
  * @brief Connect DMA TX channel to a given peripheral
  */
-static inline void gdma_ll_tx_connect_to_periph(gdma_dev_t *dev, uint32_t channel, gdma_trigger_peripheral_t periph, int periph_id)
+static inline void gdma_ll_tx_connect_to_periph(gdma_dev_t *dev, uint32_t channel, int periph_id)
 {
-    (void)periph;
-    dev->channel[channel].out.out_peri_sel.peri_out_sel = periph_id;
-}
-
-/**
- * @brief Disconnect DMA TX channel from peripheral
- */
-static inline void gdma_ll_tx_disconnect_from_periph(gdma_dev_t *dev, uint32_t channel)
-{
-    dev->channel[channel].out.out_peri_sel.peri_out_sel = GDMA_LL_INVALID_PERIPH_ID;
-}
-
-/**
- * @brief Whether to enable the ETM subsystem for TX channel
- *
- * @note When ETM_EN is 1, only ETM tasks can be used to configure the transfer direction and enable the channel.
- */
-static inline void gdma_ll_tx_enable_etm_task(gdma_dev_t *dev, uint32_t channel, bool enable)
-{
-    dev->channel[channel].out.out_conf0.out_etm_en = enable;
+    dev->channel[channel].out.out_peri_sel.sel = periph_id;
 }
 
 #ifdef __cplusplus

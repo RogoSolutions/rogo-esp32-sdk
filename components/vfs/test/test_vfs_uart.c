@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,23 +24,20 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "driver/uart.h"
-#include "hal/uart_ll.h"
+#include "soc/uart_struct.h"
 #include "esp_vfs_dev.h"
 #include "esp_vfs.h"
-#include "esp_clk_tree.h"
-#include "test_utils.h"
 #include "sdkconfig.h"
 
-#if !CONFIG_IDF_TARGET_ESP32H2 // IDF-6782
 static void fwrite_str_loopback(const char* str, size_t size)
 {
     esp_rom_uart_tx_wait_idle(CONFIG_ESP_CONSOLE_UART_NUM);
-    uart_ll_set_loop_back(&UART0, 1);
+    UART0.conf0.loopback = 1;
     fwrite(str, 1, size, stdout);
     fflush(stdout);
     esp_rom_uart_tx_wait_idle(CONFIG_ESP_CONSOLE_UART_NUM);
     vTaskDelay(2 / portTICK_PERIOD_MS);
-    uart_ll_set_loop_back(&UART0, 0);
+    UART0.conf0.loopback = 0;
 }
 
 static void flush_stdin_stdout(void)
@@ -125,7 +130,6 @@ TEST_CASE("CRs are removed from the stdin correctly", "[vfs]")
     TEST_ASSERT_EQUAL(2, rb);
     TEST_ASSERT_EQUAL_UINT8_ARRAY("4\n", dst, 2);
 }
-#endif
 
 struct read_task_arg_t {
     char* out_buffer;
@@ -139,7 +143,6 @@ struct write_task_arg_t {
     SemaphoreHandle_t done;
 };
 
-#if !CONFIG_IDF_TARGET_ESP32H2 // IDF-6782
 static void read_task_fn(void* varg)
 {
     struct read_task_arg_t* parg = (struct read_task_arg_t*) varg;
@@ -199,7 +202,6 @@ TEST_CASE("can write to UART while another task is reading", "[vfs]")
     vSemaphoreDelete(read_arg.done);
     vSemaphoreDelete(write_arg.done);
 }
-#endif
 
 TEST_CASE("fcntl supported in UART VFS", "[vfs]")
 {
@@ -212,19 +214,16 @@ TEST_CASE("fcntl supported in UART VFS", "[vfs]")
     TEST_ASSERT_NOT_EQUAL(-1, res);
 }
 
-#if !CONFIG_IDF_TARGET_ESP32H2 // IDF-6782
 #ifdef CONFIG_VFS_SUPPORT_TERMIOS
 TEST_CASE("Can use termios for UART", "[vfs]")
 {
-    uint32_t clk_src_hz = 0;
-    TEST_ESP_OK(esp_clk_tree_src_get_freq_hz((soc_module_clk_t)UART_SCLK_DEFAULT, ESP_CLK_TREE_SRC_FREQ_PRECISION_CACHED, &clk_src_hz));
     uart_config_t uart_config = {
         .baud_rate = 115200,
         .data_bits = UART_DATA_8_BITS,
         .parity    = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
+        .source_clk = UART_SCLK_APB,
     };
     uart_driver_install(UART_NUM_1, 256, 256, 0, NULL, 0);
     uart_param_config(UART_NUM_1, &uart_config);
@@ -309,41 +308,31 @@ TEST_CASE("Can use termios for UART", "[vfs]")
         TEST_ASSERT_EQUAL(0, tcsetattr(uart_fd, TCSANOW, &tios));
         TEST_ASSERT_EQUAL(0, tcgetattr(uart_fd, &tios_result));
         TEST_ASSERT_EQUAL(CBAUD, tios_result.c_cflag & CBAUD);
+        TEST_ASSERT_EQUAL(B38400, tios_result.c_ispeed);
+        TEST_ASSERT_EQUAL(B38400, tios_result.c_ospeed);
         TEST_ASSERT_EQUAL(ESP_OK, uart_get_baudrate(UART_NUM_1, &baudrate));
-        TEST_ASSERT_INT32_WITHIN(2, 38400, baudrate);
-        if (clk_src_hz == 40000000) {
-            // Setting the speed to 38400 will set it actually to 38401
-            // Note: can't use TEST_ASSERT_INT32_WITHIN here because B38400 == 15
-            TEST_ASSERT_EQUAL(38401, tios_result.c_ispeed);
-            TEST_ASSERT_EQUAL(38401, tios_result.c_ospeed);
-        } else {
-            TEST_ASSERT_EQUAL(B38400, tios_result.c_ispeed);
-            TEST_ASSERT_EQUAL(B38400, tios_result.c_ospeed);
-        }
+        TEST_ASSERT_EQUAL(38400, baudrate);
 
         tios.c_cflag |= CBAUDEX;
         tios.c_ispeed = tios.c_ospeed = B230400;
         TEST_ASSERT_EQUAL(0, tcsetattr(uart_fd, TCSANOW, &tios));
         TEST_ASSERT_EQUAL(0, tcgetattr(uart_fd, &tios_result));
         TEST_ASSERT_EQUAL(BOTHER, tios_result.c_cflag & BOTHER);
+        // Setting the speed to 230400 will set it actually to 230423
+        TEST_ASSERT_EQUAL(230423, tios_result.c_ispeed);
+        TEST_ASSERT_EQUAL(230423, tios_result.c_ospeed);
         TEST_ASSERT_EQUAL(ESP_OK, uart_get_baudrate(UART_NUM_1, &baudrate));
-        // Setting the speed to 230400 will set it actually to something else,
-        // depending on the default clock source
-        TEST_ASSERT_INT32_WITHIN(100, 230400, tios_result.c_ispeed);
-        TEST_ASSERT_INT32_WITHIN(100, 230400, tios_result.c_ospeed);
-        TEST_ASSERT_INT32_WITHIN(100, 230400, baudrate);
+        TEST_ASSERT_EQUAL(230423, baudrate);
 
         tios.c_cflag |= BOTHER;
         tios.c_ispeed = tios.c_ospeed = 42321;
         TEST_ASSERT_EQUAL(0, tcsetattr(uart_fd, TCSANOW, &tios));
         TEST_ASSERT_EQUAL(0, tcgetattr(uart_fd, &tios_result));
         TEST_ASSERT_EQUAL(BOTHER, tios_result.c_cflag & BOTHER);
+        TEST_ASSERT_EQUAL(42321, tios_result.c_ispeed);
+        TEST_ASSERT_EQUAL(42321, tios_result.c_ospeed);
         TEST_ASSERT_EQUAL(ESP_OK, uart_get_baudrate(UART_NUM_1, &baudrate));
-        // Setting the speed to 230400 will set it actually to something else,
-        // depending on the default clock source
-        TEST_ASSERT_INT32_WITHIN(10, 42321, tios_result.c_ispeed);
-        TEST_ASSERT_INT32_WITHIN(10, 42321, tios_result.c_ospeed);
-        TEST_ASSERT_INT32_WITHIN(10, 42321, baudrate);
+        TEST_ASSERT_EQUAL(42321, baudrate);
 
         memset(&tios_result, 0xFF, sizeof(struct termios));
     }
@@ -353,4 +342,3 @@ TEST_CASE("Can use termios for UART", "[vfs]")
     uart_driver_delete(UART_NUM_1);
 }
 #endif // CONFIG_VFS_SUPPORT_TERMIOS
-#endif

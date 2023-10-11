@@ -7,11 +7,8 @@
 #include <stdint.h>
 #include "soc/soc.h"
 #include "soc/dport_reg.h"
-#include "esp_attr.h"
 #include "string.h"
-#include "esp_private/spi_flash_os.h"
-#include "esp_private/cache_utils.h"
-#include "spi_flash_mmap.h"
+#include "esp_spi_flash.h"
 
 //Errors that can be returned
 #define MMU_SET_ADDR_ALIGNED_ERROR 1

@@ -651,8 +651,7 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
     return err;
 }
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+// Ninh.D.H 21.06.2023 //
 int bt_mesh_trans_send_with_devkey(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
                                    uint8_t *devKey,
                                    const struct bt_mesh_send_cb *cb, void *cb_data)
@@ -712,7 +711,7 @@ int bt_mesh_trans_send_with_devkey(struct bt_mesh_net_tx *tx, struct net_buf_sim
 
     return err;
 }
-/* Rogo API *************************************************************************************/
+// ******************* //
 
 static void update_rpl(struct bt_mesh_rpl *rpl, struct bt_mesh_net_rx *rx)
 {
@@ -845,11 +844,6 @@ static int sdu_recv(struct bt_mesh_net_rx *rx, uint32_t seq, uint8_t hdr,
                 continue;
             }
 
-            BT_BQB(BLE_MESH_BQB_TEST_LOG_LEVEL_PRIMARY_ID_NODE | BLE_MESH_BQB_TEST_LOG_LEVEL_SUB_ID_TNPT,
-                   "\nTNPTRecv: ctl: 0x%04x, ttl: 0x%04x, src: 0x%04x, dst: 0x%04x, payload: 0x%s",
-                   rx->ctl, rx->ctx.recv_ttl, rx->ctx.addr, rx->ctx.recv_dst,
-                   bt_hex(sdu->data, sdu->len));
-
             rx->ctx.app_idx = BLE_MESH_KEY_DEV;
             bt_mesh_model_recv(rx, sdu);
 
@@ -895,12 +889,6 @@ static int sdu_recv(struct bt_mesh_net_rx *rx, uint32_t seq, uint8_t hdr,
                                   sdu, ad, rx->ctx.addr,
                                   rx->ctx.recv_dst, seq,
                                   BLE_MESH_NET_IVI_RX(rx));
-
-        BT_BQB(BLE_MESH_BQB_TEST_LOG_LEVEL_PRIMARY_ID_NODE | BLE_MESH_BQB_TEST_LOG_LEVEL_SUB_ID_TNPT,
-               "\nTNPTRecv: ctl: 0x%04x, ttl: 0x%04x, src: 0x%04x, dst: 0x%04x, payload: 0x%s",
-               rx->ctl, rx->ctx.recv_ttl, rx->ctx.addr, rx->ctx.recv_dst,
-               bt_hex(sdu->data, sdu->len));
-
         if (err) {
             BT_DBG("Unable to decrypt with AppKey 0x%03x",
                    key->app_idx);
@@ -1070,11 +1058,6 @@ static int ctl_recv(struct bt_mesh_net_rx *rx, uint8_t hdr,
     uint8_t ctl_op = TRANS_CTL_OP(&hdr);
 
     BT_DBG("OpCode 0x%02x len %u", ctl_op, buf->len);
-
-    BT_BQB(BLE_MESH_BQB_TEST_LOG_LEVEL_PRIMARY_ID_NODE | BLE_MESH_BQB_TEST_LOG_LEVEL_SUB_ID_TNPT,
-           "\nTNPTRecv: ctl: 0x%04x, ttl: 0x%04x, src: 0x%04x, dst: 0x%04x, payload: 0x%s",
-           rx->ctl, rx->ctx.recv_ttl, rx->ctx.addr, rx->ctx.recv_dst,
-           bt_hex(buf->data, buf->len));
 
     switch (ctl_op) {
     case TRANS_CTL_OP_ACK:

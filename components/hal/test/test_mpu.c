@@ -10,8 +10,6 @@
 // LL still not implemented
 
 #if !TEMPORARY_DISABLED_FOR_TARGETS(ESP32C3)
-#if !TEMPORARY_DISABLED_FOR_TARGETS(ESP32C2, ESP32C6, ESP32H2)
-//IDF-5058
 
 volatile static int RTC_NOINIT_ATTR access = 0;
 
@@ -49,5 +47,4 @@ TEST_CASE_MULTIPLE_STAGES("Can set illegal access regions", "[soc][mpu]",
         trigger_illegal_access,
         check_access);
 
-#endif //!TEMPORARY_DISABLED_FOR_TARGETS(...)
 #endif //!TEMPORARY_DISABLED_FOR_TARGETS(ESP32C3)

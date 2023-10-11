@@ -1,25 +1,29 @@
-# SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2015-2017 Espressif Systems (Shanghai) PTE LTD
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 """ search test cases from a given file or path """
 import copy
 import fnmatch
 import os
 import types
-from typing import List
 
 from . import load_source
 
 
-class Search:
-    """
-    This class is used as a class singleton. all the member functions are `classmethod`
-    """
+class Search(object):
     TEST_CASE_FILE_PATTERN = '*_test.py'
     SUPPORT_REPLICATE_CASES_KEY = ['target']
-
-    # this attribute would be modified while running
-    missing_import_warnings: List[str] = []
 
     @classmethod
     def _search_cases_from_file(cls, file_name):
@@ -28,9 +32,7 @@ class Search:
         print('Try to get cases from: ' + file_name)
         test_functions = []
         try:
-            # search case no need to run the functions
-            # mock missing modules would help us get the test case function objects
-            mod = load_source(file_name, mock_missing=True)
+            mod = load_source(file_name)
             for func in [mod.__getattribute__(x) for x in dir(mod)
                          if isinstance(mod.__getattribute__(x), types.FunctionType)]:
                 try:
@@ -40,8 +42,7 @@ class Search:
                 except AttributeError:
                     continue
         except ImportError as e:
-            warning_str = 'ImportError: \r\n\tFile:' + file_name + '\r\n\tError:' + str(e)
-            cls.missing_import_warnings.append(warning_str)
+            print('ImportError: \r\n\tFile:' + file_name + '\r\n\tError:' + str(e))
 
         test_functions_out = []
         for case in test_functions:
@@ -50,7 +51,6 @@ class Search:
         for i, test_function in enumerate(test_functions_out):
             print('\t{}. {} <{}>'.format(i + 1, test_function.case_info['name'], test_function.case_info['target']))
             test_function.case_info['app_dir'] = os.path.dirname(file_name)
-            test_function.case_info['script_path'] = file_name
         return test_functions_out
 
     @classmethod
@@ -58,7 +58,7 @@ class Search:
         """ search all test case files recursively of a path """
 
         if not os.path.exists(test_case):
-            raise OSError(f'test case path "{test_case}" not exist')
+            raise OSError('test case path not exist')
         if os.path.isdir(test_case):
             test_case_files = []
             for root, _, file_names in os.walk(test_case):
@@ -132,13 +132,8 @@ class Search:
             test_case_paths = [test_case_paths]
         test_case_files = []
         for path in test_case_paths:
-            test_case_files.extend(
-                cls._search_test_case_files(path, test_case_file_pattern or cls.TEST_CASE_FILE_PATTERN))
+            test_case_files.extend(cls._search_test_case_files(path, test_case_file_pattern or cls.TEST_CASE_FILE_PATTERN))
         test_cases = []
         for test_case_file in test_case_files:
             test_cases += cls._search_cases_from_file(test_case_file)
-
-        if cls.missing_import_warnings:
-            raise ImportError('\n\n'.join(cls.missing_import_warnings))
-
         return test_cases

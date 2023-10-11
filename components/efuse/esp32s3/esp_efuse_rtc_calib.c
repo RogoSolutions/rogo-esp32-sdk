@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2020-2023 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2020-2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -9,35 +9,39 @@
 #include "esp_log.h"
 #include "esp_efuse.h"
 #include "esp_efuse_table.h"
-#include "esp_efuse_rtc_calib.h"
-#include "hal/adc_types.h"
+
+//Don't introduce new dependency of ADC, keep these macro same as ADC related definations
+#define ADC_ATTEN_MAX    4
+#define ADC_NUM_MAX      2
+#define ADC_NUM_1        0
+#define ADC_NUM_2        1
+
 
 int esp_efuse_rtc_calib_get_ver(void)
 {
     uint32_t blk_ver_major = 0;
-    ESP_ERROR_CHECK(esp_efuse_read_field_blob(ESP_EFUSE_BLK_VERSION_MAJOR, &blk_ver_major, ESP_EFUSE_BLK_VERSION_MAJOR[0]->bit_count)); // IDF-5366
+    ESP_ERROR_CHECK(esp_efuse_read_field_blob(ESP_EFUSE_BLK_VER_MAJOR, &blk_ver_major, ESP_EFUSE_BLK_VER_MAJOR[0]->bit_count));
 
-    uint32_t cali_version = (blk_ver_major == 1) ? ESP_EFUSE_ADC_CALIB_VER : 0;
-    if (!cali_version) {
-        ESP_LOGW("eFuse", "calibration efuse version does not match, set default version to 0");
+    uint32_t cali_version_v1 = (blk_ver_major == 1) ? 1 : 0;
+    if (!cali_version_v1) {
+        ESP_LOGW("eFuse", "calibration efuse version does not match, set default version: %d", 0);
     }
 
-    return cali_version;
+    return cali_version_v1;
 }
 
 uint32_t esp_efuse_rtc_calib_get_init_code(int version, uint32_t adc_unit, int atten)
 {
-    assert((version >= ESP_EFUSE_ADC_CALIB_VER_MIN) &&
-           (version <= ESP_EFUSE_ADC_CALIB_VER_MAX));
+    assert(version == 1);
     assert(atten < 4);
-    assert(adc_unit <= ADC_UNIT_2);
+    assert(adc_unit < ADC_NUM_MAX);
 
     const esp_efuse_desc_t **desc[8] = {ESP_EFUSE_ADC1_INIT_CODE_ATTEN0, ESP_EFUSE_ADC1_INIT_CODE_ATTEN1, ESP_EFUSE_ADC1_INIT_CODE_ATTEN2, ESP_EFUSE_ADC1_INIT_CODE_ATTEN3,
                                         ESP_EFUSE_ADC2_INIT_CODE_ATTEN0, ESP_EFUSE_ADC2_INIT_CODE_ATTEN1, ESP_EFUSE_ADC2_INIT_CODE_ATTEN2, ESP_EFUSE_ADC2_INIT_CODE_ATTEN3};
     int efuse_icode_bits = 0;
     uint32_t adc_icode[4] = {};
     uint32_t adc_icode_diff[4] = {};
-    uint8_t desc_index = (adc_unit == ADC_UNIT_1) ? 0 : 4;
+    uint8_t desc_index = (adc_unit == ADC_NUM_1) ? 0 : 4;
 
     for (int diff_index = 0; diff_index < 4; diff_index++) {
         efuse_icode_bits = esp_efuse_get_field_size(desc[desc_index]);
@@ -46,7 +50,7 @@ uint32_t esp_efuse_rtc_calib_get_init_code(int version, uint32_t adc_unit, int a
     }
 
     //Version 1 logic for calculating ADC ICode based on EFUSE burnt value
-    if (adc_unit == ADC_UNIT_1) {
+    if (adc_unit == ADC_NUM_1) {
         adc_icode[0] = adc_icode_diff[0] + 1850;
         adc_icode[1] = adc_icode_diff[1] + adc_icode[0] + 90;
         adc_icode[2] = adc_icode_diff[2] + adc_icode[1];
@@ -63,10 +67,9 @@ uint32_t esp_efuse_rtc_calib_get_init_code(int version, uint32_t adc_unit, int a
 
 esp_err_t esp_efuse_rtc_calib_get_cal_voltage(int version, uint32_t adc_unit, int atten, uint32_t *out_digi, uint32_t *out_vol_mv)
 {
-    assert((version >= ESP_EFUSE_ADC_CALIB_VER_MIN) &&
-           (version <= ESP_EFUSE_ADC_CALIB_VER_MAX));
+    assert(version == 1);
     assert(atten < 4);
-    assert(adc_unit <= ADC_UNIT_2);
+    assert(adc_unit < ADC_NUM_MAX);
 
     int efuse_vol_bits = 0;
     uint32_t adc_vol_diff[8] = {};
@@ -88,19 +91,15 @@ esp_err_t esp_efuse_rtc_calib_get_cal_voltage(int version, uint32_t adc_unit, in
     adc2_vol[1] = adc1_vol[1] - adc_vol_diff[5] + 10;
     adc2_vol[0] = adc1_vol[0] - adc_vol_diff[4] + 40;
 
-    *out_digi = (adc_unit == ADC_UNIT_1) ? adc1_vol[atten] : adc2_vol[atten];
+    *out_digi = (adc_unit == ADC_NUM_1) ? adc1_vol[atten] : adc2_vol[atten];
     *out_vol_mv = 850;
 
     return ESP_OK;
 }
 
-esp_err_t esp_efuse_rtc_calib_get_tsens_val(float* tsens_cal)
+float esp_efuse_rtc_calib_get_cal_temp(int version)
 {
-    uint32_t version = esp_efuse_rtc_calib_get_ver();
-    if (version != 1) {
-        *tsens_cal = 0.0;
-        return ESP_ERR_NOT_SUPPORTED;
-    }
+    assert(version == 1);
     const esp_efuse_desc_t** cal_temp_efuse;
     cal_temp_efuse = ESP_EFUSE_TEMP_CALIB;
     int cal_temp_size = esp_efuse_get_field_size(cal_temp_efuse);
@@ -111,6 +110,5 @@ esp_err_t esp_efuse_rtc_calib_get_tsens_val(float* tsens_cal)
     assert(err == ESP_OK);
     (void)err;
     // BIT(8) stands for sign: 1: negtive, 0: positive
-    *tsens_cal = ((cal_temp & BIT(8)) != 0)? -(uint8_t)cal_temp: (uint8_t)cal_temp;
-    return ESP_OK;
+    return ((cal_temp & BIT(8)) != 0)? -(uint8_t)cal_temp: (uint8_t)cal_temp;
 }

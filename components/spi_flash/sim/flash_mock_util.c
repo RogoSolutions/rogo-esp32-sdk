@@ -1,5 +1,8 @@
+#include "esp_spi_flash.h"
+#include "esp_partition.h"
+
 #include "esp_err.h"
-#include "esp_rom_spiflash.h"
+#include "esp32/rom/spi_flash.h"
 
 bool spi_flash_check_and_flush_cache(size_t start_addr, size_t length)
 {

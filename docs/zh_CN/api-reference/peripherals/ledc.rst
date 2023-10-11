@@ -1,7 +1,6 @@
 LED PWM 控制器
 ==============
-
-{IDF_TARGET_LEDC_MAX_FADE_RANGE_NUM: default="1", esp32c6="16", esp32h2="16"}
+{IDF_TARGET_LEDC_CHAN_NUM:default="8", esp32="16", esp32s2="8", esp32c3="6"}
 
 :link_to_translation:`en:[English]`
 
@@ -9,7 +8,7 @@ LED PWM 控制器
 ------------
 
 LED 控制器 (LEDC) 主要用于控制 LED，也可产生 PWM 信号用于其他设备的控制。
-该控制器有 {IDF_TARGET_SOC_LEDC_CHANNEL_NUM} 路通道，可以产生独立的波形来驱动 RGB LED 等设备。
+该控制器有 {IDF_TARGET_LEDC_CHAN_NUM} 路通道，可以产生独立的波形来驱动 RGB LED 等设备。
 
 .. only:: esp32
 
@@ -43,10 +42,6 @@ LED PWM 控制器可在无需 CPU 干预的情况下自动改变占空比，实�
 
     LED PWM 控制器 API 的关键配置
 
-.. note::
-
-    首次 LEDC 配置时，建议先配置定时器（调用函数 :cpp:func:`ledc_timer_config`），再配置通道（调用函数 :cpp:func:`ledc_channel_config`）。这样可以确保 IO 脚上的 PWM 信号自有输出开始其频率就是正确的。
-
 
 .. _ledc-api-configure-timer:
 
@@ -62,146 +57,8 @@ LED PWM 控制器可在无需 CPU 干预的情况下自动改变占空比，实�
     - 定时器索引 :cpp:type:`ledc_timer_t`
     - PWM 信号频率
     - PWM 占空比分辨率
-    - 时钟源 :cpp:type:`ledc_clk_cfg_t`
 
 频率和占空比分辨率相互关联。PWM 频率越高，占空比分辨率越低，反之亦然。如果 API 不是用来改变 LED 亮度，而是用于其它目的，这种相互关系可能会很重要。更多信息详见 :ref:`ledc-api-supported-range-frequency-duty-resolution` 一节。
-
-时钟源同样可以限制PWM频率。选择的时钟源频率越高，可以配置的PWM频率上限就越高。
-
-.. only:: esp32
-
-    .. list-table:: {IDF_TARGET_NAME} LEDC 时钟源特性
-       :widths: 5 5 8 20
-       :header-rows: 1
-
-       * - 时钟名称
-         - 时钟频率
-         - 速度模式
-         - 时钟功能
-       * - APB_CLK
-         - 80 MHz
-         - 高速 / 低速
-         - /
-       * - REF_TICK
-         - 1 MHz
-         - 高速 / 低速
-         - 支持动态调频（DFS）功能
-       * - RC_FAST_CLK
-         - ~8 MHz
-         - 低速
-         - 支持动态调频（DFS）功能，支持Light-sleep模式
-
-.. only:: esp32s2
-
-    .. list-table:: {IDF_TARGET_NAME} LEDC 时钟源特性
-       :widths: 10 10 30
-       :header-rows: 1
-
-       * - 时钟名称
-         - 时钟频率
-         - 时钟功能
-       * - APB_CLK
-         - 80 MHz
-         - /
-       * - REF_TICK
-         - 1 MHz
-         - 支持动态调频（DFS）功能
-       * - RC_FAST_CLK
-         - ~8 MHz
-         - 支持动态调频（DFS）功能，支持Light-sleep模式
-       * - XTAL_CLK
-         - 40 MHz
-         - 支持动态调频（DFS）功能
-
-.. only:: esp32s3 or esp32c3
-
-    .. list-table:: {IDF_TARGET_NAME} LEDC 时钟源特性
-       :widths: 10 10 30
-       :header-rows: 1
-
-       * - 时钟名称
-         - 时钟频率
-         - 时钟功能
-       * - APB_CLK
-         - 80 MHz
-         - /
-       * - RC_FAST_CLK
-         - ~20 MHz
-         - 支持动态调频（DFS）功能，支持Light-sleep模式
-       * - XTAL_CLK
-         - 40 MHz
-         - 支持动态调频（DFS）功能
-
-.. only:: esp32c2
-
-    .. list-table:: {IDF_TARGET_NAME} LEDC 时钟源特性
-       :widths: 10 10 30
-       :header-rows: 1
-
-       * - 时钟名称
-         - 时钟频率
-         - 时钟功能
-       * - PLL_60M_CLK
-         - 60 MHz
-         - /
-       * - RC_FAST_CLK
-         - ~20 MHz
-         - 支持动态调频（DFS）功能，支持Light-sleep模式
-       * - XTAL_CLK
-         - 40 MHz
-         - 支持动态调频（DFS）功能
-
-.. only:: esp32c6
-
-    .. list-table:: {IDF_TARGET_NAME} LEDC 时钟源特性
-       :widths: 10 10 30
-       :header-rows: 1
-
-       * - 时钟名称
-         - 时钟频率
-         - 时钟功能
-       * - PLL_80M_CLK
-         - 80 MHz
-         - /
-       * - RC_FAST_CLK
-         - ~20 MHz
-         - 支持动态调频（DFS）功能，支持Light-sleep模式
-       * - XTAL_CLK
-         - 40 MHz
-         - 支持动态调频（DFS）功能
-
-.. only:: esp32h2
-
-    .. list-table:: {IDF_TARGET_NAME} LEDC 时钟源特性
-       :widths: 10 10 30
-       :header-rows: 1
-
-       * - 时钟名称
-         - 时钟频率
-         - 时钟功能
-       * - PLL_96M_CLK
-         - 96 MHz
-         - /
-       * - RC_FAST_CLK
-         - ~8 MHz
-         - 支持动态调频（DFS）功能，支持Light-sleep模式
-       * - XTAL_CLK
-         - 32 MHz
-         - 支持动态调频（DFS）功能
-
-.. note::
-
-    .. only:: SOC_CLK_RC_FAST_SUPPORT_CALIBRATION
-
-        1. 如果 {IDF_TARGET_NAME} 的定时器选用了RC_FAST_CLK作为其时钟源，驱动会通过内部校准来得知这个时钟源的实际频率。这样确保了输出PWM信号频率的精准性。
-
-    .. only:: not SOC_CLK_RC_FAST_SUPPORT_CALIBRATION
-
-        1. 如果 {IDF_TARGET_NAME} 的定时器选用了RC_FAST_CLK作为其时钟源，LEDC的输出PWM信号频率可能会与设定值有一定偏差。由于{IDF_TARGET_NAME} 的硬件限制，驱动无法通过内部校准得知这个时钟源的实际频率。因此驱动默认使用其理论频率进行计算。
-
-    .. only:: not SOC_LEDC_HAS_TIMER_SPECIFIC_MUX
-
-        2. {IDF_TARGET_NAME} 的所有定时器共用一个时钟源。因此 {IDF_TARGET_NAME} 不支持给不同的定时器配置不同的时钟源。
 
 
 .. _ledc-api-configure-channel:
@@ -225,7 +82,7 @@ LED PWM 控制器可在无需 CPU 干预的情况下自动改变占空比，实�
 
 以下两节介绍了如何使用软件和硬件改变占空比。如有需要，PWM 信号的频率也可更改，详见 :ref:`ledc-api-change-pwm-frequency` 一节。
 
-.. only:: not esp32
+.. only:: esp32s2 or esp32c3
 
     .. note::
 
@@ -251,21 +108,7 @@ LED PWM 控制器硬件可逐渐改变占空比的数值。要使用此功能，
 * :cpp:func:`ledc_set_fade_with_step`
 * :cpp:func:`ledc_set_fade`
 
-.. only:: SOC_LEDC_GAMMA_CURVE_FADE_SUPPORTED
-
-    {IDF_TARGET_NAME} 的硬件额外支持多达 {IDF_TARGET_LEDC_MAX_FADE_RANGE_NUM} 次，无需 CPU 介入的连续渐变。此功能可以更加有效便捷得实现一个带伽马校正的渐变。
-
-    众所周知，人眼所感知的亮度与 PWM 占空比并非成线性关系。为了能使人感观上认为一盏灯明暗的变化是线性的，我们对其 PWM 信号的占空比控制必须为非线性的，俗称伽马校正。LED PWM 控制器可以通过多段线型拟合来模仿伽马曲线渐变。 你需要自己在应用程序中分配一段用以保存渐变参数的内存块，并提供开始和结束的占空比，伽马校正公式，以及期望的线性渐变段数信息，:cpp:func:`ledc_fill_multi_fade_param_list` 就能快速生成所有分段线性渐变的参数。或者你也可以自己直接构造一个 :cpp:type:`ledc_fade_param_config_t` 的数组。在获得所有渐变参数后，通过将 :cpp:type:`ledc_fade_param_config_t` 数组的指针和渐变区间数传入 :cpp:func:`ledc_set_multi_fade`，一次连续渐变的配置就完成了。
-
-.. only:: esp32
-
-    最后需要调用 :cpp:func:`ledc_fade_start` 开启渐变。渐变可以在阻塞或非阻塞模式下运行，具体区别请查看 :cpp:enum:`ledc_fade_mode_t`。需要特别注意的是，不管在哪种模式下，下一次渐变或单次占空比配置的指令生效都必须等到前一次渐变结束。由于 {IDF_TARGET_NAME} 的硬件限制，在渐变达到原先预期的占空比前想要中止本次渐变是不被支持的。
-
-.. only:: not esp32
-
-    最后需要调用 :cpp:func:`ledc_fade_start` 开启渐变。渐变可以在阻塞或非阻塞模式下运行，具体区别请查看 :cpp:enum:`ledc_fade_mode_t`。需要特别注意的是，不管在哪种模式下，下一次渐变或是单次占空比配置的指令生效都必须等到前一次渐变完成或被中止。中止一个正在运行中的渐变需要调用函数 :cpp:func:`ledc_fade_stop`。
-
-此外，在使能渐变后，每个通道都可以额外通过调用 :cpp:func:`ledc_cb_register` 注册一个回调函数用以获得渐变完成的事件通知。回调函数的原型被定义在 :cpp:type:`ledc_cb_t`。每个回调函数都应当返回一个布尔值给驱动的中断处理函数，用以表示是否有高优先级任务被其唤醒。此外，值得注意的是，由于驱动的中断处理函数被放在了 IRAM 中， 回调函数和其调用的函数也需要被放在 IRAM 中。 :cpp:func:`ledc_cb_register` 会检查回调函数及函数上下文的指针地址是否在正确的存储区域。
+最后用 :cpp:func:`ledc_fade_start` 开启渐变。
 
 如不需要渐变和渐变中断，可用函数 :cpp:func:`ledc_fade_func_uninstall` 关闭。
 
@@ -306,13 +149,13 @@ LED PWM 控制器 API 有多种方式即时改变 PWM 频率：
 .. only:: esp32
 
     .. _ledc-api-high_low_speed_mode:
-
+    
     LED PWM 控制器高速和低速模式
     ----------------------------------
 
     高速模式的优点是可平稳地改变定时器设置。也就是说，高速模式下如定时器设置改变，此变更会自动应用于定时器的下一次溢出中断。而更新低速定时器时，设置变更应由软件显式触发。LED PWM 驱动的设置将在硬件层面被修改，比如在调用函数 :cpp:func:`ledc_timer_config` 或 :cpp:func:`ledc_timer_set` 时。
 
-    更多关于速度模式的详细信息请参阅 *{IDF_TARGET_NAME} 技术参考手册* > *LED PWM 控制器 (LEDC)* [`PDF <{IDF_TARGET_TRM_EN_URL}#ledpwm>`__]。
+    更多关于速度模式的详细信息请参阅 *{IDF_TARGET_NAME} 技术参考手册* > *LED PWM 控制器 (LEDC)* [`PDF <{IDF_TARGET_TRM_EN_URL}#ledpwm>`__]。注意，该手册中提到的支持 ``SLOW_CLOCK`` 暂不适用于 LED PWM 驱动。
 
     .. _ledc-api-supported-range-frequency-duty-resolution:
 
@@ -337,7 +180,7 @@ LED PWM 控制器 API 会在设定的频率和占空比分辨率超过 LED PWM �
 
 此时，占空比分辨率或频率必须降低。比如，将占空比分辨率设置为 2 会解决这一问题，让占空比设置为 25% 的倍数，即 25%、50% 或 75%。
 
-如设置的频率和占空比分辨率低于所支持的最低值，LED PWM 驱动器也会反映并报告，如：
+如设置的频率和占空比分辨率低于所支持的最低值，LED PWM 驱动器也会反映并报告，如： 
 
 ::
 
@@ -349,13 +192,9 @@ LED PWM 控制器 API 会在设定的频率和占空比分辨率超过 LED PWM �
 应用实例
 -------------------
 
-使用 LEDC 基本实例请参照 :example:`peripherals/ledc/ledc_basic`。
-
 使用 LEDC 改变占空比和渐变控制的实例请参照 :example:`peripherals/ledc/ledc_fade`。
 
-.. only:: SOC_LEDC_GAMMA_CURVE_FADE_SUPPORTED
-
-    使用 LEDC 对 RGB LED 实现带伽马校正的颜色控制实例请参照 :example:`peripherals/ledc/ledc_gamma_curve_fade`。
+使用 LEDC 基本实例请参照 :example:`peripherals/ledc/ledc_basic`。
 
 API 参考
 -------------

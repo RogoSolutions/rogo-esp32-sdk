@@ -1,6 +1,3 @@
-| Supported Targets | ESP32 | ESP32-C3 | ESP32-C6 | ESP32-H2 | ESP32-S2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | -------- |
-
 # Partitions Tool Example
 
 This example demonstrates common operations the partitions tool [parttool.py](../../../components/partition_table/parttool.py) allows the user to perform:
@@ -23,6 +20,12 @@ file. An erased partition's contents is compared to a generated blank file.
 
 Before running either of the example scripts, it is necessary to build and flash the firmware using the usual means:
 
+Make:
+```bash
+make build flash
+```
+
+CMake:
 ```bash
 idf.py build flash
 ```

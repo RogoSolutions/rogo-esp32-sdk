@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2019-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // This is a driver for OpenCores Ethernet MAC (https://opencores.org/projects/ethmac).
 // Espressif chips do not use this MAC, but it is supported in QEMU
@@ -19,13 +27,13 @@
 #include <sys/param.h>
 #include "esp_log.h"
 #include "esp_check.h"
-#include "esp_cpu.h"
-#include "esp_eth_driver.h"
+#include "esp_eth.h"
 #include "esp_intr_alloc.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
+#include "hal/cpu_hal.h"
 #include "openeth.h"
-#include "esp_mac.h"
 
 static const char *TAG = "opencores.emac";
 
@@ -395,7 +403,7 @@ esp_eth_mac_t *esp_eth_mac_new_openeth(const eth_mac_config_t *config)
     // Create the RX task
     BaseType_t core_num = tskNO_AFFINITY;
     if (config->flags & ETH_MAC_FLAG_PIN_TO_CORE) {
-        core_num = esp_cpu_get_core_id();
+        core_num = cpu_hal_get_core_id();
     }
     BaseType_t xReturned = xTaskCreatePinnedToCore(emac_opencores_rx_task, "emac_rx", config->rx_task_stack_size, emac,
                            config->rx_task_prio, &emac->rx_task_hdl, core_num);

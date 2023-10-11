@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2020-2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2020 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 /*******************************************************************************
  * NOTICE
@@ -29,33 +37,19 @@ extern "C" {
 
 #define I2S_LL_AD_BCK_FACTOR           (2)
 #define I2S_LL_PDM_BCK_FACTOR          (64)
+#define I2S_LL_BASE_CLK                (2 * APB_CLK_FREQ)
 
 #define I2S_LL_MCLK_DIVIDER_BIT_WIDTH  (6)
 #define I2S_LL_MCLK_DIVIDER_MAX        ((1 << I2S_LL_MCLK_DIVIDER_BIT_WIDTH) - 1)
 
+#define I2S_LL_EVENT_TX_EOF       (1 << 12)
 #define I2S_LL_BCK_MAX_PRESCALE   (64)
 
-#define I2S_LL_EVENT_RX_EOF         BIT(9)
-#define I2S_LL_EVENT_TX_EOF         BIT(12)
-#define I2S_LL_EVENT_RX_DSCR_ERR    BIT(13)
-#define I2S_LL_EVENT_TX_DSCR_ERR    BIT(14)
-#define I2S_LL_EVENT_TX_TEOF        BIT(16)
-#define I2S_INTR_MAX                (UINT32_MAX)
-
-#define I2S_LL_TX_EVENT_MASK        I2S_LL_EVENT_TX_EOF
-#define I2S_LL_RX_EVENT_MASK        I2S_LL_EVENT_RX_EOF
-
-#define I2S_LL_PLL_F160M_CLK_FREQ   (160 * 1000000) // PLL_F160M_CLK: 160MHz
-#define I2S_LL_DEFAULT_PLL_CLK_FREQ     I2S_LL_PLL_F160M_CLK_FREQ    // The default PLL clock frequency while using I2S_CLK_SRC_DEFAULT
-
-/**
- * @brief I2S clock configuration structure
- * @note Fmclk = Fsclk /(integ+numer/denom)
- */
+/* I2S clock configuration structure */
 typedef struct {
-    uint16_t integ;     // Integer part of I2S module clock divider
-    uint16_t denom;     // Denominator part of I2S module clock divider
-    uint16_t numer;     // Numerator part of I2S module clock divider
+    uint16_t mclk_div; // I2S module clock devider, Fmclk = Fsclk /(mclk_div+b/a)
+    uint16_t a;
+    uint16_t b;        // The decimal part of module clock devider, the decimal is: b/a
 } i2s_ll_mclk_div_t;
 
 /**
@@ -212,8 +206,6 @@ static inline void i2s_ll_tx_reset(i2s_dev_t *hw)
 {
     hw->conf.tx_reset = 1;
     hw->conf.tx_reset = 0;
-    hw->lc_conf.out_rst = 1;
-    hw->lc_conf.out_rst = 0;
 }
 
 /**
@@ -225,8 +217,6 @@ static inline void i2s_ll_rx_reset(i2s_dev_t *hw)
 {
     hw->conf.rx_reset = 1;
     hw->conf.rx_reset = 0;
-    hw->lc_conf.in_rst = 1;
-    hw->lc_conf.in_rst = 0;
 }
 
 /**
@@ -261,7 +251,7 @@ static inline void i2s_ll_tx_clk_set_src(i2s_dev_t *hw, i2s_clock_src_t src)
 {
     //0: disable APLL clock, I2S module will using PLL_D2_CLK(160M) as source clock
     //1: Enable APLL clock, I2S module will using APLL as source clock
-    hw->clkm_conf.clka_en = (src == I2S_CLK_SRC_APLL) ? 1 : 0;
+    hw->clkm_conf.clka_en = (src == I2S_CLK_APLL) ? 1 : 0;
 }
 
 /**
@@ -274,7 +264,7 @@ static inline void i2s_ll_rx_clk_set_src(i2s_dev_t *hw, i2s_clock_src_t src)
 {
     //0: disable APLL clock, I2S module will using PLL_D2_CLK(160M) as source clock
     //1: Enable APLL clock, I2S module will using APLL as source clock
-    hw->clkm_conf.clka_en = (src == I2S_CLK_SRC_APLL) ? 1 : 0;
+    hw->clkm_conf.clka_en = (src == I2S_CLK_APLL) ? 1 : 0;
 }
 
 /**
@@ -289,37 +279,16 @@ static inline void i2s_ll_tx_set_bck_div_num(i2s_dev_t *hw, uint32_t val)
 }
 
 /**
- * @brief Configure I2S module clock divider
- * @note mclk on ESP32 is shared by both TX and RX channel
- *       mclk = sclk / (mclk_div + b/a)
+ * @brief Configure I2S TX clock devider
  *
  * @param hw Peripheral I2S hardware instance address.
- * @param mclk_div integer part of the division from sclk to mclk
- * @param a Denominator of decimal part
- * @param b Numerator of decimal part
+ * @param set Pointer to I2S clock devider configuration paramater
  */
-static inline void i2s_ll_set_raw_mclk_div(i2s_dev_t *hw, uint32_t mclk_div, uint32_t a, uint32_t b)
+static inline void i2s_ll_tx_set_clk(i2s_dev_t *hw, i2s_ll_mclk_div_t *set)
 {
-    HAL_FORCE_MODIFY_U32_REG_FIELD(hw->clkm_conf, clkm_div_num, mclk_div);
-    hw->clkm_conf.clkm_div_b = b;
-    hw->clkm_conf.clkm_div_a = a;
-}
-
-/**
- * @brief Configure I2S TX module clock divider
- * @note mclk on ESP32 is shared by both TX and RX channel
- *
- * @param hw Peripheral I2S hardware instance address.
- * @param mclk_div The mclk division coefficients
- */
-static inline void i2s_ll_tx_set_mclk(i2s_dev_t *hw, const i2s_ll_mclk_div_t *mclk_div)
-{
-    /* Workaround for inaccurate clock while switching from a relatively low sample rate to a high sample rate
-     * Set to particular coefficients first then update to the target coefficients,
-     * otherwise the clock division might be inaccurate.
-     * the general idea is to set a value that unlike to calculate from the regular decimal */
-    i2s_ll_set_raw_mclk_div(hw, 7, 47, 3);
-    i2s_ll_set_raw_mclk_div(hw, mclk_div->integ, mclk_div->denom, mclk_div->numer);
+    HAL_FORCE_MODIFY_U32_REG_FIELD(hw->clkm_conf, clkm_div_num, set->mclk_div);
+    hw->clkm_conf.clkm_div_b = set->b;
+    hw->clkm_conf.clkm_div_a = set->a;
 }
 
 /**
@@ -334,16 +303,16 @@ static inline void i2s_ll_rx_set_bck_div_num(i2s_dev_t *hw, uint32_t val)
 }
 
 /**
- * @brief Configure I2S RX module clock divider
- * @note mclk on ESP32 is shared by both TX and RX channel
+ * @brief Configure I2S RX clock devider
  *
  * @param hw Peripheral I2S hardware instance address.
- * @param mclk_div The mclk division coefficients
+ * @param set Pointer to I2S clock devider configuration paramater
  */
-static inline void i2s_ll_rx_set_mclk(i2s_dev_t *hw, const i2s_ll_mclk_div_t *mclk_div)
+static inline void i2s_ll_rx_set_clk(i2s_dev_t *hw, i2s_ll_mclk_div_t *set)
 {
-    // TX and RX channel on ESP32 shares a same mclk
-    i2s_ll_tx_set_mclk(hw, mclk_div);
+    HAL_FORCE_MODIFY_U32_REG_FIELD(hw->clkm_conf, clkm_div_num, set->mclk_div);
+    hw->clkm_conf.clkm_div_b = set->b;
+    hw->clkm_conf.clkm_div_a = set->a;
 }
 
 /**
@@ -355,13 +324,11 @@ static inline void i2s_ll_rx_set_mclk(i2s_dev_t *hw, const i2s_ll_mclk_div_t *mc
  */
 static inline void i2s_ll_enable_intr(i2s_dev_t *hw, uint32_t mask, bool en)
 {
-    uint32_t int_ena_mask = hw->int_ena.val;
     if (en) {
-        int_ena_mask |= mask;
+        hw->int_ena.val |= mask;
     } else {
-        int_ena_mask &= ~mask;
+        hw->int_ena.val &= ~mask;
     }
-    hw->int_ena.val = int_ena_mask;
 }
 
 /**
@@ -372,6 +339,7 @@ static inline void i2s_ll_enable_intr(i2s_dev_t *hw, uint32_t mask, bool en)
 static inline void i2s_ll_tx_enable_intr(i2s_dev_t *hw)
 {
     hw->int_ena.out_eof = 1;
+    hw->int_ena.out_dscr_err = 1;
 }
 
 /**
@@ -382,6 +350,7 @@ static inline void i2s_ll_tx_enable_intr(i2s_dev_t *hw)
 static inline void i2s_ll_tx_disable_intr(i2s_dev_t *hw)
 {
     hw->int_ena.out_eof = 0;
+    hw->int_ena.out_dscr_err = 0;
 }
 
 /**
@@ -392,6 +361,7 @@ static inline void i2s_ll_tx_disable_intr(i2s_dev_t *hw)
 static inline void i2s_ll_rx_enable_intr(i2s_dev_t *hw)
 {
     hw->int_ena.in_suc_eof = 1;
+    hw->int_ena.in_dscr_err = 1;
 }
 
 /**
@@ -402,6 +372,7 @@ static inline void i2s_ll_rx_enable_intr(i2s_dev_t *hw)
 static inline void i2s_ll_rx_disable_intr(i2s_dev_t *hw)
 {
     hw->int_ena.in_suc_eof = 0;
+    hw->int_ena.in_dscr_err = 0;
 }
 
 /**
@@ -422,18 +393,9 @@ static inline volatile void *i2s_ll_get_intr_status_reg(i2s_dev_t *hw)
  * @return
  *        - module interrupt status
  */
-__attribute__((always_inline))
 static inline uint32_t i2s_ll_get_intr_status(i2s_dev_t *hw)
 {
     return hw->int_st.val;
-}
-
-/**
- * @brief Get channel interrupt status register address
- */
-static inline volatile void *i2s_ll_get_interrupt_status_reg(i2s_dev_t *hw)
-{
-    return (volatile void *)(&hw->int_st);
 }
 
 /**
@@ -442,7 +404,6 @@ static inline volatile void *i2s_ll_get_interrupt_status_reg(i2s_dev_t *hw)
  * @param hw Peripheral I2S hardware instance address.
  * @param clr_mask Interrupt mask to clear interrupt status
  */
-__attribute__((always_inline))
 static inline void i2s_ll_clear_intr_status(i2s_dev_t *hw, uint32_t clr_mask)
 {
     hw->int_clr.val = clr_mask;
@@ -581,7 +542,6 @@ static inline void i2s_ll_rx_stop_link(i2s_dev_t *hw)
  * @param hw Peripheral I2S hardware instance address.
  * @param eof_addr Pointer to accept out eof des address
  */
-__attribute__((always_inline))
 static inline void i2s_ll_tx_get_eof_des_addr(i2s_dev_t *hw, uint32_t *eof_addr)
 {
     *eof_addr = hw->out_eof_des_addr;
@@ -593,7 +553,6 @@ static inline void i2s_ll_tx_get_eof_des_addr(i2s_dev_t *hw, uint32_t *eof_addr)
  * @param hw Peripheral I2S hardware instance address.
  * @param eof_addr Pointer to accept in eof des address
  */
-__attribute__((always_inline))
 static inline void i2s_ll_rx_get_eof_des_addr(i2s_dev_t *hw, uint32_t *eof_addr)
 {
     *eof_addr = hw->in_eof_des_addr;
@@ -631,7 +590,7 @@ static inline void i2s_ll_tx_set_bits_mod(i2s_dev_t *hw, uint32_t val)
  */
 static inline void i2s_ll_tx_set_sample_bit(i2s_dev_t *hw, uint8_t chan_bit, int data_bit)
 {
-    hw->fifo_conf.tx_fifo_mod = (chan_bit <= I2S_DATA_BIT_WIDTH_16BIT ? 0 : 2);
+    hw->fifo_conf.tx_fifo_mod = (chan_bit <= I2S_BITS_PER_SAMPLE_16BIT ? 0 : 2);
     hw->sample_rate_conf.tx_bits_mod = data_bit;
 }
 
@@ -644,7 +603,7 @@ static inline void i2s_ll_tx_set_sample_bit(i2s_dev_t *hw, uint8_t chan_bit, int
  */
 static inline void i2s_ll_rx_set_sample_bit(i2s_dev_t *hw, uint8_t chan_bit, int data_bit)
 {
-    hw->fifo_conf.rx_fifo_mod = (chan_bit <= I2S_DATA_BIT_WIDTH_16BIT ? 0 : 2);
+    hw->fifo_conf.rx_fifo_mod = (chan_bit <= I2S_BITS_PER_SAMPLE_16BIT ? 0 : 2);
     hw->sample_rate_conf.rx_bits_mod = data_bit;
 }
 
@@ -726,132 +685,25 @@ static inline void i2s_ll_rx_enable_msb_shift(i2s_dev_t *hw, bool msb_shift_enab
 }
 
 /**
- * @brief Set I2S PDM TX chan mode
- * @param slot_mask select slot to send data
- * @param is_mono is mono mode
- */
-static inline void i2s_ll_tx_select_pdm_slot(i2s_dev_t *hw, i2s_pdm_slot_mask_t slot_mask, bool is_mono)
-{
-    if (is_mono) {
-        switch (slot_mask)
-        {
-        case I2S_PDM_SLOT_RIGHT:
-            hw->conf_chan.tx_chan_mod = 3;
-            break;
-        case I2S_PDM_SLOT_LEFT:
-            hw->conf_chan.tx_chan_mod = 4;
-            break;
-        case I2S_PDM_SLOT_BOTH:
-            hw->conf_chan.tx_chan_mod = 1; // 1 & 2 has same effect
-            break;
-        default:
-            break;
-        }
-    } else {
-        switch (slot_mask)
-        {
-        case I2S_PDM_SLOT_RIGHT:
-            hw->conf_chan.tx_chan_mod = 1;
-            break;
-        case I2S_PDM_SLOT_LEFT:
-            hw->conf_chan.tx_chan_mod = 2;
-            break;
-        case I2S_PDM_SLOT_BOTH:
-            hw->conf_chan.tx_chan_mod = 0;
-            break;
-        default:
-            break;
-        }
-    }
-}
-
-/**
- * @brief Set I2S PDM RX chan mode
- * @param slot_mask select slot to send data
- */
-static inline void i2s_ll_rx_select_pdm_slot(i2s_dev_t *hw, i2s_pdm_slot_mask_t slot_mask)
-{
-    switch (slot_mask)
-    {
-    case I2S_PDM_SLOT_RIGHT:
-        hw->conf_chan.rx_chan_mod = 1;
-        break;
-    case I2S_PDM_SLOT_LEFT:
-        hw->conf_chan.rx_chan_mod = 2;
-        break;
-    case I2S_PDM_SLOT_BOTH:
-        hw->conf_chan.rx_chan_mod = 0;
-        break;
-    default:
-        break;
-    }
-}
-
-/**
  * @brief Set I2S tx chan mode
  *
  * @param hw Peripheral I2S hardware instance address.
- * @param slot_mask select slot to send data
- * @param is_mono is mono mode
+ * @param val value to set tx chan mode
  */
-static inline void i2s_ll_tx_select_std_slot(i2s_dev_t *hw, i2s_std_slot_mask_t slot_mask, bool is_mono)
+static inline void i2s_ll_tx_set_chan_mod(i2s_dev_t *hw, uint32_t val)
 {
-    if (is_mono) {
-        switch (slot_mask)
-        {
-        case I2S_STD_SLOT_RIGHT:
-            hw->conf_chan.tx_chan_mod = 3;
-            break;
-        case I2S_STD_SLOT_LEFT:
-            hw->conf_chan.tx_chan_mod = 4;
-            break;
-        case I2S_STD_SLOT_BOTH:
-            hw->conf_chan.tx_chan_mod = 1; // 1 & 2 has same effect
-            break;
-        default:
-            break;
-        }
-    } else {
-        switch (slot_mask)
-        {
-        case I2S_STD_SLOT_RIGHT:
-            hw->conf_chan.tx_chan_mod = 1;
-            break;
-        case I2S_STD_SLOT_LEFT:
-            hw->conf_chan.tx_chan_mod = 2;
-            break;
-        case I2S_STD_SLOT_BOTH:
-            hw->conf_chan.tx_chan_mod = 0;
-            break;
-        default:
-            break;
-        }
-    }
+    hw->conf_chan.tx_chan_mod = val;
 }
 
 /**
  * @brief Set I2S rx chan mode
  *
  * @param hw Peripheral I2S hardware instance address.
- * @param slot_mask select slot to receive data
- * @param is_msb_right the slot sequence is affected by msb_right according to TRM
+ * @param val value to set rx chan mode
  */
-static inline void i2s_ll_rx_select_std_slot(i2s_dev_t *hw, i2s_std_slot_mask_t slot_mask, bool is_msb_right)
+static inline void i2s_ll_rx_set_chan_mod(i2s_dev_t *hw, uint32_t val)
 {
-    switch (slot_mask)
-    {
-    case I2S_STD_SLOT_RIGHT:
-        hw->conf_chan.rx_chan_mod = is_msb_right ? 1 : 2;
-        break;
-    case I2S_STD_SLOT_LEFT:
-        hw->conf_chan.rx_chan_mod = is_msb_right ? 2 : 1;
-        break;
-    case I2S_STD_SLOT_BOTH:
-        hw->conf_chan.rx_chan_mod = 0;
-        break;
-    default:
-        break;
-    }
+    hw->conf_chan.rx_chan_mod = val;
 }
 
 /**
@@ -863,7 +715,7 @@ static inline void i2s_ll_rx_select_std_slot(i2s_dev_t *hw, i2s_std_slot_mask_t 
 static inline void i2s_ll_tx_enable_mono_mode(i2s_dev_t *hw, bool mono_ena)
 {
     int data_bit = hw->sample_rate_conf.tx_bits_mod;
-    hw->fifo_conf.tx_fifo_mod = data_bit <= I2S_DATA_BIT_WIDTH_16BIT ? mono_ena : 2 + mono_ena;
+    hw->fifo_conf.tx_fifo_mod = data_bit <= I2S_BITS_PER_SAMPLE_16BIT ? mono_ena : 2 + mono_ena;
 }
 
 /**
@@ -875,7 +727,7 @@ static inline void i2s_ll_tx_enable_mono_mode(i2s_dev_t *hw, bool mono_ena)
 static inline void i2s_ll_rx_enable_mono_mode(i2s_dev_t *hw, bool mono_ena)
 {
     int data_bit = hw->sample_rate_conf.rx_bits_mod;
-    hw->fifo_conf.rx_fifo_mod = data_bit <= I2S_DATA_BIT_WIDTH_16BIT ? mono_ena : 2 + mono_ena;
+    hw->fifo_conf.rx_fifo_mod = data_bit <= I2S_BITS_PER_SAMPLE_16BIT ? mono_ena : 2 + mono_ena;
 }
 
 /**
@@ -911,31 +763,7 @@ static inline void i2s_ll_rx_set_pdm_dsr(i2s_dev_t *hw, i2s_pdm_dsr_t dsr)
  */
 static inline void i2s_ll_rx_get_pdm_dsr(i2s_dev_t *hw, i2s_pdm_dsr_t *dsr)
 {
-    *dsr = (i2s_pdm_dsr_t)hw->pdm_conf.rx_sinc_dsr_16_en;
-}
-
-/**
- * @brief Enable I2S TX STD mode
- *
- * @param hw Peripheral I2S hardware instance address.
- */
-static inline void i2s_ll_tx_enable_std(i2s_dev_t *hw)
-{
-    hw->conf2.val = 0;
-    hw->pdm_conf.tx_pdm_en = false;
-    hw->pdm_conf.pcm2pdm_conv_en = false;
-}
-
-/**
- * @brief Enable I2S RX STD mode
- *
- * @param hw Peripheral I2S hardware instance address.
- */
-static inline void i2s_ll_rx_enable_std(i2s_dev_t *hw)
-{
-    hw->conf2.val = 0;
-    hw->pdm_conf.rx_pdm_en = false;
-    hw->pdm_conf.pdm2pcm_conv_en = false;
+    *dsr = hw->pdm_conf.rx_sinc_dsr_16_en;
 }
 
 /**
@@ -944,23 +772,22 @@ static inline void i2s_ll_rx_enable_std(i2s_dev_t *hw)
  * @param hw Peripheral I2S hardware instance address.
  * @param pdm_ena Set true to enable TX PDM mode
  */
-static inline void i2s_ll_tx_enable_pdm(i2s_dev_t *hw)
+static inline void i2s_ll_tx_enable_pdm(i2s_dev_t *hw, bool pdm_ena)
 {
-    hw->conf2.val = 0;
-    hw->pdm_conf.tx_pdm_en = true;
-    hw->pdm_conf.pcm2pdm_conv_en = true;
+    hw->pdm_conf.tx_pdm_en = pdm_ena;
+    hw->pdm_conf.pcm2pdm_conv_en = pdm_ena;
 }
 
 /**
  * @brief Enable I2S RX PDM mode
  *
  * @param hw Peripheral I2S hardware instance address.
+ * @param pdm_ena Set true to enable RX PDM mode
  */
-static inline void i2s_ll_rx_enable_pdm(i2s_dev_t *hw)
+static inline void i2s_ll_rx_enable_pdm(i2s_dev_t *hw, bool pdm_ena)
 {
-    hw->conf2.val = 0;
-    hw->pdm_conf.rx_pdm_en = true;
-    hw->pdm_conf.pdm2pcm_conv_en = true;
+    hw->pdm_conf.rx_pdm_en = pdm_ena;
+    hw->pdm_conf.pdm2pcm_conv_en = pdm_ena;
 }
 
 /**
@@ -1019,17 +846,6 @@ static inline void i2s_ll_tx_set_pdm_sd_scale(i2s_dev_t *hw, i2s_pdm_sig_scale_t
 }
 
 /**
- * @brief Set the PDM TX over sampling ratio
- *
- * @param hw  Peripheral I2S hardware instance address.
- * @param ovr Over sampling ratio
- */
-static inline void i2s_ll_tx_set_pdm_over_sample_ratio(i2s_dev_t *hw, uint32_t ovr)
-{
-    hw->pdm_conf.tx_sinc_osr2 = ovr;
-}
-
-/**
  * @brief Configure I2S TX PDM sample rate
  *        Fpdm = 64*Fpcm*fp/fs
  *
@@ -1041,6 +857,7 @@ static inline void i2s_ll_tx_set_pdm_fpfs(i2s_dev_t *hw, uint32_t fp, uint32_t f
 {
     hw->pdm_freq_conf.tx_pdm_fp = fp;
     hw->pdm_freq_conf.tx_pdm_fs = fs;
+    hw->pdm_conf.tx_sinc_osr2 = fp / fs;
 }
 
 /**

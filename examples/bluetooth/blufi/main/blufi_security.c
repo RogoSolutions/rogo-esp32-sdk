@@ -1,8 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
+   This example code is in the Public Domain (or CC0 licensed, at your option.)
+
+   Unless required by applicable law or agreed to in writing, this
+   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+   CONDITIONS OF ANY KIND, either express or implied.
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,7 +17,6 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
-#include "esp_random.h"
 #include "esp_bt.h"
 
 #include "esp_blufi_api.h"
@@ -104,39 +105,26 @@ void blufi_dh_negotiate_data_handler(uint8_t *data, int len, uint8_t **output_da
         }
         free(blufi_sec->dh_param);
         blufi_sec->dh_param = NULL;
-
-        const int dhm_len = mbedtls_dhm_get_len(&blufi_sec->dhm);
-        ret = mbedtls_dhm_make_public(&blufi_sec->dhm, dhm_len, blufi_sec->self_public_key, dhm_len, myrand, NULL);
+        ret = mbedtls_dhm_make_public(&blufi_sec->dhm, (int) mbedtls_mpi_size( &blufi_sec->dhm.P ), blufi_sec->self_public_key, blufi_sec->dhm.len, myrand, NULL);
         if (ret) {
             BLUFI_ERROR("%s make public failed %d\n", __func__, ret);
             btc_blufi_report_error(ESP_BLUFI_MAKE_PUBLIC_ERROR);
             return;
         }
 
-        ret = mbedtls_dhm_calc_secret( &blufi_sec->dhm,
+        mbedtls_dhm_calc_secret( &blufi_sec->dhm,
                 blufi_sec->share_key,
                 SHARE_KEY_BIT_LEN,
                 &blufi_sec->share_len,
-                myrand, NULL);
-        if (ret) {
-            BLUFI_ERROR("%s mbedtls_dhm_calc_secret failed %d\n", __func__, ret);
-            btc_blufi_report_error(ESP_BLUFI_DH_PARAM_ERROR);
-            return;
-        }
+                NULL, NULL);
 
-        ret = mbedtls_md5(blufi_sec->share_key, blufi_sec->share_len, blufi_sec->psk);
-
-        if (ret) {
-            BLUFI_ERROR("%s mbedtls_md5 failed %d\n", __func__, ret);
-            btc_blufi_report_error(ESP_BLUFI_CALC_MD5_ERROR);
-            return;
-        }
+        mbedtls_md5(blufi_sec->share_key, blufi_sec->share_len, blufi_sec->psk);
 
         mbedtls_aes_setkey_enc(&blufi_sec->aes, blufi_sec->psk, 128);
 
         /* alloc output data */
         *output_data = &blufi_sec->self_public_key[0];
-        *output_len = dhm_len;
+        *output_len = blufi_sec->dhm.len;
         *need_free = false;
 
     }

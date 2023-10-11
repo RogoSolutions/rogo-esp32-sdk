@@ -13,7 +13,6 @@
 #include "aes.h"
 #include "esp_wpa.h"
 #include "ccmp.h"
-#include "esp_rom_crc.h"
 
 #define DEFAULT_KEK_LEN 16
 
@@ -47,14 +46,9 @@ static int esp_aes_gmac(const u8 *key, size_t key_len, const u8 *iv, size_t iv_l
 #endif
 }
 
-static uint32_t esp_supp_crc32(uint32_t crc, uint8_t const *buf, uint32_t len)
-{
-    return esp_rom_crc32_le(crc, buf, len);
-}
-
 /*
  * This structure is used to set the cyrpto callback function for station to connect when in security mode.
- * These functions either call MbedTLS API's if CONFIG_CRYPTO_MBEDTLS flag is set through Kconfig, or native
+ * These functions either call MbedTLS API's if USE_MBEDTLS_CRYPTO flag is set through Kconfig, or native
  * API's otherwise. We recommend setting the flag since MbedTLS API's utilize hardware acceleration while
  * native API's are use software implementations.
  */
@@ -86,8 +80,6 @@ const wpa_crypto_funcs_t g_wifi_default_wpa_crypto_funcs = {
     .ccmp_decrypt = (esp_ccmp_decrypt_t)ccmp_decrypt,
     .ccmp_encrypt = (esp_ccmp_encrypt_t)ccmp_encrypt,
     .aes_gmac = (esp_aes_gmac_t)esp_aes_gmac,
-    .sha256_vector = (esp_sha256_vector_t)sha256_vector,
-    .crc32 = (esp_crc32_le_t)esp_supp_crc32,
 };
 
 const mesh_crypto_funcs_t g_wifi_default_mesh_crypto_funcs = {

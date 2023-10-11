@@ -19,10 +19,10 @@ static const char *TAG = "SSL Server";
 static bool ssl_ciphersuite_uses_rsa_key_ex(mbedtls_ssl_context *ssl)
 {
     const mbedtls_ssl_ciphersuite_t *ciphersuite_info =
-        ssl->MBEDTLS_PRIVATE(handshake)->ciphersuite_info;
+        ssl->handshake->ciphersuite_info;
 
-    if (ciphersuite_info->MBEDTLS_PRIVATE(key_exchange) == MBEDTLS_KEY_EXCHANGE_RSA ||
-        ciphersuite_info->MBEDTLS_PRIVATE(key_exchange) == MBEDTLS_KEY_EXCHANGE_RSA_PSK) {
+    if (ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_RSA ||
+        ciphersuite_info->key_exchange == MBEDTLS_KEY_EXCHANGE_RSA_PSK) {
         return true;
     } else {
         return false;
@@ -32,20 +32,21 @@ static bool ssl_ciphersuite_uses_rsa_key_ex(mbedtls_ssl_context *ssl)
 
 static int manage_resource(mbedtls_ssl_context *ssl, bool add)
 {
-    int state = add ? ssl->MBEDTLS_PRIVATE(state) : ssl->MBEDTLS_PRIVATE(state) - 1;
+    int state = add ? ssl->state : ssl->state - 1;
 
-    if (mbedtls_ssl_is_handshake_over(ssl) || ssl->MBEDTLS_PRIVATE(handshake) == NULL) {
+    if (ssl->state == MBEDTLS_SSL_HANDSHAKE_OVER || ssl->handshake == NULL) {
         return 0;
     }
 
     if (!add) {
-        if (!ssl->MBEDTLS_PRIVATE(out_left)) {
+        if (!ssl->out_left) {
             CHECK_OK(esp_mbedtls_free_tx_buffer(ssl));
         }
     }
 
     switch (state) {
         case MBEDTLS_SSL_HELLO_REQUEST:
+            ssl->major_ver = MBEDTLS_SSL_MAJOR_VERSION_3;
             break;
         case MBEDTLS_SSL_CLIENT_HELLO:
             if (add) {
@@ -66,9 +67,7 @@ static int manage_resource(mbedtls_ssl_context *ssl, bool add)
         case MBEDTLS_SSL_SERVER_CERTIFICATE:
             if (add) {
                 size_t buffer_len = 3;
-
-                const mbedtls_ssl_config *conf = mbedtls_ssl_context_get_config(ssl);
-                mbedtls_ssl_key_cert *key_cert = conf->MBEDTLS_PRIVATE(key_cert);
+                mbedtls_ssl_key_cert *key_cert = ssl->conf->key_cert;
 
                 while (key_cert && key_cert->cert) {
                     size_t num;

@@ -7,6 +7,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+from __future__ import division, print_function
+
 import argparse
 import array
 import binascii
@@ -19,6 +21,7 @@ import random
 import struct
 import sys
 import zlib
+from builtins import bytes, int, range
 from io import open
 
 try:
@@ -48,6 +51,13 @@ def reverse_hexbytes(addr_tmp):
 
 
 class Page(object):
+    PAGE_PARAMS = {
+        'max_size': 4096,
+        'max_old_blob_size': 1984,
+        'max_new_blob_size': 4000,
+        'max_entries': 126
+    }
+
     # Item type codes
     U8   = 0x01
     I8   = 0x11
@@ -73,12 +83,6 @@ class Page(object):
     FULL = 0xFFFFFFFC
     VERSION1 = 0xFF
     VERSION2 = 0xFE
-
-    PAGE_PARAMS = {
-        'max_size': 4096,
-        'max_blob_size': {VERSION1: 1984, VERSION2: 4000},
-        'max_entries': 126
-    }
 
     def __init__(self, page_num, version, is_rsrv_page=False):
         self.entry_num = 0
@@ -344,13 +348,14 @@ class Page(object):
         # Set size of data
         datalen = len(data)
 
-        max_blob_size = Page.PAGE_PARAMS['max_blob_size'][self.version]
-        # V2 blob size limit only applies to strings
-        blob_limit_applies = self.version == Page.VERSION1 or encoding == 'string'
-
-        if blob_limit_applies and datalen > max_blob_size:
-            raise InputError(' Input File: Size (%d) exceeds max allowed length `%s` bytes for key `%s`.'
-                             % (datalen, max_blob_size, key))
+        if datalen > Page.PAGE_PARAMS['max_old_blob_size']:
+            if self.version == Page.VERSION1:
+                raise InputError(' Input File: Size (%d) exceeds max allowed length `%s` bytes for key `%s`.'
+                                 % (datalen, Page.PAGE_PARAMS['max_old_blob_size'], key))
+            else:
+                if encoding == 'string':
+                    raise InputError(' Input File: Size (%d) exceeds max allowed length `%s` bytes for key `%s`.'
+                                     % (datalen, Page.PAGE_PARAMS['max_old_blob_size'], key))
 
         # Calculate no. of entries data will require
         rounded_size = (datalen + 31) & ~31

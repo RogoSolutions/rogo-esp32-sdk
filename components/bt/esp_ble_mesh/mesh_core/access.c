@@ -653,7 +653,8 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
         return;
     }
 
-    BT_DBG("OpCode 0x%08x", opcode);
+    // BT_DBG("OpCode 0x%08x", opcode);
+    BT_INFO("OpCode 0x%08x", opcode);
 
     for (i = 0; i < dev_comp->elem_count; i++) {
         struct bt_mesh_elem *elem = &dev_comp->elem[i];
@@ -673,7 +674,7 @@ void bt_mesh_model_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 
         op = find_op(models, count, opcode, &model);
         if (!op) {
-            BT_DBG("No OpCode 0x%08x for elem %d", opcode, i);
+            BT_INFO("No OpCode 0x%08x for elem %d", opcode, i);
             continue;
         }
 
@@ -827,8 +828,7 @@ int bt_mesh_model_send(struct bt_mesh_model *model,
     return model_send(model, &tx, false, msg, cb, cb_data);
 }
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+// Ninh.D.H 21.06.2023 //
 static int model_send_with_devkey(struct bt_mesh_model *model,
                                   struct bt_mesh_net_tx *tx, bool implicit_bind,
                                   struct net_buf_simple *msg,
@@ -902,7 +902,7 @@ int bt_mesh_model_send_with_devkey(struct bt_mesh_model *model,
     };
     return model_send_with_devkey(model, &tx, false, msg, devKey, cb, cb_data);
 }
-/* Rogo API *************************************************************************************/
+// ******************* //
 
 int bt_mesh_model_publish(struct bt_mesh_model *model)
 {

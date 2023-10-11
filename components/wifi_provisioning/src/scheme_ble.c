@@ -38,17 +38,14 @@ static esp_err_t prov_start(protocomm_t *pc, void *config)
 
     protocomm_ble_config_t *ble_config = (protocomm_ble_config_t *) config;
 
-#if defined(CONFIG_WIFI_PROV_BLE_BONDING)
+    #if defined(CONFIG_WIFI_PROV_BLE_BONDING)
    	ble_config->ble_bonding = 1;
-#endif
+    #endif
 
-#if defined(CONFIG_WIFI_PROV_BLE_SEC_CONN) || defined(CONFIG_BT_BLUEDROID_ENABLED)
-    ble_config->ble_sm_sc = 1;
-#endif
+    #if defined(CONFIG_WIFI_PROV_BLE_SEC_CONN) || defined(CONFIG_BT_BLUEDROID_ENABLED)
+        ble_config->ble_sm_sc = 1;
+    #endif
 
-#if defined(CONFIG_WIFI_PROV_BLE_FORCE_ENCRYPTION)
-    ble_config->ble_link_encryption = 1;
-#endif
     /* Start protocomm as BLE service */
     if (protocomm_ble_start(pc, ble_config) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start protocomm BLE service");
@@ -210,7 +207,6 @@ void wifi_prov_scheme_ble_event_cb_free_btdm(void *user_data, wifi_prov_cb_event
             break;
 
         case WIFI_PROV_DEINIT:
-#ifndef CONFIG_WIFI_PROV_KEEP_BLE_ON_AFTER_PROV
             /* Release memory used by BLE and Bluedroid host stack */
             err = esp_bt_mem_release(ESP_BT_MODE_BTDM);
             if (err != ESP_OK) {
@@ -218,7 +214,6 @@ void wifi_prov_scheme_ble_event_cb_free_btdm(void *user_data, wifi_prov_cb_event
             } else {
                 ESP_LOGI(TAG, "BTDM memory released");
             }
-#endif
             break;
 
         default:
@@ -252,7 +247,6 @@ void wifi_prov_scheme_ble_event_cb_free_ble(void *user_data, wifi_prov_cb_event_
     esp_err_t err;
     switch (event) {
         case WIFI_PROV_DEINIT:
-#ifndef CONFIG_WIFI_PROV_KEEP_BLE_ON_AFTER_PROV
             /* Release memory used by BLE stack */
             err = esp_bt_mem_release(ESP_BT_MODE_BLE);
             if (err != ESP_OK) {
@@ -260,7 +254,6 @@ void wifi_prov_scheme_ble_event_cb_free_ble(void *user_data, wifi_prov_cb_event_
             } else {
                 ESP_LOGI(TAG, "BLE memory released");
             }
-#endif
             break;
 
         default:

@@ -1,7 +1,18 @@
 #!/usr/bin/env python
 #
-# SPDX-FileCopyrightText: 2018-2021 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2018 Espressif Systems (Shanghai) PTE LTD
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from __future__ import print_function, unicode_literals
 
@@ -45,6 +56,10 @@ LINE_ERROR_RULES = [
     (re.compile(r'\t'),                     'tabulators should be replaced by spaces',      r' ' * SPACES_PER_INDENT),
     (re.compile(r'\s+\n'),                  'trailing whitespaces should be removed',       r'\n'),
     (re.compile(r'.{120}'),                 'line should be shorter than 120 characters',   None),
+    # "\<CR><LF>" is not recognized due to a bug in tools/kconfig/zconf.l. The bug was fixed but the rebuild of
+    # mconf-idf is not enforced and an incorrect version is supplied with all previous IDF versions. Backslashes
+    # cannot be enabled unless everybody updates mconf-idf.
+    (re.compile(r'\\\n'),                   'line cannot be wrapped by backslash',          None),
 ]
 
 
@@ -75,8 +90,7 @@ class SourceChecker(BaseChecker):
     # allow to source only files which will be also checked by the script
     # Note: The rules are complex and the LineRuleChecker cannot be used
     def process_line(self, line, line_number):
-        m = re.search(r'^\s*[ro]{0,2}source(\s*)"([^"]+)"', line)
-
+        m = re.search(r'^\s*source(\s*)"([^"]+)"', line)
         if m:
             if len(m.group(1)) == 0:
                 raise InputError(self.path_in_idf, line_number, '"source" has to been followed by space',
@@ -141,9 +155,6 @@ class IndentAndNameChecker(BaseChecker):
                                               |(help)
                                               |(if)
                                               |(source)
-                                              |(osource)
-                                              |(rsource)
-                                              |(orsource)
                                           )
                                        ''', re.X)
 
@@ -203,7 +214,7 @@ class IndentAndNameChecker(BaseChecker):
             print('level+', new_item, ': ', self.level_stack, end=' -> ')
         # "config" and "menuconfig" don't have a closing pair. So if new_item is an item which need to be indented
         # outside the last "config" or "menuconfig" then we need to find to a parent where it belongs
-        if new_item in ['config', 'menuconfig', 'menu', 'choice', 'if', 'source', 'rsource', 'osource', 'orsource']:
+        if new_item in ['config', 'menuconfig', 'menu', 'choice', 'if', 'source']:
             # item is not belonging to a previous "config" or "menuconfig" so need to indent to parent
             for i, item in enumerate(reversed(self.level_stack)):
                 if item in ['menu', 'mainmenu', 'choice', 'if']:

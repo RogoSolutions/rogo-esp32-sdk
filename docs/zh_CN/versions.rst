@@ -37,13 +37,11 @@ ESP-IDF 在 GitHub 平台上的完整发布历史请见 `发布说明页面`_。
 我该选择哪个版本？
 ----------------------
 
-- 如有量产需求，请使用 `最新稳定版本`_ 。稳定版本已通过人工测试，后续更新仅修复 bug，主要特性不受影响（更多详情，请见 :ref:`versioning-scheme` ）。请访问 `发布说明页面`_ 界面查看每一个稳定发布版本。
+- 如有量产需求，请使用 `最新稳定版本`_ 。稳定版本已通过人工测试，后续更新仅修复 bug，主要特性不受影响（更多详情，请见 `版本管理`_ ）。请访问 `发布说明页面`_ 界面查看每一个稳定发布版本。
 
 - 如需尝试/测试 ESP-IDF 的最新特性，请使用 `最新版本（在 master 分支上） <https://docs.espressif.com/projects/esp-idf/zh_CN/latest/>`_。最新版本包含 ESP-IDF 的所有最新特性，已通过自动化测试，但尚未全部完成人工测试（因此存在一定风险）。
 
 - 如需使用稳定版本中没有的新特性，但同时又不希望受到 master 分支更新的影响，您可以将一个最适合您的稳定版本 :ref:`更新至一个预发布版本` 或 :ref:`更新至一个发布分支`。
-
-- 如需使用其他基于 ESP-IDF 的项目，请先查看该项目的文档，以确定其兼容的 ESP-IDF 版本。
 
 有关如何更新 ESP-IDF 本地副本的内容，请参考 :ref:`updating` 章节。
 
@@ -52,11 +50,11 @@ ESP-IDF 在 GitHub 平台上的完整发布历史请见 `发布说明页面`_。
 版本管理
 -----------------
 
-ESP-IDF 采用了 `语义版本管理方法 <https://semver.org/>`_，即您可以从字面含义理解每个版本的差异。其中
+ESP-IDF 采用了 `语义版本管理方法 <http://semver.org/>`_，即您可以从字面含义理解每个版本的差异。其中
 
 - 主要版本（例 ``v3.0``）代表有重大更新，包括增加新特性、改变现有特性及移除已弃用的特性。
 
-    升级至一个新的主要版本（例 ``v2.1`` 升级至 ``v3.0``）意味着您可能需要更新工程代码，并重新测试工程，具体可参考 `发布说明页面`_ 的重大变更 (Breaking Change) 部分。
+    升级至一个新的主要版本（例 ``v2.1`` 升级至 ``v3.0``）意味着您可能需要更新您的工程代码，并重新测试您的工程，具体可参考 `发布说明页面`_ 的重大变更 (Breaking Change) 部分。 
 
 - 次要版本（例 ``v3.1``）代表有新增特性和 bug 修复，但现有特性不受影响，公开 API 的使用也不受影响。
 
@@ -88,16 +86,16 @@ ESP-IDF 的每个主要版本和次要版本（V4.1、V4.2 等）的支持期限
 
 支持期限分为“服务期”和“维护期”：
 
-.. list-table::
-   :header-rows: 1
-   :widths: 25 25 55
-
+.. list-table::   
+   :header-rows: 1    
+   :widths: 25 25 55    
+    
    * - 周期
      - 时长
-     - 是否推荐新工程使用
+     - 是否推荐新工程使用 
    * - 服务期
      - 12 个月
-     - 是
+     - 是  
    * - 维护期
      - 18 个月
      - 否
@@ -159,11 +157,11 @@ Git 工作流
 - 随着对 beta 版本的不断测试，bug 修复将同时增加至该发布分支和 ``master`` 分支。而且，``master`` 分支可能也已经开始为下个版本开发新特性了。
 - 当测试快结束时，该发布分支上将增加一个 rc 标签，代表候选发布 (Release Candidate) ，例 ``v3.1-rc1``。此时，该分支仍属于预发布版本。
 - 如果一直未发现或报告重大 bug，则该预发布版本将最终增加“主要版本”（例 ``v4.0``）或“次要版本”标记（例 ``v3.1``），成为正式发布版本，并体现在 `发布说明页面`_ 。
-- 后续，发布版本中发现的 bug 都将在该发布分支上进行修复。
-- 发布分支上会定期进行 bug 修复，人工测试完成后，该分支将增加一个 Bugfix 版本标签（例 ``v3.1.1``），并体现在 `发布说明页面`_ 。
+- 后续，该版本中发现的 bug 都将在该发布分支上进行修复。人工测试完成后，该分支将增加一个 Bugfix 版本标签（例 ``v3.1.1``），并体现在 `发布说明页面`_ 。
 
 
 .. _updating:
+
 
 更新 ESP-IDF
 ----------------
@@ -185,8 +183,7 @@ Git 工作流
 对于量产用户，推荐更新至一个新的 ESP-IDF 发布版本，请参考以下步骤：
 
 - 请定期查看 `发布说明页面`_ ，了解最新发布情况。
-- 如有新发布的 Bugfix 版本（例 ``v3.0.1`` 或 ``v3.0.2``）时，请将新的 Bugfix 版本更新至您的 ESP-IDF 目录。
-- 在 Linux 或 macOS 系统中，请运行如下命令将分支更新至 vX.Y.Z：
+- 如有新发布的 Bugfix 版本（例 ``v3.0.1`` 或 ``v3.0.2``）时，请将新的 Bugfix 版本更新至您的 ESP-IDF 目录：
 
 .. code-block:: bash
 
@@ -195,7 +192,6 @@ Git 工作流
     git checkout vX.Y.Z
     git submodule update --init --recursive
 
-- 在 Windows 系统中，需要将 ``cd $IDF_PATH`` 替换为 ``cd %IDF_PATH%``。
 - 在主要版本或次要版本新发布时，请查看发布说明中的具体描述，并决定是否升级您的版本。具体命令与上方描述一致。
 
 .. note:: 如果您之前在安装 ESP-IDF 时使用了 zip 文件包，而非通过 Git 命令，则您将无法使用 Git 命令进行版本升级，此属正常情况。这种情况下，请重新下载最新 zip 文件包，并替换掉之前 ``IDF_PATH`` 下的全部内容。
@@ -219,22 +215,17 @@ Git 工作流
 
 如需使用 ESP-IDF 的 master 分支，请参考以下步骤：
 
-- 在 Linux 或 macOS 系统中，使用如下命令在本地切换至 master 分支：
-
-.. code-block:: bash
+- 本地切换至 master 分支::
 
     cd $IDF_PATH
     git checkout master
     git pull
     git submodule update --init --recursive
 
-- 在 Windows 系统中，需要将 ``cd $IDF_PATH`` 替换为 ``cd %IDF_PATH%``。
 - 此外，您还应在后续工作中不时使用 ``git pull`` 命令，将远端 master 上的更新同步到本地。注意，在更新 master 分支后，您可能需要更改工程代码，也可能遇到新的 bug。
 - 如需从 master 分支切换至一个发布分支或稳定版本，请使用 ``git checkout`` 命令。
 
-.. important::
-
-    强烈建议您定期使用 ``git pull`` 和 ``git submodule update --init --recursive`` 命令，确保本地副本得到及时更新。旧的 master 分支相当于一个“快照”，可能存在未记录的问题，且无法获得支持。对于半稳定版本，请参考 :ref:`更新至一个发布分支`。
+.. important:: 强烈建议您定期使用 ``git pull`` 和 ``git submodule update --init --recursive`` 命令，确保本地副本的及时更新。旧的 master 分支相当于一个“快照”，可能存在未记录的问题，且无法获得支持。对于半稳定版本，请参考 :ref:`更新至一个发布分支`。 
 
 .. _`更新至一个发布分支`:
 
@@ -243,11 +234,9 @@ Git 工作流
 
 从稳定性来说，使用“发布分支”相当于在使用 master 分支和稳定版本之间进行折衷，包含一些 master 分支上的新特性，但也同时保证可通过 beta 测试且基本完成了 bug 修复。
 
-更多详情，请前往 GitHub 查看完整 `标签列表`_。
+更多详情，请前往 GitHub 查看完整 `标签列表`_。 
 
-例如，在 Linux 或 macOS 系统中，您可以运行以下命令更新至ESP-IDF v3.1，随时关注该分支上的 Bugfix 版本发布（如 ``v3.1.1`` 等）：
-
-.. code-block:: bash
+举例，您可以关注 ESP-IDF v3.1 分支，随时关注该分支上的 Bugfix 版本发布（ 例 ``v3.1.1`` 等）::
 
     cd $IDF_PATH
     git fetch
@@ -255,16 +244,13 @@ Git 工作流
     git pull
     git submodule update --init --recursive
 
-在 Windows 系统中，需要将 ``cd $IDF_PATH`` 替换为 ``cd %IDF_PATH%``。
-
 您每次在该分支上使用 ``git pull`` 时都相当于把最新的 Bugfix 版本发布更新至您的本地副本中。
 
-.. note::
+.. note:: 发布分支并不会有专门的配套文档，建议您使用与本分支最接近版本的文档。
 
-    发布分支并不会有专门的配套文档，建议您使用与本分支最接近版本的文档。
-
-.. _`发布说明页面`: https://github.com/espressif/esp-idf/releases
+.. _`发布说明页面`: http://github.com/espressif/esp-idf/releases
 .. _`分支列表`: https://github.com/espressif/esp-idf/branches
 .. _`标签列表`: https://github.com/espressif/esp-idf/tags
 .. _`最新稳定版本`: https://docs.espressif.com/projects/esp-idf/zh_CN/stable/
 .. _`支持期限政策`: https://github.com/espressif/esp-idf/blob/master/SUPPORT_POLICY_CN.md
+.. _`版本管理`: https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/versions.html

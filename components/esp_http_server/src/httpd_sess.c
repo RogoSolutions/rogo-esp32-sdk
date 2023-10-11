@@ -204,9 +204,6 @@ esp_err_t httpd_sess_new(struct httpd_data *hd, int newfd)
     session->send_fn = httpd_default_send;
     session->recv_fn = httpd_default_recv;
 
-    // increment number of sessions
-    hd->hd_sd_active_count++;
-
     // Call user-defined session opening function
     if (hd->config.open_fn) {
         esp_err_t ret = hd->config.open_fn(hd, session->fd);
@@ -217,8 +214,10 @@ esp_err_t httpd_sess_new(struct httpd_data *hd, int newfd)
         }
     }
 
-
+    // increment number of sessions
+    hd->hd_sd_active_count++;
     ESP_LOGD(TAG, LOG_FMT("active sockets: %d"), hd->hd_sd_active_count);
+
     return ESP_OK;
 }
 
@@ -354,15 +353,6 @@ void httpd_sess_delete(struct httpd_data *hd, struct sock_db *session)
     }
 
     ESP_LOGD(TAG, LOG_FMT("fd = %d"), session->fd);
-    if (hd->config.enable_so_linger) {
-        struct linger so_linger = {
-            .l_onoff = true,
-            .l_linger = hd->config.linger_timeout,
-        };
-        if (setsockopt(session->fd, SOL_SOCKET, SO_LINGER, &so_linger, sizeof(struct linger)) < 0) {
-            ESP_LOGW(TAG, LOG_FMT("error enabling SO_LINGER (%d)"), errno);
-        }
-    }
 
     // Call close function if defined
     if (hd->config.close_fn) {
@@ -370,7 +360,6 @@ void httpd_sess_delete(struct httpd_data *hd, struct sock_db *session)
     } else {
         close(session->fd);
     }
-    esp_http_server_dispatch_event(HTTP_SERVER_EVENT_DISCONNECTED, &session->fd, sizeof(int));
 
     // clear all contexts
     httpd_sess_clear_ctx(session);

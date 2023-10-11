@@ -1,17 +1,13 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+
 #include <stdlib.h>
 #include <sys/cdefs.h>
-#include "sdkconfig.h"
-#if CONFIG_LCD_ENABLE_DEBUG_LOG
-// The local log level must be defined before including esp_log.h
-// Set the maximum log level for this source file
-#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
-#endif
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_lcd_panel_interface.h"
@@ -33,7 +29,7 @@ static esp_err_t panel_nt35510_invert_color(esp_lcd_panel_t *panel, bool invert_
 static esp_err_t panel_nt35510_mirror(esp_lcd_panel_t *panel, bool mirror_x, bool mirror_y);
 static esp_err_t panel_nt35510_swap_xy(esp_lcd_panel_t *panel, bool swap_axes);
 static esp_err_t panel_nt35510_set_gap(esp_lcd_panel_t *panel, int x_gap, int y_gap);
-static esp_err_t panel_nt35510_disp_on_off(esp_lcd_panel_t *panel, bool off);
+static esp_err_t panel_nt35510_disp_off(esp_lcd_panel_t *panel, bool off);
 
 typedef struct {
     esp_lcd_panel_t base;
@@ -42,16 +38,13 @@ typedef struct {
     bool reset_level;
     int x_gap;
     int y_gap;
-    uint8_t fb_bits_per_pixel;
+    unsigned int bits_per_pixel;
     uint8_t madctl_val; // save current value of LCD_CMD_MADCTL register
     uint8_t colmod_cal; // save surrent value of LCD_CMD_COLMOD register
 } nt35510_panel_t;
 
 esp_err_t esp_lcd_new_panel_nt35510(const esp_lcd_panel_io_handle_t io, const esp_lcd_panel_dev_config_t *panel_dev_config, esp_lcd_panel_handle_t *ret_panel)
 {
-#if CONFIG_LCD_ENABLE_DEBUG_LOG
-    esp_log_level_set(TAG, ESP_LOG_DEBUG);
-#endif
     esp_err_t ret = ESP_OK;
     nt35510_panel_t *nt35510 = NULL;
     ESP_GOTO_ON_FALSE(io && panel_dev_config && ret_panel, ESP_ERR_INVALID_ARG, err, TAG, "invalid argument");
@@ -66,11 +59,11 @@ esp_err_t esp_lcd_new_panel_nt35510(const esp_lcd_panel_io_handle_t io, const es
         ESP_GOTO_ON_ERROR(gpio_config(&io_conf), err, TAG, "configure GPIO for RST line failed");
     }
 
-    switch (panel_dev_config->rgb_ele_order) {
-    case LCD_RGB_ELEMENT_ORDER_RGB:
+    switch (panel_dev_config->color_space) {
+    case ESP_LCD_COLOR_SPACE_RGB:
         nt35510->madctl_val = 0;
         break;
-    case LCD_RGB_ELEMENT_ORDER_BGR:
+    case ESP_LCD_COLOR_SPACE_BGR:
         nt35510->madctl_val |= LCD_CMD_BGR_BIT;
         break;
     default:
@@ -78,20 +71,15 @@ esp_err_t esp_lcd_new_panel_nt35510(const esp_lcd_panel_io_handle_t io, const es
         break;
     }
 
-    uint8_t fb_bits_per_pixel = 0;
     switch (panel_dev_config->bits_per_pixel) {
-    case 16: // RGB565
+    case 16:
         nt35510->colmod_cal = 0x55;
-        fb_bits_per_pixel = 16;
         break;
-    case 18: // RGB666
+    case 18:
         nt35510->colmod_cal = 0x66;
-        // each color component (R/G/B) should occupy the 6 high bits of a byte, which means 3 full bytes are required for a pixel
-        fb_bits_per_pixel = 24;
         break;
-    case 24: // RGB888
+    case 24:
         nt35510->colmod_cal = 0x77;
-        fb_bits_per_pixel = 24;
         break;
     default:
         ESP_GOTO_ON_FALSE(false, ESP_ERR_NOT_SUPPORTED, err, TAG, "unsupported pixel width");
@@ -99,7 +87,7 @@ esp_err_t esp_lcd_new_panel_nt35510(const esp_lcd_panel_io_handle_t io, const es
     }
 
     nt35510->io = io;
-    nt35510->fb_bits_per_pixel = fb_bits_per_pixel;
+    nt35510->bits_per_pixel = panel_dev_config->bits_per_pixel;
     nt35510->reset_gpio_num = panel_dev_config->reset_gpio_num;
     nt35510->reset_level = panel_dev_config->flags.reset_active_high;
     nt35510->base.del = panel_nt35510_del;
@@ -110,7 +98,7 @@ esp_err_t esp_lcd_new_panel_nt35510(const esp_lcd_panel_io_handle_t io, const es
     nt35510->base.set_gap = panel_nt35510_set_gap;
     nt35510->base.mirror = panel_nt35510_mirror;
     nt35510->base.swap_xy = panel_nt35510_swap_xy;
-    nt35510->base.disp_on_off = panel_nt35510_disp_on_off;
+    nt35510->base.disp_off = panel_nt35510_disp_off;
     *ret_panel = &(nt35510->base);
     ESP_LOGD(TAG, "new nt35510 panel @%p", nt35510);
 
@@ -171,6 +159,8 @@ static esp_err_t panel_nt35510_init(esp_lcd_panel_t *panel)
     esp_lcd_panel_io_tx_param(io, LCD_CMD_COLMOD << 8, (uint16_t[]) {
         nt35510->colmod_cal,
     }, 2);
+    // turn on display
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_DISPON << 8, NULL, 0);
 
     return ESP_OK;
 }
@@ -212,7 +202,7 @@ static esp_err_t panel_nt35510_draw_bitmap(esp_lcd_panel_t *panel, int x_start, 
         (y_end - 1) & 0xFF,
     }, 2);
     // transfer frame buffer
-    size_t len = (x_end - x_start) * (y_end - y_start) * nt35510->fb_bits_per_pixel / 8;
+    size_t len = (x_end - x_start) * (y_end - y_start) * nt35510->bits_per_pixel / 8;
     esp_lcd_panel_io_tx_color(io, LCD_CMD_RAMWR << 8, color_data, len);
 
     return ESP_OK;
@@ -275,15 +265,15 @@ static esp_err_t panel_nt35510_set_gap(esp_lcd_panel_t *panel, int x_gap, int y_
     return ESP_OK;
 }
 
-static esp_err_t panel_nt35510_disp_on_off(esp_lcd_panel_t *panel, bool on_off)
+static esp_err_t panel_nt35510_disp_off(esp_lcd_panel_t *panel, bool off)
 {
     nt35510_panel_t *nt35510 = __containerof(panel, nt35510_panel_t, base);
     esp_lcd_panel_io_handle_t io = nt35510->io;
     int command = 0;
-    if (on_off) {
-        command = LCD_CMD_DISPON;
-    } else {
+    if (off) {
         command = LCD_CMD_DISPOFF;
+    } else {
+        command = LCD_CMD_DISPON;
     }
     esp_lcd_panel_io_tx_param(io, command << 8, NULL, 0);
     return ESP_OK;

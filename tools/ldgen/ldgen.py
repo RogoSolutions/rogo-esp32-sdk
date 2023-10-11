@@ -1,7 +1,18 @@
 #!/usr/bin/env python
 #
-# SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2021 Espressif Systems (Shanghai) CO LTD
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
 
 import argparse
@@ -13,13 +24,21 @@ import sys
 import tempfile
 from io import StringIO
 
-from ldgen.entity import EntityDB
-from ldgen.fragments import parse_fragment_file
-from ldgen.generation import Generation
-from ldgen.ldgen_common import LdGenFailure
-from ldgen.linker_script import LinkerScript
-from ldgen.sdkconfig import SDKConfig
+from entity import EntityDB
+from fragments import FragmentFile
+from generation import Generation
+from ldgen_common import LdGenFailure
+from linker_script import LinkerScript
 from pyparsing import ParseException, ParseFatalException
+from sdkconfig import SDKConfig
+
+try:
+    import confgen
+except Exception:
+    parent_dir_name = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    kconfig_new_dir = os.path.abspath(parent_dir_name + '/kconfig_new')
+    sys.path.insert(0, kconfig_new_dir)
+    import confgen
 
 
 def _update_environment(args):
@@ -30,7 +49,7 @@ def _update_environment(args):
 
     if args.env_file is not None:
         env = json.load(args.env_file)
-        os.environ.update(env)
+        os.environ.update(confgen.dict_enc_for_env(env))
 
 
 def main():
@@ -42,20 +61,11 @@ def main():
         help='Linker template file',
         type=argparse.FileType('r'))
 
-    fragments_group = argparser.add_mutually_exclusive_group()
-
-    fragments_group.add_argument(
+    argparser.add_argument(
         '--fragments', '-f',
         type=argparse.FileType('r'),
         help='Input fragment files',
-        nargs='+'
-    )
-
-    fragments_group.add_argument(
-        '--fragments-list',
-        help='Input fragment files as a semicolon-separated list',
-        type=str
-    )
+        nargs='+')
 
     argparser.add_argument(
         '--libraries-file',
@@ -103,17 +113,12 @@ def main():
     args = argparser.parse_args()
 
     input_file = args.input
+    fragment_files = [] if not args.fragments else args.fragments
     libraries_file = args.libraries_file
     config_file = args.config
     output_path = args.output
     kconfig_file = args.kconfig
     objdump = args.objdump
-
-    fragment_files = []
-    if args.fragments_list:
-        fragment_files = args.fragments_list.split(';')
-    elif args.fragments:
-        fragment_files = args.fragments
 
     check_mapping = args.check_mapping
     if args.check_mapping_exceptions:
@@ -126,9 +131,7 @@ def main():
         for library in libraries_file:
             library = library.strip()
             if library:
-                new_env = os.environ.copy()
-                new_env['LC_ALL'] = 'C'
-                dump = StringIO(subprocess.check_output([objdump, '-h', library], env=new_env).decode())
+                dump = StringIO(subprocess.check_output([objdump, '-h', library]).decode())
                 dump.name = library
                 sections_infos.add_sections_info(dump)
 
@@ -140,12 +143,12 @@ def main():
 
         for fragment_file in fragment_files:
             try:
-                fragment_file = parse_fragment_file(fragment_file, sdkconfig)
+                fragment_file = FragmentFile(fragment_file, sdkconfig)
             except (ParseException, ParseFatalException) as e:
                 # ParseException is raised on incorrect grammar
                 # ParseFatalException is raised on correct grammar, but inconsistent contents (ex. duplicate
                 # keys, key unsupported by fragment, unexpected number of values, etc.)
-                raise LdGenFailure('failed to parse %s\n%s' % (fragment_file, str(e)))
+                raise LdGenFailure('failed to parse %s\n%s' % (fragment_file.name, str(e)))
             generation_model.add_fragments_from_file(fragment_file)
 
         mapping_rules = generation_model.generate(sections_infos)

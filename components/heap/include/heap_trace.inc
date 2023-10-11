@@ -15,13 +15,11 @@
 #include <sdkconfig.h>
 #include "soc/soc_memory_layout.h"
 #include "esp_attr.h"
-#include "esp_cpu.h"
-#include "esp_macros.h"
 
 /* Encode the CPU ID in the LSB of the ccount value */
 inline static uint32_t get_ccount(void)
 {
-    uint32_t ccount = esp_cpu_get_cycle_count() & ~3;
+    uint32_t ccount = cpu_hal_get_cycle_count() & ~3;
 #ifndef CONFIG_FREERTOS_UNICORE
     ccount |= xPortGetCoreID();
 #endif
@@ -57,7 +55,7 @@ inline static uint32_t get_ccount(void)
    Calls to __builtin_return_address are "unrolled" via TEST_STACK macro as gcc requires the
    argument to be a compile-time constant.
 */
-static HEAP_IRAM_ATTR __attribute__((noinline)) void get_call_stack(void **callers)
+static IRAM_ATTR __attribute__((noinline)) void get_call_stack(void **callers)
 {
     bzero(callers, sizeof(void *) * STACK_DEPTH);
     TEST_STACK(0);
@@ -72,7 +70,7 @@ static HEAP_IRAM_ATTR __attribute__((noinline)) void get_call_stack(void **calle
     TEST_STACK(9);
 }
 
-ESP_STATIC_ASSERT(STACK_DEPTH >= 0 && STACK_DEPTH <= 10, "CONFIG_HEAP_TRACING_STACK_DEPTH must be in range 0-10");
+_Static_assert(STACK_DEPTH >= 0 && STACK_DEPTH <= 10, "CONFIG_HEAP_TRACING_STACK_DEPTH must be in range 0-10");
 
 
 typedef enum {
@@ -86,7 +84,7 @@ void *__real_heap_caps_malloc_default( size_t size );
 void *__real_heap_caps_realloc_default( void *ptr, size_t size );
 
 /* trace any 'malloc' event */
-static HEAP_IRAM_ATTR __attribute__((noinline)) void *trace_malloc(size_t size, uint32_t caps, trace_malloc_mode_t mode)
+static IRAM_ATTR __attribute__((noinline)) void *trace_malloc(size_t size, uint32_t caps, trace_malloc_mode_t mode)
 {
     uint32_t ccount = get_ccount();
     void *p;
@@ -110,7 +108,7 @@ static HEAP_IRAM_ATTR __attribute__((noinline)) void *trace_malloc(size_t size, 
 void __real_heap_caps_free(void *p);
 
 /* trace any 'free' event */
-static HEAP_IRAM_ATTR __attribute__((noinline)) void trace_free(void *p)
+static IRAM_ATTR __attribute__((noinline)) void trace_free(void *p)
 {
     void *callers[STACK_DEPTH];
     get_call_stack(callers);
@@ -122,7 +120,7 @@ static HEAP_IRAM_ATTR __attribute__((noinline)) void trace_free(void *p)
 void * __real_heap_caps_realloc(void *p, size_t size, uint32_t caps);
 
 /* trace any 'realloc' event */
-static HEAP_IRAM_ATTR __attribute__((noinline)) void *trace_realloc(void *p, size_t size, uint32_t caps, trace_malloc_mode_t mode)
+static IRAM_ATTR __attribute__((noinline)) void *trace_realloc(void *p, size_t size, uint32_t caps, trace_malloc_mode_t mode)
 {
     void *callers[STACK_DEPTH];
     uint32_t ccount = get_ccount();
@@ -154,22 +152,22 @@ static HEAP_IRAM_ATTR __attribute__((noinline)) void *trace_realloc(void *p, siz
    as they no longer go via the libc functions in ROM. But more or less
    the same in the end. */
 
-HEAP_IRAM_ATTR void *__wrap_malloc(size_t size)
+IRAM_ATTR void *__wrap_malloc(size_t size)
 {
     return trace_malloc(size, 0, TRACE_MALLOC_DEFAULT);
 }
 
-HEAP_IRAM_ATTR void __wrap_free(void *p)
+IRAM_ATTR void __wrap_free(void *p)
 {
     trace_free(p);
 }
 
-HEAP_IRAM_ATTR void *__wrap_realloc(void *p, size_t size)
+IRAM_ATTR void *__wrap_realloc(void *p, size_t size)
 {
     return trace_realloc(p, size, 0, TRACE_MALLOC_DEFAULT);
 }
 
-HEAP_IRAM_ATTR void *__wrap_calloc(size_t nmemb, size_t size)
+IRAM_ATTR void *__wrap_calloc(size_t nmemb, size_t size)
 {
     size = size * nmemb;
     void *result = trace_malloc(size, 0, TRACE_MALLOC_DEFAULT);
@@ -179,24 +177,24 @@ HEAP_IRAM_ATTR void *__wrap_calloc(size_t nmemb, size_t size)
     return result;
 }
 
-HEAP_IRAM_ATTR void *__wrap_heap_caps_malloc(size_t size, uint32_t caps)
+IRAM_ATTR void *__wrap_heap_caps_malloc(size_t size, uint32_t caps)
 {
     return trace_malloc(size, caps, TRACE_MALLOC_CAPS);
 }
 
 void __wrap_heap_caps_free(void *p) __attribute__((alias("__wrap_free")));
 
-HEAP_IRAM_ATTR void *__wrap_heap_caps_realloc(void *p, size_t size, uint32_t caps)
+IRAM_ATTR void *__wrap_heap_caps_realloc(void *p, size_t size, uint32_t caps)
 {
     return trace_realloc(p, size, caps, TRACE_MALLOC_CAPS);
 }
 
-HEAP_IRAM_ATTR void *__wrap_heap_caps_malloc_default( size_t size )
+IRAM_ATTR void *__wrap_heap_caps_malloc_default( size_t size )
 {
     return trace_malloc(size, 0, TRACE_MALLOC_DEFAULT);
 }
 
-HEAP_IRAM_ATTR void *__wrap_heap_caps_realloc_default( void *ptr, size_t size )
+IRAM_ATTR void *__wrap_heap_caps_realloc_default( void *ptr, size_t size )
 {
     return trace_realloc(ptr, size, 0, TRACE_MALLOC_DEFAULT);
 }

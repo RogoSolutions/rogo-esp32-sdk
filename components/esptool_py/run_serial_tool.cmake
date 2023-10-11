@@ -4,7 +4,7 @@
 #
 # It is recommended to NOT USE this CMake script if you have the option of
 # running the tool directly. This script exists only for use inside CMake builds.
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.5)
 
 if(NOT IDF_PATH)
     message(FATAL_ERROR "IDF_PATH not set.")
@@ -22,8 +22,6 @@ if(DEFINED ENV{IDF_ENV_FPGA})
     message("Note: IDF_ENV_FPGA is set, propagating to esptool with ESPTOOL_ENV_FPGA = 1")
 endif()
 
-set(serial_tool_cmd ${SERIAL_TOOL})
-
 # Main purpose of this script: we can't expand these environment variables in the main IDF CMake build,
 # because we want to expand them at flashing time not at CMake runtime (so they can change
 # without needing a CMake re-run)
@@ -32,7 +30,7 @@ if(NOT ESPPORT)
     message("Note: ${SERIAL_TOOL} will search for a serial port. "
             "To specify a port, set the ESPPORT environment variable.")
 else()
-    list(APPEND serial_tool_cmd -p ${ESPPORT})
+    set(port_arg "-p ${ESPPORT}")
 endif()
 
 set(ESPBAUD $ENV{ESPBAUD})
@@ -40,28 +38,20 @@ if(NOT ESPBAUD)
     message("Note: ${SERIAL_TOOL} will attempt to set baud rate automatically. "
             "To specify a baud rate, set the ESPBAUD environment variable.")
 else()
-    list(APPEND serial_tool_cmd -b ${ESPBAUD})
+    set(baud_arg "-b ${ESPBAUD}")
 endif()
 
-# SERIAL_TOOL_ARGS is defined during the first cmake run
-# SERIAL_TOOL_EXTRA_ARGS is used for additional arguments from the command line during run-time
-list(APPEND serial_tool_cmd ${SERIAL_TOOL_ARGS})
-list(APPEND serial_tool_cmd $ENV{SERIAL_TOOL_EXTRA_ARGS})
+set(serial_tool_cmd "${SERIAL_TOOL} ${port_arg} ${baud_arg} ${SERIAL_TOOL_ARGS}")
 
-if(${SERIAL_TOOL_SILENT})
-    execute_process(COMMAND ${serial_tool_cmd}
-        WORKING_DIRECTORY "${WORKING_DIRECTORY}"
-        RESULT_VARIABLE result
-        OUTPUT_VARIABLE SERIAL_TOOL_OUTPUT_LOG
+include("${IDF_PATH}/tools/cmake/utilities.cmake")
+spaces2list(serial_tool_cmd)
+
+execute_process(COMMAND ${serial_tool_cmd}
+    WORKING_DIRECTORY "${WORKING_DIRECTORY}"
+    RESULT_VARIABLE result
     )
-else()
-    execute_process(COMMAND ${serial_tool_cmd}
-        WORKING_DIRECTORY "${WORKING_DIRECTORY}"
-        RESULT_VARIABLE result
-    )
-endif()
 
 if(${result})
     # No way to have CMake silently fail, unfortunately
-    message(FATAL_ERROR "${SERIAL_TOOL} failed. \n${SERIAL_TOOL_OUTPUT_LOG}")
+    message(FATAL_ERROR "${SERIAL_TOOL} failed")
 endif()

@@ -45,7 +45,7 @@
 struct eeprom_context_t{
     eeprom_config_t cfg;        ///< Configuration by the caller.
     spi_device_handle_t spi;    ///< SPI device handle
-    SemaphoreHandle_t ready_sem; ///< Semaphore for ready signal
+    xSemaphoreHandle ready_sem; ///< Semaphore for ready signal
 };
 
 typedef struct eeprom_context_t eeprom_context_t;

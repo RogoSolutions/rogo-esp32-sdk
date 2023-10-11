@@ -47,10 +47,7 @@ esp_err_t PageManager::load(Partition *partition, uint32_t baseSector, uint32_t 
         return activatePage();
     } else {
         uint32_t lastSeqNo;
-        auto err = mPageList.back().getSeqNumber(lastSeqNo);
-        if (err != ESP_OK) {
-            return err;
-        }
+        ESP_ERROR_CHECK( mPageList.back().getSeqNumber(lastSeqNo) );
         mSeqNumber = lastSeqNo + 1;
     }
 

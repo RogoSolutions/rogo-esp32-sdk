@@ -148,14 +148,14 @@
 // time exceeds specified timeout value operation is canceled and ESP_ERR_TIMEOUT code is returned.
 #include "sdkconfig.h"
 #include "soc/soc.h"
+#include "soc/dport_access.h"
 #include "soc/dport_reg.h"
 #include "soc/tracemem_config.h"
 #if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32S3
 #include "soc/sensitive_reg.h"
 #endif
 #include "eri.h"
-#include "esp_private/trax.h"
-#include "esp_cpu.h"
+#include "trax.h"
 #include "esp_log.h"
 #include "esp_app_trace_membufs_proto.h"
 #include "esp_app_trace_port.h"
@@ -174,7 +174,7 @@
 #define ESP_APPTRACE_TRAX_HOST_DATA             (1 << 22)
 #define ESP_APPTRACE_TRAX_HOST_CONNECT          (1 << 23)
 
-#define ESP_APPTRACE_TRAX_INITED(_hw_)          ((_hw_)->inited & (1 << esp_cpu_get_core_id()))
+#define ESP_APPTRACE_TRAX_INITED(_hw_)          ((_hw_)->inited & (1 << cpu_hal_get_core_id()))
 
 #define ESP_APPTRACE_TRAX_BLOCK_SIZE            (0x4000UL)
 
@@ -209,6 +209,12 @@ static uint8_t * const s_trax_blocks[] = {
     (uint8_t *)TRACEMEM_BLK0_ADDR,
     (uint8_t *)TRACEMEM_BLK1_ADDR
 };
+
+
+esp_apptrace_hw_t *esp_apptrace_uart_hw_get(int num, void **data)
+{
+    return NULL;
+}
 
 esp_apptrace_hw_t *esp_apptrace_jtag_hw_get(void **data)
 {
@@ -272,7 +278,7 @@ static inline void esp_apptrace_trax_hw_init(void)
     // must be read by host before any transfer using TRAX
     eri_write(ESP_APPTRACE_TRAX_STAT_REG, 0);
 
-    ESP_APPTRACE_LOGI("Initialized TRAX on CPU%d", esp_cpu_get_core_id());
+    ESP_APPTRACE_LOGI("Initialized TRAX on CPU%d", cpu_hal_get_core_id());
 }
 
 static inline void esp_apptrace_trax_select_memory_block(int block_num)
@@ -311,7 +317,7 @@ static inline void esp_apptrace_trax_memory_enable(void)
 
 static esp_err_t esp_apptrace_trax_init(esp_apptrace_trax_data_t *hw_data)
 {
-    int core_id = esp_cpu_get_core_id();
+    int core_id = cpu_hal_get_core_id();
 
     // 'esp_apptrace_trax_init()' is called on every core, so ensure to do main initialization only once
     if (core_id == 0) {
@@ -498,7 +504,7 @@ static esp_err_t esp_apptrace_trax_buffer_swap_start(uint32_t curr_block_id)
         uint32_t acked_block = ESP_APPTRACE_TRAX_BLOCK_ID_GET(ctrl_reg);
         uint32_t host_to_read = ESP_APPTRACE_TRAX_BLOCK_LEN_GET(ctrl_reg);
         if (host_to_read != 0 || acked_block != (curr_block_id & ESP_APPTRACE_TRAX_BLOCK_ID_MSK)) {
-            ESP_APPTRACE_LOGD("HC[%d]: Can not switch %x %d %x %x/%lx", esp_cpu_get_core_id(), ctrl_reg, host_to_read, acked_block,
+            ESP_APPTRACE_LOGD("HC[%d]: Can not switch %x %d %x %x/%lx", cpu_hal_get_core_id(), ctrl_reg, host_to_read, acked_block,
                 curr_block_id & ESP_APPTRACE_TRAX_BLOCK_ID_MSK, curr_block_id);
             res = ESP_ERR_NO_MEM;
             goto _on_err;

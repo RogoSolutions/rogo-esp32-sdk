@@ -1,11 +1,4 @@
-/*
- * SPDX-FileCopyrightText: 2017-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
 #include <stdio.h>
-#include <inttypes.h>
 
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
@@ -30,7 +23,7 @@ static void transaction_reset(transaction_t *trans)
 {
     EventBits_t bits;
 
-    ESP_LOGV(TAG, "transaction reset: %" PRIx32, (uint32_t)trans);
+    ESP_LOGV(TAG, "transaction reset: %x", (uint32_t) trans);
     // set to inactive state and clear all bits of the transaction
     xSemaphoreTakeRecursive(trans_mutex, portMAX_DELAY);
     trans->type = 0;
@@ -65,7 +58,7 @@ esp_err_t transaction_set_events(transaction_t *trans, EventBits_t events)
             trans->current_bits |= events;
             xEventGroupSetBits(trans->event_group, events);
         }
-        ESP_LOGD(TAG, "transactions set events: %" PRIx32 ", %x, %" PRIx32 ", %" PRIx32 "; ret: %x", (uint32_t)trans, trans->type, trans->sub_type, events, ret);
+        ESP_LOGD(TAG, "transactions set events: %x, %x, %x, %x; ret: %x", (uint32_t) trans, trans->type, trans->sub_type, events, ret);
     } else {
         ret = TRANS_RET_INVALID_TRNSACTION;
     }
@@ -86,7 +79,7 @@ esp_err_t transaction_test_events(transaction_t *trans, EventBits_t events)
                 ret = ESP_OK;
             }
         }
-        ESP_LOGV(TAG, "transactions test events: %" PRIx32 ", %" PRIx32 "; ret: %x", (uint32_t)trans, events, ret);
+        ESP_LOGV(TAG, "transactions test events: %x, %x; ret: %x", (uint32_t) trans, events, ret);
     } else {
         ret = TRANS_RET_INVALID_TRNSACTION;
     }
@@ -105,7 +98,7 @@ esp_err_t transaction_clear_events(transaction_t *trans, EventBits_t events)
             trans->current_bits &= ~events;
             xEventGroupClearBits(trans->event_group, events);
         }
-        ESP_LOGD(TAG, "transactions clear events: %" PRIx32 ", %x, %" PRIx32 ", %" PRIx32 "; ret: %x", (uint32_t)trans, trans->type, trans->sub_type, events, ret);
+        ESP_LOGD(TAG, "transactions clear events: %x, %x, %x, %x; ret: %x", (uint32_t) trans, trans->type, trans->sub_type, events, ret);
     } else {
         ret = TRANS_RET_INVALID_TRNSACTION;
     }
@@ -124,7 +117,7 @@ esp_err_t transaction_abort(transaction_t *trans, esp_err_t reason)
             trans->ret = reason;
             xEventGroupSetBits(trans->event_group, TRANSACTION_ABORT_EVENT);
         }
-        ESP_LOGD(TAG, "transactions abort: %" PRIx32 ", %x, %" PRIx32 ", %x; ret: %x", (uint32_t)trans, trans->type, trans->sub_type, reason, ret);
+        ESP_LOGD(TAG, "transactions abort: %x, %x, %x, %x; ret: %x", (uint32_t) trans, trans->type, trans->sub_type, reason, ret);
     } else {
         ret = TRANS_RET_INVALID_TRNSACTION;
     }
@@ -167,7 +160,7 @@ esp_err_t transaction_init(transaction_t **trans, uint8_t type, uint32_t sub_typ
     xSemaphoreGiveRecursive(trans_mutex);
 
     if (ret == ESP_OK) {
-        ESP_LOGD(TAG, "transaction created: %x, %" PRIx32 ", %" PRIx32 "; ret: %x", type, sub_type, (uint32_t)*trans, ret);
+        ESP_LOGD(TAG, "transaction created: %x, %x, %x; ret: %x", type, sub_type, (uint32_t) *trans, ret);
     }
     return ret;
 }
@@ -187,14 +180,14 @@ esp_err_t transaction_run(transaction_t *trans)
             wait_time = start_time + trans->timeout - utils_get_system_ts();
 
             if ( wait_time < 0 ) {
-                ESP_LOGI(TAG, "transaction timeout: %" PRIx32 ", %x, %" PRIx32 ", %" PRIx32 ", %" PRIx32, (uint32_t)trans, trans->type, trans->sub_type, trans->wait_events, trans->current_bits);
+                ESP_LOGI(TAG, "transaction timeout: %x, %x, %x, %x, %x", (uint32_t) trans, trans->type, trans->sub_type, trans->wait_events, trans->current_bits);
                 ret = TRANS_RET_TIMEOUT;
                 break;
             }
 
             // trans->event_group and trans->wait_events will not be changed once trans is created, so we don't need protect them
             current_bits = xEventGroupWaitBits(trans->event_group, trans->wait_events | TRANSACTION_ABORT_EVENT,
-                    1, 0, wait_time/portTICK_PERIOD_MS);
+                    1, 0, wait_time/portTICK_RATE_MS);
 
             xSemaphoreTakeRecursive(trans_mutex, portMAX_DELAY);
             trans->current_bits |= current_bits;
@@ -216,11 +209,11 @@ esp_err_t transaction_run(transaction_t *trans)
             }
             xSemaphoreGiveRecursive(trans_mutex);
         }
-        ESP_LOGD(TAG, "transaction run: %" PRIx32 ", %x, %" PRIx32 "; ret: %x", (uint32_t)trans, trans->type, trans->sub_type, ret);
+        ESP_LOGD(TAG, "transaction run: %x, %x, %x; ret: %x", (uint32_t) trans, trans->type, trans->sub_type, ret);
         // reset after it's finished
         transaction_reset(trans);
     } else {
-        ESP_LOGD(TAG, "transaction run: %" PRIx32 "; ret: %x", (uint32_t)trans, ret);
+        ESP_LOGD(TAG, "transaction run: %x; ret: %x", (uint32_t) trans, ret);
         ret = TRANS_RET_INVALID_TRNSACTION;
     }
 
@@ -248,7 +241,7 @@ transaction_t *transaction_get(uint8_t type, uint32_t sub_type, transaction_t *s
         }
     }
     xSemaphoreGiveRecursive(trans_mutex);
-    ESP_LOGV(TAG, "transaction get: %x, %" PRIx32 ", %" PRIx32 ", %" PRIx32, type, sub_type, (uint32_t) start, (uint32_t)trans);
+    ESP_LOGV(TAG, "transaction get: %x, %x, %x, %x", type, sub_type, (uint32_t) start, (uint32_t) trans);
     return trans;
 }
 

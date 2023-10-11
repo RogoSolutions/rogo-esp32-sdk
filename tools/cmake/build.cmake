@@ -30,9 +30,6 @@ endfunction()
 function(idf_build_set_property property value)
     cmake_parse_arguments(_ "APPEND" "" "" ${ARGN})
 
-    # Fixup property value, e.g. for compatibility. (Overwrites variable 'value'.)
-    __build_fixup_property("${property}" "${value}" value)
-
     if(__APPEND)
         set_property(TARGET __idf_build_target APPEND PROPERTY ${property} ${value})
     else()
@@ -76,7 +73,7 @@ function(__build_get_idf_git_revision)
     endif()
     # cut IDF_VER to required 32 characters.
     string(SUBSTRING "${idf_ver_t}" 0 31 idf_ver)
-    idf_build_set_property(COMPILE_DEFINITIONS "IDF_VER=\"${idf_ver}\"" APPEND)
+    idf_build_set_property(COMPILE_DEFINITIONS "-DIDF_VER=\"${idf_ver}\"" APPEND)
     git_submodule_check("${idf_path}")
     idf_build_set_property(IDF_VER ${idf_ver})
 endfunction()
@@ -93,7 +90,7 @@ function(__build_set_default_build_specifications)
     unset(c_compile_options)
     unset(cxx_compile_options)
 
-    list(APPEND compile_definitions "_GNU_SOURCE")
+    list(APPEND compile_definitions "-D_GNU_SOURCE")
 
     list(APPEND compile_options     "-ffunction-sections"
                                     "-fdata-sections"
@@ -102,87 +99,25 @@ function(__build_set_default_build_specifications)
                                     "-Werror=all"
                                     "-Wno-error=unused-function"
                                     "-Wno-error=unused-variable"
-                                    "-Wno-error=unused-but-set-variable"
                                     "-Wno-error=deprecated-declarations"
                                     "-Wextra"
                                     "-Wno-unused-parameter"
                                     "-Wno-sign-compare"
-                                    # ignore multiple enum conversion warnings since gcc 11
-                                    # TODO: IDF-5163
-                                    "-Wno-enum-conversion"
-                                    # Default is dwarf-5 since GCC 11, fallback to dwarf-4 because of binary size
-                                    # TODO: IDF-5160
-                                    "-gdwarf-4"
                                     # always generate debug symbols (even in release mode, these don't
                                     # go into the final binary so have no impact on size
                                     "-ggdb")
+
+    list(APPEND c_compile_options   "-std=gnu99")
+
+    list(APPEND cxx_compile_options "-std=gnu++11")
+
+    list(APPEND link_options "-Wl,--gc-sections")
 
     idf_build_set_property(COMPILE_DEFINITIONS "${compile_definitions}" APPEND)
     idf_build_set_property(COMPILE_OPTIONS "${compile_options}" APPEND)
     idf_build_set_property(C_COMPILE_OPTIONS "${c_compile_options}" APPEND)
     idf_build_set_property(CXX_COMPILE_OPTIONS "${cxx_compile_options}" APPEND)
-endfunction()
-
-function(__build_set_lang_version)
-    if(NOT IDF_TARGET STREQUAL "linux")
-        # Building for chip targets: we use a known version of the toolchain.
-        # Use latest supported versions.
-        # Please update docs/en/api-guides/cplusplus.rst and
-        # tools/test_apps/system/cxx_build_test/main/test_cxx_standard.cpp when changing this.
-        set(c_std gnu17)
-        set(cxx_std gnu++2b)
-    else()
-        enable_language(C CXX)
-        # Building for Linux target, fall back to an older version of the standard
-        # if the preferred one is not supported by the compiler.
-        set(preferred_c_versions gnu17 gnu11 gnu99)
-        set(ver_found FALSE)
-        foreach(c_version ${preferred_c_versions})
-            check_c_compiler_flag("-std=${c_version}" ver_${c_version}_supported)
-            if(ver_${c_version}_supported)
-                set(c_std ${c_version})
-                set(ver_found TRUE)
-                break()
-            endif()
-        endforeach()
-        if(NOT ver_found)
-            message(FATAL_ERROR "Failed to set C language standard to one of the supported versions: "
-                                "${preferred_c_versions}. Please upgrade the host compiler.")
-        endif()
-
-        set(preferred_cxx_versions gnu++2b gnu++20 gnu++2a gnu++17 gnu++14)
-        set(ver_found FALSE)
-        foreach(cxx_version ${preferred_cxx_versions})
-            check_cxx_compiler_flag("-std=${cxx_version}" ver_${cxx_version}_supported)
-            if(ver_${cxx_version}_supported)
-                set(cxx_std ${cxx_version})
-                set(ver_found TRUE)
-                break()
-            endif()
-        endforeach()
-        if(NOT ver_found)
-            message(FATAL_ERROR "Failed to set C++ language standard to one of the supported versions: "
-                                "${preferred_cxx_versions}. Please upgrade the host compiler.")
-        endif()
-    endif()
-
-    idf_build_set_property(C_COMPILE_OPTIONS "-std=${c_std}" APPEND)
-    idf_build_set_property(CXX_COMPILE_OPTIONS "-std=${cxx_std}" APPEND)
-endfunction()
-
-#
-# Perform any fixes or adjustments to the values stored in IDF build properties.
-# This function only gets called from 'idf_build_set_property' and doesn't affect
-# the properties set directly via 'set_property'.
-#
-function(__build_fixup_property property value out_var)
-
-    # Fixup COMPILE_DEFINITIONS property to support -D prefix, which had to be used in IDF v4.x projects.
-    if(property STREQUAL "COMPILE_DEFINITIONS" AND NOT "${value}" STREQUAL "")
-        string(REGEX REPLACE "^-D" "" stripped_value "${value}")
-        set("${out_var}" "${stripped_value}" PARENT_SCOPE)
-    endif()
-
+    idf_build_set_property(LINK_OPTIONS "${link_options}" APPEND)
 endfunction()
 
 #
@@ -209,7 +144,6 @@ function(__build_init idf_path)
     idf_build_set_property(IDF_COMPONENT_MANAGER 0)
 
     __build_set_default_build_specifications()
-    __build_set_lang_version()
 
     # Add internal components to the build
     idf_build_get_property(idf_path IDF_PATH)
@@ -227,13 +161,14 @@ function(__build_init idf_path)
     endforeach()
 
     if("${target}" STREQUAL "linux")
-        set(requires_common freertos esp_hw_support heap log soc hal esp_rom esp_common esp_system linux)
+        set(requires_common freertos log esp_rom esp_common)
         idf_build_set_property(__COMPONENT_REQUIRES_COMMON "${requires_common}")
     else()
         # Set components required by all other components in the build
         #
+        # - lwip is here so that #include <sys/socket.h> works without any special provisions
         # - esp_hw_support is here for backward compatibility
-        set(requires_common cxx newlib freertos esp_hw_support heap log soc hal esp_rom esp_common esp_system)
+        set(requires_common cxx newlib freertos esp_hw_support heap log lwip soc hal esp_rom esp_common esp_system)
         idf_build_set_property(__COMPONENT_REQUIRES_COMMON "${requires_common}")
     endif()
 
@@ -287,24 +222,13 @@ function(__build_expand_requirements component_target)
 
     get_property(reqs TARGET ${component_target} PROPERTY REQUIRES)
     get_property(priv_reqs TARGET ${component_target} PROPERTY PRIV_REQUIRES)
-    __component_get_property(component_name ${component_target} COMPONENT_NAME)
-    __component_get_property(component_alias ${component_target} COMPONENT_ALIAS)
-    idf_build_get_property(common_reqs __COMPONENT_REQUIRES_COMMON)
-    list(APPEND reqs ${common_reqs})
-
-    if(reqs)
-        list(REMOVE_DUPLICATES reqs)
-        list(REMOVE_ITEM reqs ${component_alias} ${component_name})
-    endif()
 
     foreach(req ${reqs})
-        depgraph_add_edge(${component_name} ${req} REQUIRES)
         __build_resolve_and_add_req(_component_target ${component_target} ${req} __REQUIRES)
         __build_expand_requirements(${_component_target})
     endforeach()
 
     foreach(req ${priv_reqs})
-        depgraph_add_edge(${component_name} ${req} PRIV_REQUIRES)
         __build_resolve_and_add_req(_component_target ${component_target} ${req} __PRIV_REQUIRES)
         __build_expand_requirements(${_component_target})
     endforeach()
@@ -356,7 +280,7 @@ function(__build_check_python)
         idf_build_get_property(python PYTHON)
         idf_build_get_property(idf_path IDF_PATH)
         message(STATUS "Checking Python dependencies...")
-        execute_process(COMMAND "${python}" "${idf_path}/tools/idf_tools.py" "check-python-dependencies"
+        execute_process(COMMAND "${python}" "${idf_path}/tools/check_python_dependencies.py"
             RESULT_VARIABLE result)
         if(result EQUAL 1)
             # check_python_dependencies returns error code 1 on failure
@@ -383,6 +307,9 @@ macro(__build_process_project_includes)
         idf_build_get_property(val ${build_property})
         set(${build_property} "${val}")
     endforeach()
+
+    # Check that the CMake target value matches the Kconfig target value.
+    __target_check()
 
     idf_build_get_property(build_component_targets __BUILD_COMPONENT_TARGETS)
 
@@ -475,15 +402,6 @@ macro(idf_build_process target)
 
     idf_build_set_property(IDF_TARGET ${target})
 
-    if("${target}" STREQUAL "esp32" OR "${target}" STREQUAL "esp32s2" OR "${target}" STREQUAL "esp32s3")
-        idf_build_set_property(IDF_TARGET_ARCH "xtensa")
-    elseif("${target}" STREQUAL "linux")
-        # No arch specified for linux host builds at the moment
-        idf_build_set_property(IDF_TARGET_ARCH "")
-    else()
-        idf_build_set_property(IDF_TARGET_ARCH "riscv")
-    endif()
-
     __build_set_default(PROJECT_DIR ${CMAKE_SOURCE_DIR})
     __build_set_default(PROJECT_NAME ${CMAKE_PROJECT_NAME})
     __build_set_default(PROJECT_VER 1)
@@ -498,10 +416,9 @@ macro(idf_build_process target)
     __build_check_python()
 
     idf_build_get_property(target IDF_TARGET)
-    idf_build_get_property(arch IDF_TARGET_ARCH)
 
     if(NOT "${target}" STREQUAL "linux")
-        idf_build_set_property(__COMPONENT_REQUIRES_COMMON ${arch} APPEND)
+        idf_build_set_property(__COMPONENT_REQUIRES_COMMON ${target} APPEND)
     endif()
 
     # Call for component manager to download dependencies for all components
@@ -512,8 +429,10 @@ macro(idf_build_process target)
         set(local_components_list_file ${build_dir}/local_components_list.temp.yml)
 
         set(__contents "components:\n")
-        foreach(__component_name ${components})
-            idf_component_get_property(__component_dir ${__component_name} COMPONENT_DIR)
+        idf_build_get_property(__component_targets __COMPONENT_TARGETS)
+        foreach(__component_target ${__component_targets})
+            __component_get_property(__component_name ${__component_target} COMPONENT_NAME)
+            __component_get_property(__component_dir ${__component_target} COMPONENT_DIR)
             set(__contents "${__contents}  - name: \"${__component_name}\"\n    path: \"${__component_dir}\"\n")
         endforeach()
 
@@ -521,15 +440,10 @@ macro(idf_build_process target)
 
         # Call for the component manager to prepare remote dependencies
         idf_build_get_property(python PYTHON)
-        idf_build_get_property(component_manager_interface_version __COMPONENT_MANAGER_INTERFACE_VERSION)
-        idf_build_get_property(dependencies_lock_file DEPENDENCIES_LOCK)
-
         execute_process(COMMAND ${python}
             "-m"
             "idf_component_manager.prepare_components"
             "--project_dir=${project_dir}"
-            "--lock_path=${dependencies_lock_file}"
-            "--interface_version=${component_manager_interface_version}"
             "prepare_dependencies"
             "--local_components_list_file=${local_components_list_file}"
             "--managed_components_list_file=${managed_components_list_file}"
@@ -613,7 +527,7 @@ macro(idf_build_process target)
 
     # All targets built under this scope is with the ESP-IDF build system
     set(ESP_PLATFORM 1)
-    idf_build_set_property(COMPILE_DEFINITIONS "ESP_PLATFORM" APPEND)
+    idf_build_set_property(COMPILE_DEFINITIONS "-DESP_PLATFORM" APPEND)
 
     # Perform component processing (inclusion of project_include.cmake, adding component
     # subdirectories, creating library targets, linking libraries, etc.)
@@ -633,7 +547,8 @@ endmacro()
 function(idf_build_executable elf)
     # Set additional link flags for the executable
     idf_build_get_property(link_options LINK_OPTIONS)
-    set_property(TARGET ${elf} APPEND PROPERTY LINK_OPTIONS "${link_options}")
+    # Using LINK_LIBRARIES here instead of LINK_OPTIONS, as the latter is not in CMake 3.5.
+    set_property(TARGET ${elf} APPEND PROPERTY LINK_LIBRARIES "${link_options}")
 
     # Propagate link dependencies from component library targets to the executable
     idf_build_get_property(link_depends __LINK_DEPENDS)
@@ -641,7 +556,7 @@ function(idf_build_executable elf)
 
     # Set the EXECUTABLE_NAME and EXECUTABLE properties since there are generator expression
     # from components that depend on it
-    get_filename_component(elf_name ${elf} NAME_WLE)
+    get_filename_component(elf_name ${elf} NAME_WE)
     get_target_property(elf_dir ${elf} BINARY_DIR)
 
     idf_build_set_property(EXECUTABLE_NAME ${elf_name})

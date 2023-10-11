@@ -8,7 +8,6 @@
 #include <string.h>
 #include <assert.h>
 #include "esp_partition.h"
-#include "spi_flash_mmap.h"
 #include "esp_log.h"
 
 static const char *TAG = "example";

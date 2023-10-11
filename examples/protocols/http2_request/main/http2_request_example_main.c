@@ -17,18 +17,17 @@
 #include "freertos/task.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
+#include "lwip/apps/sntp.h"
 #include "esp_system.h"
 #include "nvs_flash.h"
 #include "protocol_examples_common.h"
 #include "esp_netif.h"
-#include "esp_netif_sntp.h"
-#include "sdkconfig.h"
-
-#if CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
-#include "esp_crt_bundle.h"
-#endif
 
 #include "sh2lib.h"
+
+
+extern const uint8_t server_root_cert_pem_start[] asm("_binary_http2_github_io_root_cert_pem_start");
+extern const uint8_t server_root_cert_pem_end[]   asm("_binary_http2_github_io_root_cert_pem_end");
 
 /* The HTTP/2 server to connect to */
 #define HTTP2_SERVER_URI  "https://http2.github.io"
@@ -90,12 +89,8 @@ static void set_time(void)
     settimeofday(&tv, &tz);
 
     /* Start SNTP service */
-    esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("time.windows.com");
-    esp_netif_sntp_init(&config);
-    if (esp_netif_sntp_sync_wait(pdMS_TO_TICKS(10000)) != ESP_OK) {
-        printf("Failed to update system time, continuing");
-    }
-    esp_netif_deinit();
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_init();
 }
 
 static void http2_task(void *args)
@@ -107,12 +102,10 @@ static void http2_task(void *args)
 
     /* HTTP2: one connection multiple requests. Do the TLS/TCP connection first */
     printf("Connecting to server\n");
-
     struct sh2lib_config_t cfg = {
         .uri = HTTP2_SERVER_URI,
-#if CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
-        .crt_bundle_attach = esp_crt_bundle_attach,
-#endif
+        .cacert_buf = server_root_cert_pem_start,
+        .cacert_bytes = server_root_cert_pem_end - server_root_cert_pem_start,
     };
     struct sh2lib_handle hd;
 

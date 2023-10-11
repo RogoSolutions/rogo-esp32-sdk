@@ -14,12 +14,10 @@
 #include <sys/param.h>
 #include "esp_netif.h"
 #include "esp_eth.h"
-#include "esp_wifi.h"
 #include "protocol_examples_common.h"
 #include "lwip/sockets.h"
 #include <esp_https_server.h>
 #include "keep_alive.h"
-#include "sdkconfig.h"
 
 #if !CONFIG_HTTPD_WS_SUPPORT
 #error This example cannot be used unless HTTPD_WS_SUPPORT is enabled in esp-http-server component configuration
@@ -195,10 +193,10 @@ static httpd_handle_t start_wss_echo_server(void)
     conf.httpd.open_fn = wss_open_fd;
     conf.httpd.close_fn = wss_close_fd;
 
-    extern const unsigned char servercert_start[] asm("_binary_servercert_pem_start");
-    extern const unsigned char servercert_end[]   asm("_binary_servercert_pem_end");
-    conf.servercert = servercert_start;
-    conf.servercert_len = servercert_end - servercert_start;
+    extern const unsigned char cacert_pem_start[] asm("_binary_cacert_pem_start");
+    extern const unsigned char cacert_pem_end[]   asm("_binary_cacert_pem_end");
+    conf.cacert_pem = cacert_pem_start;
+    conf.cacert_len = cacert_pem_end - cacert_pem_start;
 
     extern const unsigned char prvtkey_pem_start[] asm("_binary_prvtkey_pem_start");
     extern const unsigned char prvtkey_pem_end[]   asm("_binary_prvtkey_pem_end");
@@ -219,12 +217,12 @@ static httpd_handle_t start_wss_echo_server(void)
     return server;
 }
 
-static esp_err_t stop_wss_echo_server(httpd_handle_t server)
+static void stop_wss_echo_server(httpd_handle_t server)
 {
     // Stop keep alive thread
     wss_keep_alive_stop(httpd_get_global_user_ctx(server));
     // Stop the httpd server
-    return httpd_ssl_stop(server);
+    httpd_ssl_stop(server);
 }
 
 static void disconnect_handler(void* arg, esp_event_base_t event_base,
@@ -232,11 +230,8 @@ static void disconnect_handler(void* arg, esp_event_base_t event_base,
 {
     httpd_handle_t* server = (httpd_handle_t*) arg;
     if (*server) {
-        if (stop_wss_echo_server(*server) == ESP_OK) {
-            *server = NULL;
-        } else {
-            ESP_LOGE(TAG, "Failed to stop https server");
-        }
+        stop_wss_echo_server(*server);
+        *server = NULL;
     }
 }
 

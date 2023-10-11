@@ -33,6 +33,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#define HCI_GET_CMD_BUF(paramlen)       ((BT_HDR *)osi_malloc(HCIC_PREAMBLE_SIZE + sizeof(BT_HDR) + paramlen))
 #if (BLE_50_FEATURE_SUPPORT == TRUE)
 static BlE_SYNC ble_sync_info;
 
@@ -556,17 +557,19 @@ BOOLEAN btsnd_hcic_ble_encrypt (UINT8 *key, UINT8 key_len,
     BT_HDR *p;
     UINT8 *pp;
 
-    if ((p = HCI_GET_CMD_BUF(HCIC_PARAM_SIZE_BLE_ENCRYPT)) == NULL) {
+    if ((p = HCI_GET_CMD_BUF(sizeof (void *) +
+                             HCIC_PARAM_SIZE_BLE_ENCRYPT)) == NULL) {
         return (FALSE);
     }
 
     pp = (UINT8 *)(p + 1);
 
     p->len    = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_BLE_ENCRYPT;
-    p->offset = 0;
+    p->offset = sizeof(void *);
 
-    hci_cmd_metadata_t *metadata = HCI_GET_CMD_METAMSG(p);
-    metadata->context = p_cmd_cplt_cback;
+    *((void **)pp) = p_cmd_cplt_cback;  /* Store command complete callback in buffer */
+    pp += sizeof(void *);               /* Skip over callback pointer */
+
 
     UINT16_TO_STREAM (pp, HCI_BLE_ENCRYPT);
     UINT8_TO_STREAM  (pp, HCIC_PARAM_SIZE_BLE_ENCRYPT);
@@ -593,17 +596,18 @@ BOOLEAN btsnd_hcic_ble_rand (void *p_cmd_cplt_cback)
     BT_HDR *p;
     UINT8 *pp;
 
-    if ((p = HCI_GET_CMD_BUF(HCIC_PARAM_SIZE_BLE_RAND)) == NULL) {
+    if ((p = HCI_GET_CMD_BUF(sizeof (void *) +
+                             HCIC_PARAM_SIZE_BLE_RAND)) == NULL) {
         return (FALSE);
     }
 
     pp = (UINT8 *)(p + 1);
 
     p->len    = HCIC_PREAMBLE_SIZE + HCIC_PARAM_SIZE_BLE_RAND;
-    p->offset = 0;
+    p->offset = sizeof(void *);
 
-    hci_cmd_metadata_t *metadata = HCI_GET_CMD_METAMSG(p);
-    metadata->context = p_cmd_cplt_cback;
+    *((void **)pp) = p_cmd_cplt_cback;  /* Store command complete callback in buffer */
+    pp += sizeof(void *);               /* Skip over callback pointer */
 
     UINT16_TO_STREAM (pp, HCI_BLE_RAND);
     UINT8_TO_STREAM  (pp, HCIC_PARAM_SIZE_BLE_RAND);
@@ -1028,25 +1032,14 @@ BOOLEAN btsnd_hcic_ble_set_data_length(UINT16 conn_handle, UINT16 tx_octets, UIN
     return TRUE;
 }
 
-BOOLEAN btsnd_hcic_ble_update_adv_report_flow_control (UINT16 num, BT_HDR *static_buf)
+BOOLEAN btsnd_hcic_ble_update_adv_report_flow_control (UINT16 num)
 {
     BT_HDR *p;
     UINT8 *pp;
 
-    if (static_buf != NULL) {
-        p = static_buf;
-    } else {
-        if ((p = HCI_GET_CMD_BUF (HCIC_PARAM_SIZE_BLE_UPDATE_ADV_FLOW_CONTROL)) == NULL) {
-            return (FALSE);
-        }
+    if ((p = HCI_GET_CMD_BUF (HCIC_PARAM_SIZE_BLE_UPDATE_ADV_FLOW_CONTROL)) == NULL) {
+        return (FALSE);
     }
-
-    hci_cmd_metadata_t *metadata = HCI_GET_CMD_METAMSG(p);
-    metadata->flags_src = HCI_CMD_MSG_F_SRC_NOACK;
-    if (static_buf == p) {
-        assert(metadata->command_free_cb != NULL);
-    }
-    p->layer_specific = HCI_CMD_BUF_TYPE_METADATA;
 
     pp = (UINT8 *)(p + 1);
 
@@ -1214,7 +1207,7 @@ UINT8 btsnd_hcic_ble_set_extend_rand_address(UINT8 adv_handle, BD_ADDR rand_addr
 UINT8 btsnd_hcic_ble_set_ext_adv_params(UINT8 adv_handle, UINT16 properties, UINT32 interval_min,
                                           UINT32 interval_max, UINT8 channel_map, UINT8 own_addr_type,
                                           UINT8 peer_addr_type, BD_ADDR peer_addr,
-                                          UINT8 adv_filter_policy, INT8 adv_tx_power,
+                                          UINT8 adv_filter_policy, UINT8 adv_tx_power,
                                           UINT8 primary_adv_phy, UINT8 secondary_adv_max_skip,
                                           UINT8 secondary_adv_phy,
                                           UINT8 adv_sid, UINT8 scan_req_ntf_enable)
@@ -1244,7 +1237,7 @@ UINT8 btsnd_hcic_ble_set_ext_adv_params(UINT8 adv_handle, UINT16 properties, UIN
     UINT8_TO_STREAM(pp, peer_addr_type);
     BDADDR_TO_STREAM (pp, peer_addr);
     UINT8_TO_STREAM(pp, adv_filter_policy);
-    INT8_TO_STREAM(pp, adv_tx_power);
+    UINT8_TO_STREAM(pp, adv_tx_power);
     UINT8_TO_STREAM(pp, primary_adv_phy);
     UINT8_TO_STREAM(pp, secondary_adv_max_skip);
     UINT8_TO_STREAM(pp, secondary_adv_phy);
@@ -1273,16 +1266,17 @@ UINT8 btsnd_hcic_ble_set_ext_adv_data(UINT8 adv_handle,
     UINT8_TO_STREAM(pp, operation);
     UINT8_TO_STREAM(pp, fragment_prefrence);
 
-    if (data_len > HCIC_PARAM_SIZE_EXT_ADV_WRITE_DATA) {
-        data_len = HCIC_PARAM_SIZE_EXT_ADV_WRITE_DATA;
-    }
+    if (p_data != NULL && data_len > 0) {
+        if (data_len > HCIC_PARAM_SIZE_EXT_ADV_WRITE_DATA) {
+            data_len = HCIC_PARAM_SIZE_EXT_ADV_WRITE_DATA;
+        }
 
-    UINT8_TO_STREAM (pp, data_len);
+        UINT8_TO_STREAM (pp, data_len);
 
-    if (p_data != NULL && data_len > 0){
         ARRAY_TO_STREAM (pp, p_data, data_len);
+    } else {
+        return FALSE;
     }
-
     uint8_t status = btu_hcif_send_cmd_sync (LOCAL_BR_EDR_CONTROLLER_ID, p);
     return status;
 
@@ -1308,13 +1302,16 @@ UINT8 btsnd_hcic_ble_set_ext_adv_scan_rsp_data(UINT8 adv_handle,
 
     memset(pp, 0, data_len);
 
-    if (data_len > HCIC_PARAM_SIZE_EXT_ADV_WRITE_DATA) {
-        data_len = HCIC_PARAM_SIZE_EXT_ADV_WRITE_DATA;
-    }
-
-    UINT8_TO_STREAM (pp, data_len);
     if (p_data != NULL && data_len > 0) {
+        if (data_len > HCIC_PARAM_SIZE_EXT_ADV_WRITE_DATA) {
+            data_len = HCIC_PARAM_SIZE_EXT_ADV_WRITE_DATA;
+        }
+
+        UINT8_TO_STREAM (pp, data_len);
+
         ARRAY_TO_STREAM (pp, p_data, data_len);
+    } else {
+        return FALSE;
     }
 
     return btu_hcif_send_cmd_sync (LOCAL_BR_EDR_CONTROLLER_ID, p);
@@ -1451,14 +1448,16 @@ UINT8 btsnd_hcic_ble_set_periodic_adv_data(UINT8 adv_handle,
 
     //memset(pp, 0, len);
 
-    if (len > HCIC_PARAM_SIZE_WRITE_PERIODIC_ADV_DATA) {
-        len = HCIC_PARAM_SIZE_WRITE_PERIODIC_ADV_DATA;
-    }
-
-    UINT8_TO_STREAM (pp, len);
-
     if (p_data != NULL && len > 0) {
+        if (len > HCIC_PARAM_SIZE_WRITE_PERIODIC_ADV_DATA) {
+            len = HCIC_PARAM_SIZE_WRITE_PERIODIC_ADV_DATA;
+        }
+
+        UINT8_TO_STREAM (pp, len);
+
         ARRAY_TO_STREAM (pp, p_data, len);
+    } else {
+        return FALSE;
     }
 
     return btu_hcif_send_cmd_sync(LOCAL_BR_EDR_CONTROLLER_ID, p);
@@ -1776,112 +1775,4 @@ UINT8 btsnd_hcic_ble_write_rf_path_compensation(UINT16 rf_tx_path, UINT16 rf_rx_
     return btu_hcif_send_cmd_sync(LOCAL_BR_EDR_CONTROLLER_ID, p);
 }
 #endif // #if (BLE_50_FEATURE_SUPPORT == TRUE)
-
-#if (BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER == TRUE)
-UINT8 btsnd_hcic_ble_set_periodic_adv_recv_enable(UINT16 sync_handle, UINT8 enable)
-{
-    BT_HDR *p;
-    UINT8 *pp;
-
-    HCIC_BLE_CMD_CREATED(p, pp, HCIC_PARAM_SIZE_PERIODIC_ADV_RECV_ENABLE);
-
-    pp = (UINT8 *)(p + 1);
-
-    UINT16_TO_STREAM(pp, HCI_BLE_SET_PERIOD_ADV_RECV_ENABLE);
-    UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_PERIODIC_ADV_RECV_ENABLE);
-
-    UINT16_TO_STREAM(pp, sync_handle);
-    UINT8_TO_STREAM(pp, enable);
-
-    return btu_hcif_send_cmd_sync(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-
-BOOLEAN btsnd_hcic_ble_periodic_adv_sync_trans(UINT16 conn_handle, UINT16 service_data, UINT16 sync_handle)
-{
-    BT_HDR *p;
-    UINT8 *pp;
-
-    HCIC_BLE_CMD_CREATED(p, pp, HCIC_PARAM_SIZE_PERIODIC_ADV_SYNC_TRANS);
-
-    pp = (UINT8 *)(p + 1);
-
-    UINT16_TO_STREAM(pp, HCI_BLE_PERIOD_ADV_SYNC_TRANS);
-    UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_PERIODIC_ADV_SYNC_TRANS);
-
-    UINT16_TO_STREAM(pp, conn_handle);
-    UINT16_TO_STREAM(pp, service_data);
-    UINT16_TO_STREAM(pp, sync_handle);
-
-    btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-    return TRUE;
-}
-
-BOOLEAN btsnd_hcic_ble_periodic_adv_set_info_trans(UINT16 conn_handle, UINT16 service_data, UINT8 adv_handle)
-{
-    BT_HDR *p;
-    UINT8 *pp;
-
-    HCI_TRACE_DEBUG("%s conn handle %x, adv handle %x", __func__, conn_handle, adv_handle);
-
-    HCIC_BLE_CMD_CREATED(p, pp, HCIC_PARAM_SIZE_PERIODIC_ADV_SET_INFO_TRANS);
-
-    pp = (UINT8 *)(p + 1);
-
-    UINT16_TO_STREAM(pp, HCI_BLE_PERIOD_ADV_SET_INFO_TRANS);
-    UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_PERIODIC_ADV_SET_INFO_TRANS);
-
-    UINT16_TO_STREAM(pp, conn_handle);
-    UINT16_TO_STREAM(pp, service_data);
-    UINT8_TO_STREAM(pp, adv_handle);
-
-    btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-    return TRUE;
-}
-
-BOOLEAN btsnd_hcic_ble_set_periodic_adv_sync_trans_params(UINT16 conn_handle, UINT8 mode, UINT16 skip, UINT16 sync_timeout, UINT8 cte_type)
-{
-    BT_HDR *p;
-    UINT8 *pp;
-
-    HCI_TRACE_DEBUG("%s conn handle %x, mode %x, sync timeout %x", __func__, conn_handle, mode, sync_timeout);
-
-    HCIC_BLE_CMD_CREATED(p, pp, HCIC_PARAM_SIZE_SET_PAST_PARAMS);
-
-    pp = (UINT8 *)(p + 1);
-
-    UINT16_TO_STREAM(pp, HCI_BLE_SET_PAST_PARAMS);
-    UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_SET_PAST_PARAMS);
-
-    UINT16_TO_STREAM(pp, conn_handle);
-    UINT8_TO_STREAM(pp, mode);
-    UINT16_TO_STREAM(pp, skip);
-    UINT16_TO_STREAM(pp, sync_timeout);
-    UINT8_TO_STREAM(pp, cte_type);
-
-    btu_hcif_send_cmd(LOCAL_BR_EDR_CONTROLLER_ID, p);
-    return TRUE;
-}
-
-UINT8 btsnd_hcic_ble_set_default_periodic_adv_sync_trans_params(UINT8 mode, UINT16 skip, UINT16 sync_timeout, UINT8 cte_type)
-{
-    BT_HDR *p;
-    UINT8 *pp;
-
-    HCI_TRACE_DEBUG("%s mode %x, skip %x, sync timeout %x", __func__, mode, skip, sync_timeout);
-
-    HCIC_BLE_CMD_CREATED(p, pp, HCIC_PARAM_SIZE_SET_DEFAULT_PAST_PARAMS);
-
-    pp = (UINT8 *)(p + 1);
-
-    UINT16_TO_STREAM(pp, HCI_BLE_SET_DEFAULT_PAST_PARAMS);
-    UINT8_TO_STREAM(pp, HCIC_PARAM_SIZE_SET_DEFAULT_PAST_PARAMS);
-
-    UINT8_TO_STREAM(pp, mode);
-    UINT16_TO_STREAM(pp, skip);
-    UINT16_TO_STREAM(pp, sync_timeout);
-    UINT8_TO_STREAM(pp, cte_type);
-
-    return btu_hcif_send_cmd_sync(LOCAL_BR_EDR_CONTROLLER_ID, p);
-}
-#endif // #if (BLE_FEAT_PERIODIC_ADV_SYNC_TRANSFER == TRUE)
 #endif

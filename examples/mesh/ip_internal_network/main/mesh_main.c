@@ -7,9 +7,8 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 #include <string.h>
-#include <inttypes.h>
 #include "esp_wifi.h"
-#include "esp_mac.h"
+#include "esp_system.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_mesh.h"
@@ -168,7 +167,7 @@ void esp_mesh_mqtt_task(void *arg)
                         MACSTR ": sent with err code: %d", i, MAC2STR(s_route_table[i].addr), err);
             }
         }
-        vTaskDelay(2 * 1000 / portTICK_PERIOD_MS);
+        vTaskDelay(2 * 1000 / portTICK_RATE_MS);
     }
     vTaskDelete(NULL);
 }
@@ -361,7 +360,7 @@ void mesh_event_handler(void *arg, esp_event_base_t event_base,
     }
     break;
     default:
-        ESP_LOGI(MESH_TAG, "unknown id:%" PRId32 "", event_id);
+        ESP_LOGI(MESH_TAG, "unknown id:%d", event_id);
         break;
     }
 }
@@ -423,6 +422,6 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_mesh_set_config(&cfg));
     /* mesh start */
     ESP_ERROR_CHECK(esp_mesh_start());
-    ESP_LOGI(MESH_TAG, "mesh starts successfully, heap:%" PRId32 ", %s\n",  esp_get_free_heap_size(),
+    ESP_LOGI(MESH_TAG, "mesh starts successfully, heap:%d, %s\n",  esp_get_free_heap_size(),
              esp_mesh_is_root_fixed() ? "root fixed" : "root not fixed");
 }

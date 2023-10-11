@@ -1,17 +1,22 @@
-/*
- * SPDX-FileCopyrightText: 2018-2020 Alibaba Group Holding Limited
- *
- * SPDX-License-Identifier: Apache-2.0
- *
- * SPDX-FileContributor: 2020-2022 Espressif Systems (Shanghai) CO LTD
- */
+// Copyright (C) 2018-2020 Alibaba Group Holding Limited
+// Adaptations to ESP-IDF Copyright (c) 2020 Espressif Systems (Shanghai) Co. Ltd.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <stdio.h>
 #include <string.h>
-#include <inttypes.h>
 
 #include "esp_log.h"
-#include "esp_random.h"
 #include "nvs_flash.h"
 
 #include "esp_ble_mesh_defs.h"
@@ -249,7 +254,7 @@ static void genie_model_retry_timer_cb(void *args)
     /* start new timer */
     if (!genie_dlist_is_empty(p_head)) {
         util_timer_start(&g_vnd_msg_timer, nearest);
-        ESP_LOGD(TAG, "restart retry timer, timeout: %" PRIu32, nearest);
+        ESP_LOGD(TAG, "restart retry timer, timeout: %d", nearest);
     } else {
         util_timer_stop(&g_vnd_msg_timer);
         ESP_LOGD(TAG, "list empty, stop timer");
@@ -633,5 +638,5 @@ void genie_model_dispatch(uint32_t opcode, esp_ble_mesh_model_t *model,
             return;
         }
     }
-    ESP_LOGW(TAG, "not find callback function for opcode: 0x%02" PRIu32, opcode);
+    ESP_LOGW(TAG, "not find callback function for opcode: 0x%02x", opcode);
 }

@@ -3,9 +3,6 @@
   - esp32s2
   - esp32s3
   - esp32c3
-  - esp32c2
-  - esp32c6
-  - esp32h2
 
 .target_test: &target_test
   - example_test
@@ -22,7 +19,6 @@
   patterns:
     - build_components
     - build_system
-    - downloadable-tools
   included_in:
     - build:target_test
 
@@ -35,9 +31,6 @@
     - docker
   patterns:
     - docker
-    - submodule
-    - build_system
-    - downloadable-tools
 
 "build:windows":
   labels:
@@ -55,7 +48,6 @@
   patterns:
     - build_system
     - macos
-    - downloadable-tools
 
 # ---------------
 # Build Test Jobs
@@ -69,8 +61,6 @@
   patterns:
     - build_components
     - build_system
-    - build_target_test
-    - downloadable-tools
   included_in:
     - "build:{0}"
     - build:target_test
@@ -83,7 +73,6 @@ build:integration_test:
     - build_system
   included_in:
     - build:target_test
-
 
 ####################
 # Target Test Jobs #
@@ -124,78 +113,13 @@ build:integration_test:
     - "build:component_ut-{0}"
     - build:target_test
 
-# To reduce the specific runners' usage.
-# Do not create these jobs by default patterns on development branches
-# Can be triggered by labels or related changes
-"test:{0}-{1}-{2}":
-  matrix:
-    - *target_test
-    - *all_targets
-    - - bt        # example_test_005
-      - wifi      # pytest*wifi*
-      - ethernet  # pytest*ethernet*
-      - sdio      # pytest*sdio*
-      - usb       # USB Device & Host tests
-      - adc       # pytest*adc*
-      - i154
-      - flash_multi
-      - ecdsa
-      - ccs811    # pytest*ccs811*
-  patterns:
-    - "{0}-{1}-{2}"
-    - "{0}-{2}"
-    - "target_test-{2}"
+"test:integration_test":
   labels:
-    - "{0}_{1}"
-    - "{0}"
-    - target_test
-  included_in:
-    - "build:{0}-{1}"
-    - "build:{0}"
-    - build:target_test
-
-# For example_test*flash_encryption_wifi_high_traffic jobs
-# set `INCLUDE_NIGHTLY_RUN` variable when triggered on development branches
-"test:example_test-{0}-include_nightly_run-rule":
-  matrix:
-    - - esp32
-      - esp32c3
-  specific_rules:
-    - "if-example_test-ota-include_nightly_run-rule"
-  included_in:
-    - "build:example_test-{0}"
-    - "build:example_test"
-    - build:target_test
-
-# For i154 runners
-"test:example_test-i154":
-  patterns:
-    - "example_test-i154"
-    - "target_test-i154"
-  labels:
-    - target_test
-    - example_test
-  included_in:
-    - "build:example_test-esp32s3"
-    - "build:example_test-esp32c6"
-    - "build:example_test-esp32h2"
-    - "build:example_test"
-    - build:target_test
-
-"test:integration_test_{0}":
-  matrix:
-    - - wifi
-      - ble
-  labels:
-    - integration_test_{0}
     - integration_test
     - target_test
   patterns:
-    - integration_test-{0}
-    - target_test-{0}
-    # - maybe others
+    - integration_test
   included_in:
-    - test:integration_test
     - build:integration_test
     - build:target_test
 
@@ -214,16 +138,27 @@ build:integration_test:
 #################################
 # Triggered Only By Labels Jobs #
 #################################
+"labels:iperf_stress_test": # example_test
+  labels:
+    - iperf_stress_test
+  included_in:
+    - build:example_test
+    - build:example_test-esp32
+    - build:target_test
+
+"labels:weekend_test": # custom test
+  labels:
+    - weekend_test
+  included_in:
+    - build:custom_test
+    - build:custom_test-esp32
+    - build:target_test
+
 "labels:nvs_coverage": # host_test
   labels:
     - nvs_coverage
 
-"labels-protected:lan8720":  # UT # FIXME: IDFCI-1176 temporary run this on master/release or with label
+"labels:fuzzer_test-weekend_test": # host test
   labels:
-    - lan8720
-  included_in:
-    - build:unit_test
-    - build:unit_test-esp32
-    - build:target_test
-    - build:component_ut
-    - build:component_ut-esp32
+    - fuzzer_test
+    - weekend_test

@@ -63,7 +63,7 @@ SECTIONS
 
     mapping[rtc_data]
 
-    *rtc_wake_stub*.*(.data .rodata .data.* .rodata.*)
+    *rtc_wake_stub*.*(.data .rodata .data.* .rodata.* .bss .bss.*)
     _rtc_data_end = ABSOLUTE(.);
 
   } > rtc_data_location
@@ -108,46 +108,6 @@ SECTIONS
     . = ALIGN(4) ;
     _rtc_force_slow_end = ABSOLUTE(.);
   } > rtc_slow_seg
-
-  /**
-   * This section holds RTC FAST data that should have fixed addresses.
-   * The data are not initialized at power-up and are retained during deep sleep.
-   */
-  .rtc_fast_reserved (NOLOAD):
-  {
-    . = ALIGN(4);
-    _rtc_fast_reserved_start = ABSOLUTE(.);
-    /* New data can only be added here to ensure existing data are not moved.
-       Because data have adhered to the end of the segment and code is relied on it.
-       >> put new data here << */
-    KEEP(*(.bootloader_data_rtc_mem .bootloader_data_rtc_mem.*))
-    _rtc_fast_reserved_end = ABSOLUTE(.);
-  } > rtc_fast_reserved_seg
-
-  _rtc_fast_reserved_length = _rtc_fast_reserved_end - _rtc_fast_reserved_start;
-  ASSERT((_rtc_fast_reserved_length <= LENGTH(rtc_fast_reserved_seg)),
-          "RTC FAST reserved segment data does not fit.")
-
-  /**
-   * This section holds RTC SLOW data that should have fixed addresses.
-   * The data are not initialized at power-up and are retained during deep sleep.
-   */
-  .rtc_slow_reserved (NOLOAD):
-  {
-    . = ALIGN(4);
-    _rtc_slow_reserved_start = ABSOLUTE(.);
-    /* New data can only be added here to ensure existing data are not moved.
-       Because data have adhered to the end of the segment and code is relied on it.
-       >> put new data here << */
-
-    *(.rtc_timer_data_in_rtc_mem .rtc_timer_data_in_rtc_mem.*)
-    _rtc_slow_reserved_end = ABSOLUTE(.);
-  } > rtc_slow_reserved_seg
-
-  _rtc_slow_reserved_length = _rtc_slow_reserved_end - _rtc_slow_reserved_start;
-  _rtc_reserved_length = _rtc_slow_reserved_length;
-  ASSERT((_rtc_slow_reserved_length <= LENGTH(rtc_slow_reserved_seg)),
-          "RTC SLOW reserved segment data does not fit.")
 
   /* Get size of rtc slow data based on rtc_data_location alias */
   _rtc_slow_length = (ORIGIN(rtc_slow_seg) == ORIGIN(rtc_data_location))
@@ -225,6 +185,10 @@ SECTIONS
     *(.gnu.linkonce.s2.*)
     *(.jcr)
 
+    _esp_system_init_fn_array_start = ABSOLUTE(.);
+    KEEP (*(SORT(.esp_system_init_fn) SORT(.esp_system_init_fn.*)))
+    _esp_system_init_fn_array_end = ABSOLUTE(.);
+
     mapping[dram0_data]
 
     _data_end = ABSOLUTE(.);
@@ -257,7 +221,7 @@ SECTIONS
     _noinit_end = ABSOLUTE(.);
   } > dram0_0_seg
 
-   /* external memory bss, from any global variable with EXT_RAM_BSS_ATTR attribute*/
+   /* external memory bss, from any global variable with EXT_RAM_ATTR attribute*/
   .ext_ram.bss (NOLOAD) :
   {
     _ext_ram_bss_start = ABSOLUTE(.);
@@ -285,7 +249,6 @@ SECTIONS
 
   .flash.appdesc : ALIGN(0x10)
   {
-    _rodata_reserved_start = ABSOLUTE(.);  /* This is a symbol marking the flash.rodata start, this can be used for mmu driver to maintain virtual address */
     _rodata_start = ABSOLUTE(.);
 
     *(.rodata_desc .rodata_desc.*)               /* Should be the first.  App version info.        DO NOT PUT ANYTHING BEFORE IT! */
@@ -341,10 +304,6 @@ SECTIONS
     soc_reserved_memory_region_start = ABSOLUTE(.);
     KEEP (*(.reserved_memory_address))
     soc_reserved_memory_region_end = ABSOLUTE(.);
-    /* System init functions registered via ESP_SYSTEM_INIT_FN */
-    _esp_system_init_fn_array_start = ABSOLUTE(.);
-    KEEP (*(SORT_BY_INIT_PRIORITY(.esp_system_init_fn.*)))
-    _esp_system_init_fn_array_end = ABSOLUTE(.);
     _rodata_end = ABSOLUTE(.);
     /* Literals are also RO data. */
     _lit4_start = ABSOLUTE(.);
@@ -364,17 +323,8 @@ SECTIONS
 
   _flash_rodata_align = ALIGNOF(.flash.rodata);
 
-  /*
-    This section is a place where we dump all the rodata which aren't used at runtime,
-    so as to avoid binary size increase
-  */
   .flash.rodata_noload (NOLOAD) :
   {
-    /*
-      This is a symbol marking the flash.rodata end, this can be used for mmu driver to maintain virtual address
-      We don't need to include the noload rodata in this section
-    */
-    _rodata_reserved_end = ABSOLUTE(.);
     . = ALIGN (4);
     mapping[rodata_noload]
   } > default_rodata_seg
@@ -382,7 +332,6 @@ SECTIONS
   .flash.text :
   {
     _stext = .;
-    _instruction_reserved_start = ABSOLUTE(.);  /* This is a symbol marking the flash.text start, this can be used for mmu driver to maintain virtual address */
     _text_start = ABSOLUTE(.);
 
     mapping[flash_text]
@@ -401,7 +350,6 @@ SECTIONS
     . += _esp_flash_mmap_prefetch_pad_size;
 
     _text_end = ABSOLUTE(.);
-    _instruction_reserved_end = ABSOLUTE(.);  /* This is a symbol marking the flash.text end, this can be used for mmu driver to maintain virtual address */
     _etext = .;
 
     /* Similar to _iram_start, this symbol goes here so it is
@@ -444,32 +392,12 @@ SECTIONS
   .dram0.heap_start (NOLOAD) :
   {
     . = ALIGN (8);
-    /* Lowest possible start address for the heap */
-    _heap_low_start = ABSOLUTE(.);
+    _heap_start = ABSOLUTE(.);
   } > dram0_0_seg
-
-  /** This section will be used by the debugger and disassembler to get more information
-    * about raw data present in the code.
-    * Indeed, it may be required to add some padding at some points in the code
-    * in order to align a branch/jump destination on a particular bound.
-    * Padding these instructions will generate null bytes that shall be
-    * interpreted as data, and not code by the debugger or disassembler.
-    * This section will only be present in the ELF file, not in the final binary
-    * For more details, check GCC-212
-    */
-  .xt.prop 0 :
-  {
-    KEEP (*(.xt.prop .gnu.linkonce.prop.*))
-  }
-
-  .xt.lit 0 :
-  {
-    KEEP (*(.xt.lit .gnu.linkonce.p.*))
-  }
 }
 
 ASSERT(((_iram_end - ORIGIN(iram0_0_seg)) <= LENGTH(iram0_0_seg)),
           "IRAM0 segment data does not fit.")
 
-ASSERT(((_heap_low_start - ORIGIN(dram0_0_seg)) <= LENGTH(dram0_0_seg)),
+ASSERT(((_heap_start - ORIGIN(dram0_0_seg)) <= LENGTH(dram0_0_seg)),
           "DRAM segment data does not fit.")

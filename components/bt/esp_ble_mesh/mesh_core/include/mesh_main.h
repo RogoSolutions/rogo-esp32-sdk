@@ -531,12 +531,11 @@ int bt_mesh_provision(const uint8_t net_key[16], uint16_t net_idx,
                       uint8_t flags, uint32_t iv_index, uint16_t addr,
                       const uint8_t dev_key[16]);
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+/* NINH.D.H 18.07.2023 */
 int bt_mesh_rogo_provision(const uint8_t net_key[16], uint16_t net_idx,
-                           uint8_t flags, uint32_t iv_index, uint32_t seq_num,
-                           uint16_t addr, const uint8_t dev_key[16]);
-/************************************************************************************************/
+                      uint8_t flags, uint32_t iv_index, uint32_t seq_num,
+                      uint16_t addr, const uint8_t dev_key[16]);
+/***********************************************************************/
 
 /** @brief Check if the device is an unprovisioned device
  *         and will act as a node once provisioned.

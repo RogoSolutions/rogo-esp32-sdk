@@ -6,18 +6,18 @@ ifneq ($(filter clean,$(MAKECMDGOALS)),)
 endif
 
 SOURCE_FILES = $(abspath \
-	test_multi_heap.cpp \
+    ../multi_heap.c \
+    ../heap_tlsf.c \
 	../multi_heap_poisoning.c \
-	../multi_heap.c \
-	../tlsf/tlsf.c \
+	test_multi_heap.cpp \
 	main.cpp \
-	)
+    )
 
-INCLUDE_FLAGS = -I../include -I../../../tools/catch -I../tlsf
+INCLUDE_FLAGS = -I../include -I../../../tools/catch
 
 GCOV ?= gcov
 
-CPPFLAGS += $(INCLUDE_FLAGS) -D CONFIG_LOG_DEFAULT_LEVEL -g -fstack-protector-all -m32
+CPPFLAGS += $(INCLUDE_FLAGS) -D CONFIG_LOG_DEFAULT_LEVEL -g -fstack-protector-all -m32  -DCONFIG_HEAP_POISONING_COMPREHENSIVE
 CFLAGS += -Wall -Werror -fprofile-arcs -ftest-coverage
 CXXFLAGS += -std=c++11 -Wall -Werror  -fprofile-arcs -ftest-coverage
 LDFLAGS += -lstdc++ -fprofile-arcs -ftest-coverage -m32

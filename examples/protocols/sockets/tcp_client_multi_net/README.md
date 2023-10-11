@@ -1,6 +1,3 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C6 | ESP32-H2 | ESP32-S2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | -------- | -------- |
-
 # Multiple Ethernet Example
 (See the README.md file in the upper level 'examples' directory for more information about examples.)
 
@@ -25,7 +22,7 @@ To run this example, you need to have one ESP32 development board integrated wit
 
 ### Configure the project
 
-Enter project configuration by `idf.py menuconfig` and navigate into:
+Enter project configuration by `idf.py menuconfig` (or `make menuconfig` if using legacy GNU Make build system) and navigate into:
 
 * `Example Connection Configuration` menu to choose the connection details:
 

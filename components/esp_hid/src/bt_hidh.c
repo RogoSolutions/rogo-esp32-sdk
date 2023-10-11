@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2017-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2017-2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "bt_hidh.h"
 #if CONFIG_BT_HID_HOST_ENABLED
@@ -27,7 +35,6 @@ typedef struct {
 typedef struct {
     fixed_queue_t *connection_queue; /* Queue of connection */
     esp_event_loop_handle_t event_loop_handle;
-    esp_event_handler_t event_callback;
 } hidh_local_param_t;
 
 static hidh_local_param_t hidh_local_param;
@@ -173,8 +180,6 @@ static void free_local_param(void)
     if (hidh_local_param.connection_queue) {
         fixed_queue_free(hidh_local_param.connection_queue, free);
     }
-
-    hidh_local_param.event_callback = NULL;
 }
 
 static void open_failed_cb(esp_hidh_dev_t *dev, esp_hidh_status_t status, esp_hidh_event_data_t *p,
@@ -244,15 +249,17 @@ static void esp_hh_cb(esp_hidh_cb_event_t event, esp_hidh_cb_param_t *param)
                     break;
                 } else {
                     ESP_LOGD(TAG, "incoming device connect");
-                    if ((dev = hidh_dev_ctor(param->open.bd_addr)) == NULL) {
-                        ESP_LOGE(TAG, "%s create device failed!", __func__);
-                        param->open.status = ESP_HIDH_ERR_NO_RES;
-                        break;
+                    if (param->open.status == ESP_HIDH_OK) {
+                        if ((dev = hidh_dev_ctor(param->open.bd_addr)) == NULL) {
+                            ESP_LOGE(TAG, "%s create device failed!", __func__);
+                            param->open.status = ESP_HIDH_ERR_NO_RES;
+                            break;
+                        }
+                        esp_hidh_dev_lock(dev);
+                        dev->opened = false; // not opened by ourself
+                        dev->is_orig = false;
+                        esp_hidh_dev_unlock(dev);
                     }
-                    esp_hidh_dev_lock(dev);
-                    dev->opened = false; // not opened by ourself
-                    dev->is_orig = false;
-                    esp_hidh_dev_unlock(dev);
                 }
             }
 
@@ -993,18 +1000,6 @@ static void esp_bt_hidh_dev_dump(esp_hidh_dev_t *dev, FILE *fp)
     }
 }
 
-static void esp_bt_hidh_event_handler_wrapper(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
-                                              void *event_data)
-{
-    esp_hidh_preprocess_event_handler(event_handler_arg, event_base, event_id, event_data);
-
-    if (hidh_local_param.event_callback) {
-        hidh_local_param.event_callback(event_handler_arg, event_base, event_id, event_data);
-    }
-
-    esp_hidh_post_process_event_handler(event_handler_arg, event_base, event_id, event_data);
-}
-
 esp_err_t esp_bt_hidh_init(const esp_hidh_config_t *config)
 {
     esp_err_t ret = ESP_OK;
@@ -1032,10 +1027,10 @@ esp_err_t esp_bt_hidh_init(const esp_hidh_config_t *config)
             ret = ESP_FAIL;
             break;
         }
-
-        hidh_local_param.event_callback = config->callback;
         ret = esp_event_handler_register_with(hidh_local_param.event_loop_handle, ESP_HIDH_EVENTS, ESP_EVENT_ANY_ID,
-                                              esp_bt_hidh_event_handler_wrapper, config->callback_arg);
+                                              esp_hidh_process_event_data_handler, NULL);
+        ret |= esp_event_handler_register_with(hidh_local_param.event_loop_handle, ESP_HIDH_EVENTS, ESP_EVENT_ANY_ID,
+                                               config->callback, config->callback_arg);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "event_loop register failed!");
             ret = ESP_FAIL;

@@ -106,14 +106,6 @@ static vfs_uart_context_t* s_ctx[UART_NUM] = {
 #endif
 };
 
-static const char *s_uart_mount_points[UART_NUM] = {
-    "/0",
-    "/1",
-#if UART_NUM > 2
-    "/2",
-#endif
-};
-
 #ifdef CONFIG_VFS_SUPPORT_SELECT
 
 typedef struct {
@@ -134,21 +126,21 @@ static esp_err_t uart_end_select(void *end_select_args);
 
 #endif // CONFIG_VFS_SUPPORT_SELECT
 
-static int uart_open(const char *path, int flags, int mode)
+static int uart_open(const char * path, int flags, int mode)
 {
     // this is fairly primitive, we should check if file is opened read only,
     // and error out if write is requested
     int fd = -1;
 
-    for (int i = 0; i < UART_NUM; i++) {
-        if (strcmp(path, s_uart_mount_points[i]) == 0) {
-            fd = i;
-            break;
-        }
-    }
-    if (fd == -1) {
+    if (strcmp(path, "/0") == 0) {
+        fd = 0;
+    } else if (strcmp(path, "/1") == 0) {
+        fd = 1;
+    } else if (strcmp(path, "/2") == 0) {
+        fd = 2;
+    } else {
         errno = ENOENT;
-        return -1;
+        return fd;
     }
 
     s_ctx[fd]->non_blocking = ((flags & O_NONBLOCK) == O_NONBLOCK);
@@ -307,7 +299,6 @@ static int uart_fcntl(int fd, int cmd, int arg)
     assert(fd >=0 && fd < 3);
     int result = 0;
     if (cmd == F_GETFL) {
-        result |= O_RDWR;
         if (s_ctx[fd]->non_blocking) {
             result |= O_NONBLOCK;
         }

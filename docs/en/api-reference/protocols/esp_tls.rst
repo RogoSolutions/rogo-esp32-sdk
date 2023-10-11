@@ -8,12 +8,10 @@ The ESP-TLS component provides a simplified API interface for accessing the comm
 It supports common scenarios like CA certification validation, SNI, ALPN negotiation, non-blocking connection among others.
 All the configuration can be specified in the ``esp_tls_cfg_t`` data structure. Once done, TLS communication can be conducted using the following APIs:
 
-    * :cpp:func:`esp_tls_init`: for initializing the TLS connection handle.
-    * :cpp:func:`esp_tls_conn_new_sync`: for opening a new blocking TLS connection.
-    * :cpp:func:`esp_tls_conn_new_async`: for opening a new non-blocking TLS connection.
+    * :cpp:func:`esp_tls_conn_new`: for opening a new TLS connection.
     * :cpp:func:`esp_tls_conn_read`: for reading from the connection.
     * :cpp:func:`esp_tls_conn_write`: for writing into the connection.
-    * :cpp:func:`esp_tls_conn_destroy`: for freeing up the connection.
+    * :cpp:func:`esp_tls_conn_delete`: for freeing up the connection.
 
 Any application layer protocol like HTTP1, HTTP2 etc can be executed on top of this layer.
 
@@ -40,8 +38,6 @@ The ESP-TLS  component has a file :component_file:`esp-tls/esp_tls.h` which cont
 of the two SSL/TLS Libraries between mbedtls and wolfssl for its operation. API specific to mbedtls are present in :component_file:`esp-tls/private_include/esp_tls_mbedtls.h` and API
 specific to wolfssl are present in :component_file:`esp-tls/private_include/esp_tls_wolfssl.h`.
 
-.. _esp_tls_server_verification:
-
 TLS Server verification
 -----------------------
 
@@ -57,25 +53,6 @@ The ESP-TLS provides multiple options for TLS server verification on the client 
     * **skip server verification**: This is an insecure option provided in the ESP-TLS for testing purpose. The option can be set by enabling :ref:`CONFIG_ESP_TLS_INSECURE` and :ref:`CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY` in the ESP-TLS menuconfig. When this option is enabled the ESP-TLS will skip server verification by default when no other options for server verification are selected in the :cpp:type:`esp_tls_cfg_t` structure.
       *WARNING:Enabling this option comes with a potential risk of establishing a TLS connection with a server which has a fake identity, provided that the server certificate is not provided either through API or other mechanism like ca_store etc.*
 
-ESP-TLS Server cert selection hook
-----------------------------------
-The ESP-TLS component provides an option to set the server cert selection hook when using the mbedTLS stack. This provides an ability to configure and use a certificate selection callback during server handshake, to select a certificate to present to the client based on the TLS extensions supplied in the client hello (alpn, sni, etc). To enable this feature, please enable  :ref:`CONFIG_ESP_TLS_SERVER_CERT_SELECT_HOOK` in the ESP-TLS menuconfig.
-The certificate selection callback can be configured in the :cpp:type:`esp_tls_cfg_t` structure as follows:
-
-.. code-block:: c
-    
-    int cert_selection_callback(mbedtls_ssl_context *ssl)
-    {
-        /* Code that the callback should execute */
-        return 0;
-    }
-
-    esp_tls_cfg_t cfg = {
-        cert_select_cb = cert_section_callback,
-    };
-
-.. _esp_tls_wolfssl:
-
 Underlying SSL/TLS Library Options
 ----------------------------------
 The ESP-TLS  component has an option to use mbedtls or wolfssl as their underlying SSL/TLS library. By default only mbedtls is available and is
@@ -83,7 +60,7 @@ used, wolfssl SSL/TLS library is available publicly at https://github.com/espres
 also provides few examples which are useful for understanding the API. Please refer the repository README.md for
 information on licensing and other options. Please see below option for using wolfssl in your project.
 
-.. note::   `As the library options are internal to ESP-TLS, switching the libraries will not change ESP-TLS specific code for a project.`
+.. note::   `As the library options are internal to ESP-TLS, switching the libries will not change ESP-TLS specific code for a project.`
 
 How to use wolfssl with ESP-IDF
 -------------------------------
@@ -102,11 +79,11 @@ There are two ways to use wolfssl in your project
 
     git clone https://github.com/espressif/esp-wolfssl.git
 
-* Include  esp-wolfssl in ESP-IDF with setting EXTRA_COMPONENT_DIRS in CMakeLists.txt of your project as done in `wolfssl/examples <https://github.com/espressif/esp-wolfssl/tree/master/examples>`_. For reference see Optional Project variables in :doc:`build-system.</api-guides/build-system>`
+* Include  esp-wolfssl in ESP-IDF with setting EXTRA_COMPONENT_DIRS in CMakeLists.txt/Makefile of your project as done in `wolfssl/examples <https://github.com/espressif/esp-wolfssl/tree/master/examples>`_. For reference see Optional Project variables in :doc:`build-system.</api-guides/build-system>`
 
 After above steps, you will have option to choose wolfssl as underlying SSL/TLS library in configuration menu of your project as follows::
 
-    idf.py menuconfig -> ESP-TLS -> choose SSL/TLS Library -> mbedtls/wolfssl
+    idf.py/make menuconfig -> ESP-TLS -> choose SSL/TLS Library -> mbedtls/wolfssl
 
 Comparison between mbedtls and wolfssl
 --------------------------------------
@@ -196,4 +173,3 @@ API Reference
 -------------
 
 .. include-build-file:: inc/esp_tls.inc
-.. include-build-file:: inc/esp_tls_errors.inc

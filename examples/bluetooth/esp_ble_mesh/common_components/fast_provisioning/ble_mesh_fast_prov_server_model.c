@@ -1,12 +1,19 @@
-/*
- * SPDX-FileCopyrightText: 2017-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2017-2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <stdio.h>
 #include <string.h>
-#include <inttypes.h>
 
 #include "esp_ble_mesh_defs.h"
 #include "esp_ble_mesh_local_data_operation_api.h"
@@ -581,7 +588,7 @@ esp_err_t example_handle_fast_prov_status_send_comp_evt(int err_code, uint32_t o
 
     srv = (example_fast_prov_server_t *)model->user_data;
 
-    ESP_LOGI(TAG, "%s: opcode 0x%06" PRIx32, __func__, opcode);
+    ESP_LOGI(TAG, "%s: opcode 0x%06x", __func__, opcode);
 
     switch (opcode) {
     case ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_INFO_STATUS:

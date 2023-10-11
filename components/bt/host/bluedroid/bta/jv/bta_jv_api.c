@@ -98,7 +98,7 @@ tBTA_JV_STATUS BTA_JvEnable(tBTA_JV_DM_CBACK *p_cback)
         APPL_TRACE_ERROR("No p_cback.");
     } else {
         APPL_TRACE_WARNING("No need to Init again.");
-        status = BTA_JV_ALREADY_DONE;
+        // status = BTA_JV_SUCCESS;
     }
     return (status);
 }
@@ -467,7 +467,7 @@ tBTA_JV_STATUS BTA_JvL2capConnect(tBTA_SEC sec_mask, tBTA_JV_ROLE role,
 **                  BTA_JV_FAILURE, otherwise.
 **
 *******************************************************************************/
-tBTA_JV_STATUS BTA_JvL2capClose(UINT32 handle, tBTA_JV_L2CAP_CBACK *p_cback, void *user_data)
+tBTA_JV_STATUS BTA_JvL2capClose(UINT32 handle)
 {
     tBTA_JV_STATUS status = BTA_JV_FAILURE;
     tBTA_JV_API_L2CAP_CLOSE *p_msg;
@@ -479,8 +479,6 @@ tBTA_JV_STATUS BTA_JvL2capClose(UINT32 handle, tBTA_JV_L2CAP_CBACK *p_cback, voi
         p_msg->hdr.event = BTA_JV_API_L2CAP_CLOSE_EVT;
         p_msg->handle = handle;
         p_msg->p_cb = &bta_jv_cb.l2c_cb[handle];
-        p_msg->p_cback = p_cback;
-        p_msg->user_data = user_data;
         bta_sys_sendmsg(p_msg);
         status = BTA_JV_SUCCESS;
     }
@@ -686,16 +684,20 @@ on
 **                  When the operation is complete, tBTA_JV_L2CAP_CBACK is
 **                  called with BTA_JV_L2CAP_READ_EVT.
 **
-** Returns          Length of read data.
+** Returns          BTA_JV_SUCCESS, if the request is being processed.
+**                  BTA_JV_FAILURE, otherwise.
 **
 *******************************************************************************/
-int BTA_JvL2capRead(UINT32 handle, UINT32 req_id, UINT8 *p_data, UINT16 len)
+tBTA_JV_STATUS BTA_JvL2capRead(UINT32 handle, UINT32 req_id, UINT8 *p_data, UINT16 len)
 {
+    tBTA_JV_STATUS status = BTA_JV_FAILURE;
     tBTA_JV_L2CAP_READ evt_data;
 
     APPL_TRACE_API( "%s", __func__);
 
+
     if (handle < BTA_JV_MAX_L2C_CONN && bta_jv_cb.l2c_cb[handle].p_cback) {
+        status = BTA_JV_SUCCESS;
         evt_data.status = BTA_JV_FAILURE;
         evt_data.handle = handle;
         evt_data.req_id = req_id;
@@ -709,7 +711,7 @@ int BTA_JvL2capRead(UINT32 handle, UINT32 req_id, UINT8 *p_data, UINT16 len)
             BTA_JV_L2CAP_READ_EVT, (tBTA_JV *)&evt_data, bta_jv_cb.l2c_cb[handle].user_data);
     }
 
-    return (evt_data.len);
+    return (status);
 }
 
 /*******************************************************************************
@@ -860,34 +862,6 @@ tBTA_JV_STATUS BTA_JvL2capWriteFixed(UINT16 channel, BD_ADDR *addr, UINT32 req_i
     return (status);
 }
 #endif /* BTA_JV_L2CAP_INCLUDED */
-
-#if BTA_JV_RFCOMM_INCLUDED
-/*******************************************************************************
-**
-** Function         BTA_JvRfcommConfig
-**
-** Description      This function is to configure RFCOMM.
-**
-** Returns          BTA_JV_SUCCESS, if the request is being processed.
-**                  BTA_JV_FAILURE, otherwise.
-**
-*******************************************************************************/
-tBTA_JV_STATUS BTA_JvRfcommConfig(BOOLEAN enable_l2cap_ertm)
-{
-    tBTA_JV_STATUS status = BTA_JV_FAILURE;
-    tBTA_JV_API_RFCOMM_CONFIG *p_msg;
-
-    APPL_TRACE_API( "%s", __func__);
-
-    if ((p_msg = (tBTA_JV_API_RFCOMM_CONFIG *)osi_malloc(sizeof(tBTA_JV_API_RFCOMM_CONFIG))) != NULL) {
-        p_msg->hdr.event = BTA_JV_API_RFCOMM_CONFIG_EVT;
-        p_msg->enable_l2cap_ertm = enable_l2cap_ertm;
-        bta_sys_sendmsg(p_msg);
-        status = BTA_JV_SUCCESS;
-    }
-
-    return (status);
-}
 
 /*******************************************************************************
 **
@@ -1194,7 +1168,6 @@ tBTA_JV_STATUS BTA_JvRfcommFlowControl(UINT32 handle, UINT16 credits_given)
     }
     return (status);
 }
-#endif /* BTA_JV_RFCOMM_INCLUDED */
 
 /*******************************************************************************
  **

@@ -673,11 +673,7 @@ bool bt_mesh_net_iv_update(uint32_t iv_index, bool iv_update)
             return false;
         }
 
-        if ((iv_index > bt_mesh.iv_index + 1)
-#if CONFIG_BLE_MESH_IVU_RECOVERY_IVI
-            || (iv_index == bt_mesh.iv_index + 1 && !iv_update)
-#endif
-            ) {
+        if (iv_index > bt_mesh.iv_index + 1) {
             BT_WARN("Performing IV Index Recovery");
             (void)memset(bt_mesh.rpl, 0, sizeof(bt_mesh.rpl));
             bt_mesh.iv_index = iv_index;
@@ -685,12 +681,10 @@ bool bt_mesh_net_iv_update(uint32_t iv_index, bool iv_update)
             goto do_update;
         }
 
-#if !CONFIG_BLE_MESH_IVU_RECOVERY_IVI
         if (iv_index == bt_mesh.iv_index + 1 && !iv_update) {
             BT_WARN("Ignoring new index in normal mode");
             return false;
         }
-#endif
 
         if (!iv_update) {
             /* Nothing to do */
@@ -1226,7 +1220,6 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
     }
 
     if (rx->net_if == BLE_MESH_NET_IF_ADV &&
-            !rx->friend_cred &&
             bt_mesh_relay_get() != BLE_MESH_RELAY_ENABLED &&
             bt_mesh_gatt_proxy_get() != BLE_MESH_GATT_PROXY_ENABLED) {
         return;
@@ -1239,7 +1232,7 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
      * Anything else (like GATT to adv, or locally originated packets)
      * use the Network Transmit state.
      */
-    if (rx->net_if == BLE_MESH_NET_IF_ADV && !rx->friend_cred) {
+    if (rx->net_if == BLE_MESH_NET_IF_ADV) {
         transmit = bt_mesh_relay_retransmit_get();
     } else {
         transmit = bt_mesh_net_transmit_get();
@@ -1309,7 +1302,6 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
      */
     if (IS_ENABLED(CONFIG_BLE_MESH_GATT_PROXY_SERVER) &&
             (bt_mesh_gatt_proxy_get() == BLE_MESH_GATT_PROXY_ENABLED ||
-             rx->friend_cred ||
              rx->net_if == BLE_MESH_NET_IF_LOCAL)) {
         if (bt_mesh_proxy_server_relay(&buf->b, rx->ctx.recv_dst) &&
                 BLE_MESH_ADDR_IS_UNICAST(rx->ctx.recv_dst)) {
@@ -1317,7 +1309,7 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
         }
     }
 
-    if (relay_to_adv(rx->net_if) || rx->friend_cred) {
+    if (relay_to_adv(rx->net_if)) {
 #if !defined(CONFIG_BLE_MESH_RELAY_ADV_BUF)
         bt_mesh_adv_send(buf, NULL, NULL);
 #else
@@ -1386,13 +1378,10 @@ int bt_mesh_net_decode(struct net_buf_simple *data, enum bt_mesh_net_if net_if,
         return -EBADMSG;
     }
 
-    /* For case MESH/NODE/RLY/BV-01-C, even the DST is RFU, it needs to be forwarded. */
-#if !CONFIG_BLE_MESH_BQB_TEST
     if (BLE_MESH_ADDR_IS_RFU(rx->ctx.recv_dst)) {
-        BT_ERR("Destination address is RFU; dropping packet 0x%02x", rx->ctx.recv_dst);
+        BT_ERR("Destination address is RFU; dropping packet");
         return -EBADMSG;
     }
-#endif
 
     if (net_if != BLE_MESH_NET_IF_LOCAL && bt_mesh_elem_find(rx->ctx.addr)) {
         BT_DBG("Dropping locally originated packet");
@@ -1471,11 +1460,6 @@ void bt_mesh_net_recv(struct net_buf_simple *data, int8_t rssi,
 
     /* Save the state so the buffer can later be relayed */
     net_buf_simple_save(&buf, &state);
-
-    BT_BQB(BLE_MESH_BQB_TEST_LOG_LEVEL_PRIMARY_ID_NODE | BLE_MESH_BQB_TEST_LOG_LEVEL_SUB_ID_NET,
-           "\nNetRecv: ctl: %d, src: %d, dst: %d, ttl: %d, data: 0x%s",
-           CTL(buf.data), SRC(buf.data), DST(buf.data), TTL(buf.data),
-           bt_hex(buf.data + BLE_MESH_NET_HDR_LEN, buf.len - BLE_MESH_NET_HDR_LEN));
 
     rx.local_match = (bt_mesh_fixed_group_match(rx.ctx.recv_dst) ||
                       bt_mesh_elem_find(rx.ctx.recv_dst));
@@ -1557,8 +1541,8 @@ void bt_mesh_net_start(void)
 
 #if defined(CONFIG_BLE_MESH_USE_DUPLICATE_SCAN)
     /* Add Mesh beacon type (Secure Network Beacon) to the exceptional list */
-    bt_mesh_update_exceptional_list(BLE_MESH_EXCEP_LIST_SUB_CODE_ADD,
-                                    BLE_MESH_EXCEP_LIST_TYPE_MESH_BEACON, NULL);
+    bt_mesh_update_exceptional_list(BLE_MESH_EXCEP_LIST_ADD,
+                                    BLE_MESH_EXCEP_INFO_MESH_BEACON, NULL);
 #endif
 
     if (IS_ENABLED(CONFIG_BLE_MESH_LOW_POWER)) {

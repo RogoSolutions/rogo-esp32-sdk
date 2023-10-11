@@ -25,7 +25,7 @@ Overview
 
     1. Provide overview where and how this API may be used.
     2. Where applicable include code snippets to illustrate functionality of particular functions.
-    3. To distinguish between sections, use the following `heading levels <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html#sections>`_:
+    3. To distinguish between sections, use the following `heading levels <http://www.sphinx-doc.org/en/stable/rest.html#sections>`_:
 
         * ``#`` with overline, for parts
         * ``*`` with overline, for chapters
@@ -61,9 +61,9 @@ API Reference
 
     1. This repository provides for automatic update of API reference documentation using :doc:`code markup retrieved by Doxygen from header files <../contribute/documenting-code>`.
 
-    2. Update is done on each documentation build by invoking Sphinx extension :`esp_extensions/run_doxygen.py` for all header files listed in the ``INPUT`` statement of :idf_file:`docs/doxygen/Doxyfile`.
+    1. Update is done on each documentation build by invoking Sphinx extension :`esp_extensions/run_doxygen.py` for all header files listed in the ``INPUT`` statement of :idf_file:`docs/doxygen/Doxyfile`.
 
-    3. Each line of the ``INPUT`` statement  (other than a comment that begins with ``##``) contains a path to header file ``*.h`` that will be used to generate corresponding ``*.inc`` files::
+    1. Each line of the ``INPUT`` statement  (other than a comment that begins with ``##``) contains a path to header file ``*.h`` that will be used to generate corresponding ``*.inc`` files::
 
         ##
         ## Wi-Fi - API Reference
@@ -71,17 +71,17 @@ API Reference
         ../components/esp32/include/esp_wifi.h \
         ../components/esp32/include/esp_smartconfig.h \
 
-    4. When the headers are expanded, any macros defined by default in ``sdkconfig.h`` as well as any macros defined in SOC-specific ``include/soc/*_caps.h`` headers will be expanded. This allows the headers to include/exclude material based on the ``IDF_TARGET`` value.
+    1. When the headers are expanded, any macros defined by default in ``sdkconfig.h`` as well as any macros defined in SOC-specific ``include/soc/*_caps.h`` headers will be expanded. This allows the headers to include/exclude material based on the ``IDF_TARGET`` value.
 
-    5. The ``*.inc`` files contain formatted reference of API members generated automatically on each documentation build. All ``*.inc`` files are placed in Sphinx ``_build`` directory. To see directives generated for e.g. ``esp_wifi.h``, run ``python gen-dxd.py esp32/include/esp_wifi.h``.
+    1. The ``*.inc`` files contain formatted reference of API members generated automatically on each documentation build. All ``*.inc`` files are placed in Sphinx ``_build`` directory. To see directives generated for e.g. ``esp_wifi.h``, run ``python gen-dxd.py esp32/include/esp_wifi.h``.
 
-    6. To show contents of ``*.inc`` file in documentation, include it as follows::
+    1. To show contents of ``*.inc`` file in documentation, include it as follows::
 
        .. include-build-file:: inc/esp_wifi.inc
 
        For example see :idf_file:`docs/en/api-reference/network/esp_wifi.rst`
 
-    7. Optionally, rather that using ``*.inc`` files, you may want to describe API in you own way. See :idf_file:`docs/en/api-reference/storage/fatfs.rst` for example.
+    1. Optionally, rather that using ``*.inc`` files, you may want to describe API in you own way. See :idf_file:`docs/en/api-reference/storage/fatfs.rst` for example.
 
        Below is the list of common ``.. doxygen...::`` directives:
 
@@ -98,6 +98,6 @@ API Reference
 
        * :component_file:`path_to/header_file.h`
 
-    8. In any case, to generate API reference, the file :idf_file:`docs/doxygen/Doxyfile` should be updated with paths to ``*.h`` headers that are being documented.
+    1. In any case, to generate API reference, the file :idf_file:`docs/doxygen/Doxyfile` should be updated with paths to ``*.h`` headers that are being documented.
 
-    9. When changes are committed and documentation is build, check how this section has been rendered. :doc:`Correct annotations <../contribute/documenting-code>` in respective header files, if required.
+    1. When changes are committed and documentation is build, check how this section has been rendered. :doc:`Correct annotations <../contribute/documenting-code>` in respective header files, if required.

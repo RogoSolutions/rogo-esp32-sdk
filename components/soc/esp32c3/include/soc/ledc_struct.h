@@ -3,9 +3,9 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#pragma once
 
-#include <stdint.h>
+#ifndef _SOC_LEDC_STRUCT_H_
+#define _SOC_LEDC_STRUCT_H_
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -209,3 +209,5 @@ extern ledc_dev_t LEDC;
 #ifdef __cplusplus
 }
 #endif
+
+#endif  /* _SOC_LEDC_STRUCT_H_ */

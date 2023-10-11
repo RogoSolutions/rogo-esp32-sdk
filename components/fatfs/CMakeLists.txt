@@ -12,5 +12,4 @@ set(srcs "diskio/diskio.c"
 idf_component_register(SRCS ${srcs}
                        INCLUDE_DIRS diskio vfs src
                        REQUIRES wear_levelling sdmmc
-                       PRIV_REQUIRES vfs
                       )

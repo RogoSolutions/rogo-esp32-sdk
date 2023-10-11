@@ -1,8 +1,3 @@
-/*
- * SPDX-FileCopyrightText: 2022-2023 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- */
 /* cmd_i2ctools.c
 
    This example code is in the Public Domain (or CC0 licensed, at your option.)
@@ -28,10 +23,10 @@
 
 static const char *TAG = "cmd_i2ctools";
 
-#if CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32H2
+#if CONFIG_IDF_TARGET_ESP32S3
 static gpio_num_t i2c_gpio_sda = 1;
 static gpio_num_t i2c_gpio_scl = 2;
-#elif CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32C2
+#elif CONFIG_IDF_TARGET_ESP32C3
 static gpio_num_t i2c_gpio_sda = 5;
 static gpio_num_t i2c_gpio_scl = 6;
 #else
@@ -131,7 +126,7 @@ static int do_i2cdetect_cmd(int argc, char **argv)
             i2c_master_start(cmd);
             i2c_master_write_byte(cmd, (address << 1) | WRITE_BIT, ACK_CHECK_EN);
             i2c_master_stop(cmd);
-            esp_err_t ret = i2c_master_cmd_begin(i2c_port, cmd, 50 / portTICK_PERIOD_MS);
+            esp_err_t ret = i2c_master_cmd_begin(i2c_port, cmd, 50 / portTICK_RATE_MS);
             i2c_cmd_link_delete(cmd);
             if (ret == ESP_OK) {
                 printf("%02x ", address);
@@ -148,7 +143,7 @@ static int do_i2cdetect_cmd(int argc, char **argv)
     return 0;
 }
 
-static void register_i2cdetect(void)
+static void register_i2cdectect(void)
 {
     const esp_console_cmd_t i2cdetect_cmd = {
         .command = "i2cdetect",
@@ -204,7 +199,7 @@ static int do_i2cget_cmd(int argc, char **argv)
     }
     i2c_master_read_byte(cmd, data + len - 1, NACK_VAL);
     i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(i2c_port, cmd, 1000 / portTICK_PERIOD_MS);
+    esp_err_t ret = i2c_master_cmd_begin(i2c_port, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
     if (ret == ESP_OK) {
         for (int i = 0; i < len; i++) {
@@ -279,7 +274,7 @@ static int do_i2cset_cmd(int argc, char **argv)
         i2c_master_write_byte(cmd, i2cset_args.data->ival[i], ACK_CHECK_EN);
     }
     i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(i2c_port, cmd, 1000 / portTICK_PERIOD_MS);
+    esp_err_t ret = i2c_master_cmd_begin(i2c_port, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
     if (ret == ESP_OK) {
         ESP_LOGI(TAG, "Write OK");
@@ -356,7 +351,7 @@ static int do_i2cdump_cmd(int argc, char **argv)
             }
             i2c_master_read_byte(cmd, data + size - 1, NACK_VAL);
             i2c_master_stop(cmd);
-            esp_err_t ret = i2c_master_cmd_begin(i2c_port, cmd, 50 / portTICK_PERIOD_MS);
+            esp_err_t ret = i2c_master_cmd_begin(i2c_port, cmd, 50 / portTICK_RATE_MS);
             i2c_cmd_link_delete(cmd);
             if (ret == ESP_OK) {
                 for (int k = 0; k < size; k++) {
@@ -380,7 +375,7 @@ static int do_i2cdump_cmd(int argc, char **argv)
             } else if ((block[k] & 0xff) < 32 || (block[k] & 0xff) >= 127) {
                 printf("?");
             } else {
-                printf("%c", (char)(block[k] & 0xff));
+                printf("%c", block[k] & 0xff);
             }
         }
         printf("\r\n");
@@ -407,7 +402,7 @@ static void register_i2cdump(void)
 void register_i2ctools(void)
 {
     register_i2cconfig();
-    register_i2cdetect();
+    register_i2cdectect();
     register_i2cget();
     register_i2cset();
     register_i2cdump();

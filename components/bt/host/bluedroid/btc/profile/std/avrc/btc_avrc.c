@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 /*****************************************************************************
  *
@@ -203,7 +211,10 @@ void btc_avrc_tg_arg_deep_copy(btc_msg_t *msg, void *p_dest, void *p_src)
     }
 }
 
-void btc_avrc_tg_arg_deep_free(btc_msg_t *msg)
+/*****************************************************************************
+**  Static functions
+******************************************************************************/
+static void btc_avrc_tg_arg_deep_free(btc_msg_t *msg)
 {
     btc_avrc_tg_args_t *arg = (btc_avrc_tg_args_t *)msg->arg;
 
@@ -219,9 +230,6 @@ void btc_avrc_tg_arg_deep_free(btc_msg_t *msg)
     }
 }
 
-/*****************************************************************************
-**  Static functions
-******************************************************************************/
 static bool btc_avrc_tg_set_supported_command(const uint16_t *cmd_set)
 {
     if (!btc_avrc_tg_init_p()) {
@@ -869,7 +877,6 @@ static void handle_rc_passthrough_rsp ( tBTA_AV_REMOTE_RSP *p_remote_rsp)
             param.psth_rsp.tl = p_remote_rsp->label;
             param.psth_rsp.key_code = p_remote_rsp->rc_id;
             param.psth_rsp.key_state = key_state;
-            param.psth_rsp.rsp_code = p_remote_rsp->rsp_code;
             btc_avrc_ct_cb_to_app(ESP_AVRC_CT_PASSTHROUGH_RSP_EVT, &param);
         } while (0);
     } else {

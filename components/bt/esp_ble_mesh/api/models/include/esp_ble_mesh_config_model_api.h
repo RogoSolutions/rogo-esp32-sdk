@@ -811,11 +811,9 @@ esp_err_t esp_ble_mesh_config_client_set_state(esp_ble_mesh_client_common_param_
                                                esp_ble_mesh_cfg_client_set_state_t *set_state);
 
 
-/* Rogo API ***************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
+// Ninh.D.H 21.06.2023
 esp_err_t esp_ble_mesh_rogo_config_client_set_state(esp_ble_mesh_client_rogo_param_t *params,
                                                     esp_ble_mesh_cfg_client_set_state_t *set_state);
-/**************************************************************************************************/
 
 #ifdef __cplusplus
 }

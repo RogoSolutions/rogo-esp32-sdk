@@ -15,10 +15,9 @@
 #include "bootloader_clock.h"
 #include "bootloader_common.h"
 #include "esp_flash_encrypt.h"
-#include "esp_cpu.h"
+#include "soc/cpu.h"
 #include "soc/rtc.h"
 #include "hal/wdt_hal.h"
-#include "hal/efuse_hal.h"
 
 static const char *TAG = "boot";
 
@@ -33,7 +32,7 @@ esp_err_t bootloader_read_bootloader_header(void)
 {
     /* load bootloader image header */
     if (bootloader_flash_read(ESP_BOOTLOADER_OFFSET, &bootloader_image_hdr, sizeof(esp_image_header_t), true) != ESP_OK) {
-        ESP_EARLY_LOGE(TAG, "failed to load bootloader image header!");
+        ESP_LOGE(TAG, "failed to load bootloader image header!");
         return ESP_FAIL;
     }
     return ESP_OK;
@@ -41,10 +40,9 @@ esp_err_t bootloader_read_bootloader_header(void)
 
 esp_err_t bootloader_check_bootloader_validity(void)
 {
-    unsigned int revision = efuse_hal_chip_revision();
-    unsigned int major = revision / 100;
-    unsigned int minor = revision % 100;
-    ESP_EARLY_LOGI(TAG, "chip revision: v%d.%d", major, minor);
+    /* read chip revision from efuse */
+    uint8_t revision = bootloader_common_get_chip_revision();
+    ESP_LOGI(TAG, "chip revision: %d", revision);
     /* compare with the one set in bootloader image header */
     if (bootloader_common_check_chip_validity(&bootloader_image_hdr, ESP_IMAGE_BOOTLOADER) != ESP_OK) {
         return ESP_FAIL;
@@ -61,47 +59,37 @@ void bootloader_config_wdt(void)
      * protect the remainder of the bootloader process.
      */
     //Disable RWDT flashboot protection.
-    wdt_hal_context_t rwdt_ctx = RWDT_HAL_CONTEXT_DEFAULT();
-    wdt_hal_write_protect_disable(&rwdt_ctx);
-    wdt_hal_set_flashboot_en(&rwdt_ctx, false);
-    wdt_hal_write_protect_enable(&rwdt_ctx);
+    wdt_hal_context_t rtc_wdt_ctx = {.inst = WDT_RWDT, .rwdt_dev = &RTCCNTL};
+    wdt_hal_write_protect_disable(&rtc_wdt_ctx);
+    wdt_hal_set_flashboot_en(&rtc_wdt_ctx, false);
+    wdt_hal_write_protect_enable(&rtc_wdt_ctx);
 
 #ifdef CONFIG_BOOTLOADER_WDT_ENABLE
     //Initialize and start RWDT to protect the  for bootloader if configured to do so
-    ESP_EARLY_LOGD(TAG, "Enabling RTCWDT(%d ms)", CONFIG_BOOTLOADER_WDT_TIME_MS);
-    wdt_hal_init(&rwdt_ctx, WDT_RWDT, 0, false);
+    ESP_LOGD(TAG, "Enabling RTCWDT(%d ms)", CONFIG_BOOTLOADER_WDT_TIME_MS);
+    wdt_hal_init(&rtc_wdt_ctx, WDT_RWDT, 0, false);
     uint32_t stage_timeout_ticks = (uint32_t)((uint64_t)CONFIG_BOOTLOADER_WDT_TIME_MS * rtc_clk_slow_freq_get_hz() / 1000);
-    wdt_hal_write_protect_disable(&rwdt_ctx);
-    wdt_hal_config_stage(&rwdt_ctx, WDT_STAGE0, stage_timeout_ticks, WDT_STAGE_ACTION_RESET_RTC);
-    wdt_hal_enable(&rwdt_ctx);
-    wdt_hal_write_protect_enable(&rwdt_ctx);
+    wdt_hal_write_protect_disable(&rtc_wdt_ctx);
+    wdt_hal_config_stage(&rtc_wdt_ctx, WDT_STAGE0, stage_timeout_ticks, WDT_STAGE_ACTION_RESET_RTC);
+    wdt_hal_enable(&rtc_wdt_ctx);
+    wdt_hal_write_protect_enable(&rtc_wdt_ctx);
 #endif
 
     //Disable MWDT0 flashboot protection. But only after we've enabled the RWDT first so that there's not gap in WDT protection.
-    wdt_hal_context_t mwdt_ctx = {.inst = WDT_MWDT0, .mwdt_dev = &TIMERG0};
-    wdt_hal_write_protect_disable(&mwdt_ctx);
-    wdt_hal_set_flashboot_en(&mwdt_ctx, false);
-    wdt_hal_write_protect_enable(&mwdt_ctx);
+    wdt_hal_context_t wdt_ctx = {.inst = WDT_MWDT0, .mwdt_dev = &TIMERG0};
+    wdt_hal_write_protect_disable(&wdt_ctx);
+    wdt_hal_set_flashboot_en(&wdt_ctx, false);
+    wdt_hal_write_protect_enable(&wdt_ctx);
 }
 
 void bootloader_enable_random(void)
 {
-    ESP_EARLY_LOGI(TAG, "Enabling RNG early entropy source...");
+    ESP_LOGI(TAG, "Enabling RNG early entropy source...");
     bootloader_random_enable();
 }
 
 void bootloader_print_banner(void)
 {
-    ESP_EARLY_LOGI(TAG, "ESP-IDF %s 2nd stage bootloader", IDF_VER);
-#ifndef CONFIG_APP_REPRODUCIBLE_BUILD
-    ESP_EARLY_LOGI(TAG, "compile time " __DATE__ " " __TIME__);
-#endif
-
-#if CONFIG_FREERTOS_UNICORE
-#if (SOC_CPU_CORES_NUM > 1)
-    ESP_EARLY_LOGW(TAG, "Unicore bootloader");
-#endif
-#else
-    ESP_EARLY_LOGI(TAG, "Multicore bootloader");
-#endif
+    ESP_LOGI(TAG, "ESP-IDF %s 2nd stage bootloader", IDF_VER);
+    ESP_LOGI(TAG, "compile time " __TIME__);
 }

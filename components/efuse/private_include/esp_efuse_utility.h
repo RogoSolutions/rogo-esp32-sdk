@@ -127,7 +127,7 @@ uint32_t esp_efuse_utility_read_reg(esp_efuse_block_t blk, unsigned int num_reg)
 /**
  * @brief Writing efuse register with checking of repeated programming of programmed bits.
  */
-esp_err_t esp_efuse_utility_write_reg(esp_efuse_block_t efuse_block, unsigned int num_reg, uint32_t reg_to_write);
+esp_err_t esp_efuse_utility_write_reg(unsigned int num_reg, esp_efuse_block_t efuse_block, uint32_t reg_to_write);
 
 /* @brief Reset efuse write registers
  *
@@ -145,15 +145,6 @@ void esp_efuse_utility_update_virt_blocks(void);
  * @brief   Prints efuse values for all registers.
  */
 void esp_efuse_utility_debug_dump_blocks(void);
-
-/**
- * @brief   Prints efuse values for a single block.
- * @param[in] num_block Index of efuse block.
- * @param[in] from_read Take data from:
- *                      true - read area (already burned efuses),
- *                      false - write area (not yet burned efuses, prepared for burn).
- */
-void esp_efuse_utility_debug_dump_single_block(int num_block, bool from_read);
 
 /**
  * @brief   Erase the virt_blocks array.

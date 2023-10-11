@@ -6,7 +6,16 @@
 
 ## Trigger
 - By labels:
-  - `integration_test[_wifi/ble]`
+  - `integration_test`
 - By file changes:
   - integration test related files
-  - See `patterns-integration_test[_wifi/ble]` in `.gitlab/ci/rules.yml`
+- By bot:
+  - `@bot test with label: integration_test`
+
+## Advanced
+- There are labels can be used to run less integration test cases.
+  - These labels only take effect when the integration test has been triggered.
+  - label: `integration::wifi_only`
+    - Only run WiFi cases.
+  - label: `integration::ble_only`
+    - Only run BLE cases.

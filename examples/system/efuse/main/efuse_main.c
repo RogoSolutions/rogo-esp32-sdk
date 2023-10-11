@@ -15,8 +15,6 @@
 #include "esp_efuse.h"
 #include "esp_efuse_table.h"
 #include "esp_efuse_custom_table.h"
-#include "esp_secure_boot.h"
-#include "esp_flash_encrypt.h"
 #include "sdkconfig.h"
 
 static const char* TAG = "example";
@@ -133,21 +131,6 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "Start eFuse example");
 
-#ifdef CONFIG_SECURE_FLASH_ENC_ENABLED
-    if (esp_flash_encryption_cfg_verify_release_mode()) {
-        ESP_LOGI(TAG, "Flash Encryption is in RELEASE mode");
-    } else {
-        ESP_LOGW(TAG, "Flash Encryption is NOT in RELEASE mode");
-    }
-#endif
-#ifdef CONFIG_SECURE_BOOT
-    if (esp_secure_boot_cfg_verify_release_mode()) {
-        ESP_LOGI(TAG, "Secure Boot is in RELEASE mode");
-    } else {
-        ESP_LOGW(TAG, "Secure Boot is NOT in RELEASE mode");
-    }
-#endif
-
     esp_efuse_coding_scheme_t coding_scheme = get_coding_scheme();
     (void) coding_scheme;
 
@@ -155,16 +138,6 @@ void app_main(void)
     read_efuse_fields(&device_desc);
 
     ESP_LOGW(TAG, "This example does not burn any efuse in reality only virtually");
-
-#if CONFIG_IDF_TARGET_ESP32C2
-    if (esp_secure_boot_enabled() || esp_flash_encryption_enabled()) {
-        ESP_LOGW(TAG, "BLOCK3 is used for secure boot or/and flash encryption");
-        ESP_LOGW(TAG, "eFuses from the custom eFuse table can not be used as they are placed in BLOCK3");
-        ESP_LOGI(TAG, "Done");
-        return;
-    }
-#endif
-
 #ifdef CONFIG_EFUSE_VIRTUAL
     ESP_LOGW(TAG, "Write operations in efuse fields are performed virtually");
     if (device_desc.device_role == 0) {

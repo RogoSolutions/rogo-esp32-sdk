@@ -1,17 +1,18 @@
-/*
- * SPDX-FileCopyrightText: 2020-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
- *
- * This test code is in the Public Domain (or CC0 licensed, at your option.)
- *
- * Unless required by applicable law or agreed to in writing, this
- * software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
- * CONDITIONS OF ANY KIND, either express or implied.
- */
+// Copyright 2020 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "string.h"
-#include <inttypes.h>
 #include "esp_system.h"
 #include "unity.h"
 #include "esp_system.h"
@@ -22,7 +23,6 @@
 #include "../esp_supplicant/src/esp_wifi_driver.h"
 #include "esp_log.h"
 #include "test_utils.h"
-#include "memory_checks.h"
 #include "freertos/event_groups.h"
 
 #define WIFI_START_EVENT        0x00000001
@@ -33,8 +33,8 @@
 #define TEST_LISTEN_CHANNEL     6
 
 /* No runners */
-#if !TEMPORARY_DISABLED_FOR_TARGETS(ESP32S2, ESP32S3, ESP32C3, ESP32C2, ESP32C6, ESP32H2)
-//IDF-5046
+#if !TEMPORARY_DISABLED_FOR_TARGETS(ESP32S2, ESP32S3, ESP32C3)
+
 static const char *TAG = "test_offchan";
 esp_netif_t *wifi_netif;
 static EventGroupHandle_t wifi_event;
@@ -87,7 +87,7 @@ static void start_wifi_as_sta(void)
     event_init();
 
     // can't deinit event loop, need to reset leak check
-    test_utils_record_free_mem();
+    unity_reset_leak_checks();
 
     if (wifi_event == NULL) {
         wifi_event = xEventGroupCreate();
@@ -136,7 +136,7 @@ void esp_send_action_frame(uint8_t *dest_mac, const uint8_t *buf, uint32_t len,
     req->rx_cb = dummy_rx_action;
     memcpy(req->data, buf, req->data_len);
 
-    ESP_LOGI(TAG, "Action Tx - MAC:" MACSTR ", Channel-%d, WaitT-%" PRId32 "",
+    ESP_LOGI(TAG, "Action Tx - MAC:" MACSTR ", Channel-%d, WaitT-%d",
              MAC2STR(dest_mac), channel, wait_time_ms);
 
     TEST_ESP_OK(esp_wifi_action_tx_req(WIFI_OFFCHAN_TX_REQ, channel, wait_time_ms, req));
@@ -154,13 +154,13 @@ TEST_CASE("Test scan and ROC simultaneously", "[Offchan]")
     test_case_uses_tcpip();
     start_wifi_as_sta();
 
-    xEventGroupWaitBits(wifi_event, WIFI_START_EVENT, 1, 0, 5000 / portTICK_PERIOD_MS);
+    xEventGroupWaitBits(wifi_event, WIFI_START_EVENT, 1, 0, 5000 / portTICK_RATE_MS);
 
     TEST_ESP_OK(esp_wifi_remain_on_channel(WIFI_IF_STA, WIFI_ROC_REQ, TEST_LISTEN_CHANNEL,
                                            100, rx_cb));
     ESP_ERROR_CHECK(esp_wifi_scan_start(NULL, false));
     bits = xEventGroupWaitBits(wifi_event, WIFI_ROC_DONE_EVENT | WIFI_SCAN_DONE_EVENT,
-                               pdTRUE, pdFALSE, 5000 / portTICK_PERIOD_MS);
+                               pdTRUE, pdFALSE, 5000 / portTICK_RATE_MS);
     TEST_ASSERT_TRUE(bits == WIFI_ROC_DONE_EVENT);
 
     vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -168,7 +168,7 @@ TEST_CASE("Test scan and ROC simultaneously", "[Offchan]")
     TEST_ESP_OK(esp_wifi_remain_on_channel(WIFI_IF_STA, WIFI_ROC_REQ, TEST_LISTEN_CHANNEL,
                                            100, rx_cb));
     bits = xEventGroupWaitBits(wifi_event, WIFI_ROC_DONE_EVENT | WIFI_SCAN_DONE_EVENT,
-                               pdTRUE, pdFALSE, 5000 / portTICK_PERIOD_MS);
+                               pdTRUE, pdFALSE, 5000 / portTICK_RATE_MS);
     TEST_ASSERT_TRUE(bits == WIFI_SCAN_DONE_EVENT);
 
     stop_wifi();
@@ -182,7 +182,7 @@ static void test_wifi_offchan_tx(void)
 
     test_case_uses_tcpip();
     start_wifi_as_sta();
-    xEventGroupWaitBits(wifi_event, WIFI_START_EVENT, 1, 0, 5000 / portTICK_PERIOD_MS);
+    xEventGroupWaitBits(wifi_event, WIFI_START_EVENT, 1, 0, 5000 / portTICK_RATE_MS);
 
     unity_wait_for_signal_param("Listener mac", mac_str, 19);
 
@@ -221,7 +221,7 @@ static void test_wifi_roc(void)
     test_case_uses_tcpip();
     start_wifi_as_sta();
 
-    xEventGroupWaitBits(wifi_event, WIFI_START_EVENT, 1, 0, 5000 / portTICK_PERIOD_MS);
+    xEventGroupWaitBits(wifi_event, WIFI_START_EVENT, 1, 0, 5000 / portTICK_RATE_MS);
     TEST_ESP_OK(esp_wifi_get_mac(WIFI_IF_STA, mac));
     sprintf(mac_str, MACSTR, MAC2STR(mac));
     unity_send_signal_param("Listener mac", mac_str);
@@ -243,4 +243,4 @@ static void test_wifi_roc(void)
 
 TEST_CASE_MULTIPLE_DEVICES("test ROC and Offchannel Action Frame Tx", "[Offchan][test_env=UT_T2_1][timeout=90]", test_wifi_roc, test_wifi_offchan_tx);
 
-#endif //!TEMPORARY_DISABLED_FOR_TARGETS(...)
+#endif //!TEMPORARY_DISABLED_FOR_TARGETS(ESP32S2, ESP32S3, ESP32C3)

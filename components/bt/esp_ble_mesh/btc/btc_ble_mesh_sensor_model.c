@@ -179,7 +179,7 @@ void btc_ble_mesh_sensor_client_arg_deep_free(btc_msg_t *msg)
 {
     btc_ble_mesh_sensor_client_args_t *arg = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -378,7 +378,7 @@ static void btc_ble_mesh_sensor_client_free_req_data(btc_msg_t *msg)
 {
     esp_ble_mesh_sensor_client_cb_param_t *arg = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -450,8 +450,8 @@ static void btc_ble_mesh_sensor_client_callback(esp_ble_mesh_sensor_client_cb_pa
     msg.pid = BTC_PID_SENSOR_CLIENT;
     msg.act = act;
 
-    btc_transfer_context(&msg, cb_params, cb_params == NULL ? 0 : sizeof(esp_ble_mesh_sensor_client_cb_param_t),
-                         btc_ble_mesh_sensor_client_copy_req_data, btc_ble_mesh_sensor_client_free_req_data);
+    btc_transfer_context(&msg, cb_params, sizeof(esp_ble_mesh_sensor_client_cb_param_t),
+                         btc_ble_mesh_sensor_client_copy_req_data);
 }
 
 void bt_mesh_sensor_client_cb_evt_to_btc(uint32_t opcode, uint8_t evt_type,
@@ -529,7 +529,7 @@ void btc_ble_mesh_sensor_client_call_handler(btc_msg_t *msg)
     esp_ble_mesh_sensor_client_cb_param_t cb = {0};
     bt_mesh_client_common_param_t common = {0};
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -589,7 +589,7 @@ void btc_ble_mesh_sensor_client_cb_handler(btc_msg_t *msg)
 {
     esp_ble_mesh_sensor_client_cb_param_t *param = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -761,7 +761,7 @@ static void btc_ble_mesh_sensor_server_free_req_data(btc_msg_t *msg)
 {
     esp_ble_mesh_sensor_server_cb_param_t *arg = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }
@@ -817,8 +817,8 @@ static void btc_ble_mesh_sensor_server_callback(esp_ble_mesh_sensor_server_cb_pa
     msg.pid = BTC_PID_SENSOR_SERVER;
     msg.act = act;
 
-    btc_transfer_context(&msg, cb_params, cb_params == NULL ? 0 : sizeof(esp_ble_mesh_sensor_server_cb_param_t),
-                         btc_ble_mesh_sensor_server_copy_req_data, btc_ble_mesh_sensor_server_free_req_data);
+    btc_transfer_context(&msg, cb_params, sizeof(esp_ble_mesh_sensor_server_cb_param_t),
+                         btc_ble_mesh_sensor_server_copy_req_data);
 }
 
 void bt_mesh_sensor_server_cb_evt_to_btc(uint8_t evt_type, struct bt_mesh_model *model,
@@ -870,7 +870,7 @@ void btc_ble_mesh_sensor_server_cb_handler(btc_msg_t *msg)
 {
     esp_ble_mesh_sensor_server_cb_param_t *param = NULL;
 
-    if (!msg) {
+    if (!msg || !msg->arg) {
         BT_ERR("%s, Invalid parameter", __func__);
         return;
     }

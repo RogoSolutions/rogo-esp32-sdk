@@ -1,23 +1,8 @@
-idf_build_get_property(target IDF_TARGET)
-
-# On Linux, we only support a few features, hence this simple component registration
-if(${target} STREQUAL "linux")
-    idf_component_register(SRCS "heap_caps_linux.c"
-                           INCLUDE_DIRS "include")
-    return()
-endif()
-
 set(srcs
     "heap_caps.c"
     "heap_caps_init.c"
-    "multi_heap.c")
-
-set(includes "include")
-
-if(NOT CONFIG_HEAP_TLSF_USE_ROM_IMPL)
-    set(priv_includes "tlsf")
-    list(APPEND srcs "tlsf/tlsf.c")
-endif()
+    "multi_heap.c"
+    "heap_tlsf.c")
 
 if(NOT CONFIG_HEAP_POISONING_DISABLED)
     list(APPEND srcs "multi_heap_poisoning.c")
@@ -35,16 +20,12 @@ if(CONFIG_HEAP_TRACING_STANDALONE)
 endif()
 
 # Add SoC memory layout to the sources
-
-if(NOT BOOTLOADER_BUILD)
-    list(APPEND srcs "port/memory_layout_utils.c")
-    list(APPEND srcs "port/${target}/memory_layout.c")
-endif()
+list(APPEND srcs "port/memory_layout_utils.c")
+list(APPEND srcs "port/${target}/memory_layout.c")
 
 
 idf_component_register(SRCS "${srcs}"
-                    INCLUDE_DIRS ${includes}
-                    PRIV_INCLUDE_DIRS ${priv_includes}
+                    INCLUDE_DIRS include
                     LDFRAGMENTS linker.lf
                     PRIV_REQUIRES soc)
 

@@ -1,5 +1,3 @@
-# SPDX-FileCopyrightText: 2022 Espressif Systems (Shanghai) CO LTD
-# SPDX-License-Identifier: Apache-2.0
 def action_extensions(base_actions, project_path=None):
     def echo(name, *args, **kwargs):
         print(name, args, kwargs)

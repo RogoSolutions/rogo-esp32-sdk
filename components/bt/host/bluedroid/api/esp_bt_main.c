@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 
 #include "esp_bt_main.h"
@@ -54,7 +62,7 @@ esp_err_t esp_bluedroid_enable(void)
     msg.pid = BTC_PID_MAIN_INIT;
     msg.act = BTC_MAIN_ACT_ENABLE;
 
-    if (btc_transfer_context(&msg, NULL, 0, NULL, NULL) != BT_STATUS_SUCCESS) {
+    if (btc_transfer_context(&msg, NULL, 0, NULL) != BT_STATUS_SUCCESS) {
         LOG_ERROR("Bluedroid enable failed\n");
         return ESP_FAIL;
     }
@@ -90,7 +98,7 @@ esp_err_t esp_bluedroid_disable(void)
     msg.pid = BTC_PID_MAIN_INIT;
     msg.act = BTC_MAIN_ACT_DISABLE;
 
-    if (btc_transfer_context(&msg, NULL, 0, NULL, NULL) != BT_STATUS_SUCCESS) {
+    if (btc_transfer_context(&msg, NULL, 0, NULL) != BT_STATUS_SUCCESS) {
         LOG_ERROR("Bluedroid disable failed\n");
         return ESP_FAIL;
     }
@@ -145,7 +153,7 @@ esp_err_t esp_bluedroid_init(void)
     msg.pid = BTC_PID_MAIN_INIT;
     msg.act = BTC_MAIN_ACT_INIT;
 
-    if (btc_transfer_context(&msg, NULL, 0, NULL, NULL) != BT_STATUS_SUCCESS) {
+    if (btc_transfer_context(&msg, NULL, 0, NULL) != BT_STATUS_SUCCESS) {
         LOG_ERROR("Bluedroid Initialize Fail");
         return ESP_FAIL;
     }
@@ -187,7 +195,7 @@ esp_err_t esp_bluedroid_deinit(void)
     msg.pid = BTC_PID_MAIN_INIT;
     msg.act = BTC_MAIN_ACT_DEINIT;
 
-    if (btc_transfer_context(&msg, NULL, 0, NULL, NULL) != BT_STATUS_SUCCESS) {
+    if (btc_transfer_context(&msg, NULL, 0, NULL) != BT_STATUS_SUCCESS) {
         LOG_ERROR("Bluedroid de-initialise failed\n");
         return ESP_FAIL;
     }

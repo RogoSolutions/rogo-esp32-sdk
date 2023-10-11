@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2021 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #pragma once
 
@@ -21,9 +29,8 @@ extern "C" {
  *
  */
 typedef struct {
-    spi_host_device_t spi_host_id;              /*!< SPI peripheral */
-    spi_device_interface_config_t *spi_devcfg;  /*!< SPI device configuration */
-    int int_gpio_num;                           /*!< Interrupt GPIO number */
+    spi_device_handle_t spi_hdl; /*!< Handle of SPI device driver */
+    int int_gpio_num;            /*!< Interrupt GPIO number */
 } eth_enc28j60_config_t;
 
 /**
@@ -41,11 +48,10 @@ typedef enum {
  * @brief Default ENC28J60 specific configuration
  *
  */
-#define ETH_ENC28J60_DEFAULT_CONFIG(spi_host, spi_devcfg_p) \
-    {                                             \
-        .spi_host_id = spi_host,                  \
-        .spi_devcfg = spi_devcfg_p,               \
-        .int_gpio_num = 4,                        \
+#define ETH_ENC28J60_DEFAULT_CONFIG(spi_device) \
+    {                                           \
+        .spi_hdl = spi_device,                  \
+        .int_gpio_num = 4,                      \
     }
 
 /**
@@ -91,6 +97,19 @@ esp_eth_mac_t *esp_eth_mac_new_enc28j60(const eth_enc28j60_config_t *enc28j60_co
 *      - NULL: create PHY instance failed because some error occurred
 */
 esp_eth_phy_t *esp_eth_phy_new_enc28j60(const eth_phy_config_t *config);
+
+// todo: the below functions should be accessed through ioctl in the future
+/**
+ * @brief Set ENC28J60 Duplex mode. It sets Duplex mode first to the PHY and then
+ *        MAC is set based on what PHY indicates.
+ *
+ * @param phy ENC28J60 PHY Handle
+ * @param duplex Duplex mode
+ *
+ * @return esp_err_t
+ *          - ESP_OK when PHY registers were correctly written.
+ */
+esp_err_t enc28j60_set_phy_duplex(esp_eth_phy_t *phy, eth_duplex_t duplex);
 
 /**
  * @brief Get ENC28J60 silicon revision ID

@@ -5,13 +5,11 @@
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
  */
+#include "utils/includes.h"
+#include "utils/common.h"
 
-#include "includes.h"
-
-#include "common.h"
-#include "wps_i.h"
-#include "wps_dev_attr.h"
-
+#include "wps/wps_i.h"
+#include "wps/wps_dev_attr.h"
 
 int wps_build_manufacturer(struct wps_device_data *dev, struct wpabuf *msg)
 {
@@ -85,7 +83,8 @@ int wps_build_model_number(struct wps_device_data *dev, struct wpabuf *msg)
 }
 
 
-int wps_build_serial_number(struct wps_device_data *dev, struct wpabuf *msg)
+static int wps_build_serial_number(struct wps_device_data *dev,
+				   struct wpabuf *msg)
 {
 	size_t len;
 	wpa_printf(MSG_DEBUG,  "WPS:  * Serial Number");
@@ -216,10 +215,13 @@ int wps_build_vendor_ext_m1(struct wps_device_data *dev, struct wpabuf *msg)
 }
 
 
-int wps_build_rf_bands(struct wps_device_data *dev, struct wpabuf *msg,
-		       u8 rf_band)
+int wps_build_rf_bands(struct wps_device_data *dev, struct wpabuf *msg)
 {
-	return wps_build_rf_bands_attr(msg, rf_band ? rf_band : dev->rf_bands);
+	wpa_printf(MSG_DEBUG,  "WPS:  * RF Bands (%x)", dev->rf_bands);
+	wpabuf_put_be16(msg, ATTR_RF_BANDS);
+	wpabuf_put_be16(msg, 1);
+	wpabuf_put_u8(msg, dev->rf_bands);
+	return 0;
 }
 
 
@@ -242,21 +244,6 @@ int wps_build_vendor_ext(struct wps_device_data *dev, struct wpabuf *msg)
 }
 
 
-int wps_build_application_ext(struct wps_device_data *dev, struct wpabuf *msg)
-{
-	if (!dev->application_ext)
-		return 0;
-
-	wpa_hexdump_buf(MSG_DEBUG, "WPS:  * Application Extension",
-			dev->application_ext);
-	wpabuf_put_be16(msg, ATTR_APPLICATION_EXT);
-	wpabuf_put_be16(msg, wpabuf_len(dev->application_ext));
-	wpabuf_put_buf(msg, dev->application_ext);
-
-	return 0;
-}
-
-
 static int wps_process_manufacturer(struct wps_device_data *dev, const u8 *str,
 				    size_t str_len)
 {
@@ -268,9 +255,11 @@ static int wps_process_manufacturer(struct wps_device_data *dev, const u8 *str,
 	wpa_hexdump_ascii(MSG_DEBUG, "WPS: Manufacturer", str, str_len);
 
 	os_free(dev->manufacturer);
-	dev->manufacturer = dup_binstr(str, str_len);
+	dev->manufacturer = (char *)os_malloc(str_len + 1);
 	if (dev->manufacturer == NULL)
 		return -1;
+	os_memcpy(dev->manufacturer, str, str_len);
+	dev->manufacturer[str_len] = '\0';
 
 	return 0;
 }
@@ -287,9 +276,11 @@ static int wps_process_model_name(struct wps_device_data *dev, const u8 *str,
 	wpa_hexdump_ascii(MSG_DEBUG, "WPS: Model Name", str, str_len);
 
 	os_free(dev->model_name);
-	dev->model_name = dup_binstr(str, str_len);
+	dev->model_name = (char *)os_malloc(str_len + 1);
 	if (dev->model_name == NULL)
 		return -1;
+	os_memcpy(dev->model_name, str, str_len);
+	dev->model_name[str_len] = '\0';
 
 	return 0;
 }
@@ -306,9 +297,11 @@ static int wps_process_model_number(struct wps_device_data *dev, const u8 *str,
 	wpa_hexdump_ascii(MSG_DEBUG, "WPS: Model Number", str, str_len);
 
 	os_free(dev->model_number);
-	dev->model_number = dup_binstr(str, str_len);
+	dev->model_number = (char *)os_malloc(str_len + 1);
 	if (dev->model_number == NULL)
 		return -1;
+	os_memcpy(dev->model_number, str, str_len);
+	dev->model_number[str_len] = '\0';
 
 	return 0;
 }
@@ -325,9 +318,11 @@ static int wps_process_serial_number(struct wps_device_data *dev,
 	wpa_hexdump_ascii(MSG_DEBUG, "WPS: Serial Number", str, str_len);
 
 	os_free(dev->serial_number);
-	dev->serial_number = dup_binstr(str, str_len);
+	dev->serial_number = (char *)os_malloc(str_len + 1);
 	if (dev->serial_number == NULL)
 		return -1;
+	os_memcpy(dev->serial_number, str, str_len);
+	dev->serial_number[str_len] = '\0';
 
 	return 0;
 }
@@ -344,9 +339,11 @@ static int wps_process_dev_name(struct wps_device_data *dev, const u8 *str,
 	wpa_hexdump_ascii(MSG_DEBUG, "WPS: Device Name", str, str_len);
 
 	os_free(dev->device_name);
-	dev->device_name = dup_binstr(str, str_len);
+	dev->device_name = (char *)os_malloc(str_len + 1);
 	if (dev->device_name == NULL)
 		return -1;
+	os_memcpy(dev->device_name, str, str_len);
+	dev->device_name[str_len] = '\0';
 
 	return 0;
 }
@@ -355,21 +352,12 @@ static int wps_process_dev_name(struct wps_device_data *dev, const u8 *str,
 static int wps_process_primary_dev_type(struct wps_device_data *dev,
 					const u8 *dev_type)
 {
-#ifdef DEBUG_PRINT
-	char devtype[WPS_DEV_TYPE_BUFSIZE];
-#endif /* CONFIG_NO_STDOUT_DEBUG */
-
 	if (dev_type == NULL) {
 		wpa_printf(MSG_DEBUG,  "WPS: No Primary Device Type received");
 		return -1;
 	}
 
 	os_memcpy(dev->pri_dev_type, dev_type, WPS_DEV_TYPE_LEN);
-#ifdef DEBUG_PRINT
-	wpa_printf(MSG_DEBUG, "WPS: Primary Device Type: %s",
-		   wps_dev_type_bin2str(dev->pri_dev_type, devtype,
-					sizeof(devtype)));
-#endif
 
 	return 0;
 }
@@ -407,14 +395,6 @@ int wps_process_os_version(struct wps_device_data *dev, const u8 *ver)
 }
 
 
-void wps_process_vendor_ext_m1(struct wps_device_data *dev, const u8 ext)
-{
-	dev->multi_ap_ext = ext;
-	wpa_printf(MSG_DEBUG, "WPS: Multi-AP extension value %02x",
-		   dev->multi_ap_ext);
-}
-
-
 int wps_process_rf_bands(struct wps_device_data *dev, const u8 *bands)
 {
 	if (bands == NULL) {
@@ -426,6 +406,25 @@ int wps_process_rf_bands(struct wps_device_data *dev, const u8 *bands)
 	wpa_printf(MSG_DEBUG,  "WPS: Enrollee RF Bands 0x%x", dev->rf_bands);
 
 	return 0;
+}
+
+
+void wps_device_data_dup(struct wps_device_data *dst,
+			 const struct wps_device_data *src)
+{
+	if (src->device_name)
+		dst->device_name = os_strdup(src->device_name);
+	if (src->manufacturer)
+		dst->manufacturer = os_strdup(src->manufacturer);
+	if (src->model_name)
+		dst->model_name = os_strdup(src->model_name);
+	if (src->model_number)
+		dst->model_number = os_strdup(src->model_number);
+	if (src->serial_number)
+		dst->serial_number = os_strdup(src->serial_number);
+	os_memcpy(dst->pri_dev_type, src->pri_dev_type, WPS_DEV_TYPE_LEN);
+	dst->os_version = src->os_version;
+	dst->rf_bands = src->rf_bands;
 }
 
 
@@ -441,6 +440,4 @@ void wps_device_data_free(struct wps_device_data *dev)
 	dev->model_number = NULL;
 	os_free(dev->serial_number);
 	dev->serial_number = NULL;
-	wpabuf_free(dev->application_ext);
-	dev->application_ext = NULL;
 }

@@ -238,8 +238,6 @@ Storage* NVSPartitionManager::lookup_storage_from_name(const char* name)
     return it;
 }
 
-/* Rogo API *************************************************************************************/
-/* Ninh.D.H 05.10.2023 */
 esp_err_t NVSPartitionManager::check_namespace(const char *part_name, const char *ns_name)
 {
     uint8_t nsIndex;
@@ -261,6 +259,5 @@ esp_err_t NVSPartitionManager::check_namespace(const char *part_name, const char
 
     return ESP_OK;
 }
-/************************************************************************************************/
 
 } // nvs

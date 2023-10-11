@@ -1,13 +1,19 @@
-/*
- * SPDX-FileCopyrightText: 2017 Intel Corporation
- * SPDX-FileContributor: 2018-2021 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2017-2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <stdio.h>
 #include <string.h>
-#include <inttypes.h>
 
 #include "esp_log.h"
 #include "nvs_flash.h"
@@ -160,21 +166,15 @@ static void example_change_led_state(uint8_t onoff)
     /* When the node receives the first Generic OnOff Get/Set/Set Unack message, it will
      * start the timer used to disable fast provisioning functionality.
      */
-#pragma GCC diagnostic push
-#if     __GNUC__ >= 9
-#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-#endif
     if (!bt_mesh_atomic_test_and_set_bit(fast_prov_server.srv_flags, DISABLE_FAST_PROV_START)) {
         k_delayed_work_submit(&fast_prov_server.disable_fast_prov_timer, DISABLE_FAST_PROV_TIMEOUT);
     }
-#pragma GCC diagnostic pop
-
 }
 
 static void node_prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32_t iv_index)
 {
     ESP_LOGI(TAG, "net_idx: 0x%04x, unicast_addr: 0x%04x", net_idx, addr);
-    ESP_LOGI(TAG, "flags: 0x%02x, iv_index: 0x%08" PRIx32, flags, iv_index);
+    ESP_LOGI(TAG, "flags: 0x%02x, iv_index: 0x%08x", flags, iv_index);
     board_prov_complete();
     /* Updates the net_idx used by Fast Prov Server model, and it can also
      * be updated if the Fast Prov Info Set message contains a valid one.
@@ -238,17 +238,12 @@ static void provisioner_prov_complete(int node_idx, const uint8_t uuid[16], uint
         }
         if (fast_prov_server.node_addr_cnt != FAST_PROV_NODE_COUNT_MIN &&
             fast_prov_server.node_addr_cnt <= fast_prov_server.max_node_num) {
-#pragma GCC diagnostic push
-#if     __GNUC__ >= 9
-#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-#endif
             if (bt_mesh_atomic_test_and_clear_bit(fast_prov_server.srv_flags, GATT_PROXY_ENABLE_START)) {
                 k_delayed_work_cancel(&fast_prov_server.gatt_proxy_enable_timer);
             }
             if (!bt_mesh_atomic_test_and_set_bit(fast_prov_server.srv_flags, GATT_PROXY_ENABLE_START)) {
                 k_delayed_work_submit(&fast_prov_server.gatt_proxy_enable_timer, GATT_PROXY_ENABLE_TIMEOUT);
             }
-#pragma GCC diagnostic pop
         }
     } else {
         /* When a device is provisioned, the non-primary Provisioner shall reset the timer
@@ -262,10 +257,6 @@ static void provisioner_prov_complete(int node_idx, const uint8_t uuid[16], uint
         }
     }
 
-#pragma GCC diagnostic push
-#if     __GNUC__ >= 9
-#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-#endif
     if (bt_mesh_atomic_test_bit(fast_prov_server.srv_flags, DISABLE_FAST_PROV_START)) {
         /* When a device is provisioned, and the stop_prov flag of the Provisioner has been
          * set, the Provisioner shall reset the timer which is used to stop the provisioner
@@ -274,7 +265,6 @@ static void provisioner_prov_complete(int node_idx, const uint8_t uuid[16], uint
         k_delayed_work_cancel(&fast_prov_server.disable_fast_prov_timer);
         k_delayed_work_submit(&fast_prov_server.disable_fast_prov_timer, DISABLE_FAST_PROV_TIMEOUT);
     }
-#pragma GCC diagnostic pop
 
     /* The Provisioner will send Config AppKey Add to the node. */
     example_msg_common_info_t info = {
@@ -450,7 +440,7 @@ static void example_ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event
         case ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_NODE_ADDR_GET:
         case ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_NODE_GROUP_ADD:
         case ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_NODE_GROUP_DELETE: {
-            ESP_LOGI(TAG, "%s: Fast prov server receives msg, opcode 0x%04" PRIx32, __func__, opcode);
+            ESP_LOGI(TAG, "%s: Fast prov server receives msg, opcode 0x%04x", __func__, opcode);
             struct net_buf_simple buf = {
                 .len = param->model_operation.length,
                 .data = param->model_operation.msg,
@@ -466,7 +456,7 @@ static void example_ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event
         case ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_INFO_STATUS:
         case ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_NET_KEY_STATUS:
         case ESP_BLE_MESH_VND_MODEL_OP_FAST_PROV_NODE_ADDR_ACK: {
-            ESP_LOGI(TAG, "%s: Fast prov client receives msg, opcode 0x%04" PRIx32, __func__, opcode);
+            ESP_LOGI(TAG, "%s: Fast prov client receives msg, opcode 0x%04x", __func__, opcode);
             err = example_fast_prov_client_recv_status(param->model_operation.model,
                     param->model_operation.ctx,
                     param->model_operation.length,
@@ -478,7 +468,7 @@ static void example_ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event
             break;
         }
         default:
-            ESP_LOGI(TAG, "%s: opcode 0x%04" PRIx32, __func__, param->model_operation.opcode);
+            ESP_LOGI(TAG, "%s: opcode 0x%04x", __func__, param->model_operation.opcode);
             break;
         }
         break;
@@ -508,11 +498,11 @@ static void example_ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event
                  param->model_publish_comp.err_code);
         break;
     case ESP_BLE_MESH_CLIENT_MODEL_RECV_PUBLISH_MSG_EVT:
-        ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_CLIENT_RECV_PUBLISH_MSG_EVT, opcode 0x%04" PRIx32,
+        ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_CLIENT_RECV_PUBLISH_MSG_EVT, opcode 0x%04x",
                  param->client_recv_publish_msg.opcode);
         break;
     case ESP_BLE_MESH_CLIENT_MODEL_SEND_TIMEOUT_EVT:
-        ESP_LOGI(TAG, "ESP_BLE_MESH_CLIENT_MODEL_SEND_TIMEOUT_EVT, opcode 0x%04" PRIx32 ", dst 0x%04x",
+        ESP_LOGI(TAG, "ESP_BLE_MESH_CLIENT_MODEL_SEND_TIMEOUT_EVT, opcode 0x%04x, dst 0x%04x",
                  param->client_send_timeout.opcode, param->client_send_timeout.ctx->addr);
         err = example_fast_prov_client_recv_timeout(param->client_send_timeout.opcode,
                 param->client_send_timeout.model,
@@ -548,7 +538,7 @@ static void example_ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t
     }
 
     if (param->error_code) {
-        ESP_LOGE(TAG, "Failed to send config client message, opcode: 0x%04" PRIx32, opcode);
+        ESP_LOGE(TAG, "Failed to send config client message, opcode: 0x%04x", opcode);
         return;
     }
 
@@ -652,7 +642,7 @@ static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t
 {
     esp_err_t err;
 
-    ESP_LOGI(TAG, "%s, event = 0x%02x, opcode = 0x%04" PRIx32 ", addr: 0x%04x",
+    ESP_LOGI(TAG, "%s, event = 0x%02x, opcode = 0x%04x, addr: 0x%04x",
              __func__, event, param->ctx.recv_op, param->ctx.addr);
 
     switch (event) {
@@ -679,7 +669,7 @@ static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t
 static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_event_t event,
                                                esp_ble_mesh_generic_server_cb_param_t *param)
 {
-    ESP_LOGI(TAG, "event 0x%02x, opcode 0x%04" PRIx32 ", src 0x%04x, dst 0x%04x",
+    ESP_LOGI(TAG, "event 0x%02x, opcode 0x%04x, src 0x%04x, dst 0x%04x",
         event, param->ctx.recv_op, param->ctx.addr, param->ctx.recv_dst);
 
     switch (event) {
@@ -707,7 +697,7 @@ static esp_err_t ble_mesh_init(void)
     esp_ble_mesh_register_config_server_callback(example_ble_mesh_config_server_cb);
     esp_ble_mesh_register_generic_server_callback(example_ble_mesh_generic_server_cb);
 
-    err = esp_ble_mesh_init(&prov, &comp);
+    err = (&prov, &comp);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "%s: Failed to initialize BLE Mesh", __func__);
         return err;

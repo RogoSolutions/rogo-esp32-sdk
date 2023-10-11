@@ -9,7 +9,7 @@
 #include "spiffs_nucleus.h"
 #include "esp_log.h"
 #include "esp_partition.h"
-#include "spi_flash_mmap.h"
+#include "esp_spi_flash.h"
 #include "esp_image_format.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -21,7 +21,17 @@
 #include <sys/lock.h>
 #include "esp_vfs.h"
 #include "esp_err.h"
-#include "esp_rom_spiflash.h"
+#if CONFIG_IDF_TARGET_ESP32
+#include "esp32/rom/spi_flash.h"
+#elif CONFIG_IDF_TARGET_ESP32S2
+#include "esp32s2/rom/spi_flash.h"
+#elif CONFIG_IDF_TARGET_ESP32S3
+#include "esp32s3/rom/spi_flash.h"
+#elif CONFIG_IDF_TARGET_ESP32C3
+#include "esp32c3/rom/spi_flash.h"
+#elif CONFIG_IDF_TARGET_ESP32H2
+#include "esp32h2/rom/spi_flash.h"
+#endif
 
 #include "spiffs_api.h"
 
@@ -36,9 +46,6 @@ typedef unsigned long spiffs_time_t;
 _Static_assert(CONFIG_SPIFFS_META_LENGTH >= sizeof(spiffs_time_t),
         "SPIFFS_META_LENGTH size should be >= sizeof(spiffs_time_t)");
 #endif //CONFIG_SPIFFS_USE_MTIME
-
-_Static_assert(ESP_SPIFFS_PATH_MAX == ESP_VFS_PATH_MAX,
-               "SPIFFS max path length has to be aligned with the VFS max path length");
 
 /**
  * @brief SPIFFS DIR structure
@@ -148,7 +155,7 @@ static esp_err_t esp_spiffs_init(const esp_vfs_spiffs_conf_t* conf)
     uint32_t flash_page_size = g_rom_flashchip.page_size;
     uint32_t log_page_size = CONFIG_SPIFFS_PAGE_SIZE;
     if (log_page_size % flash_page_size != 0) {
-        ESP_LOGE(TAG, "SPIFFS_PAGE_SIZE is not multiple of flash chip page size (%" PRIu32 ")",
+        ESP_LOGE(TAG, "SPIFFS_PAGE_SIZE is not multiple of flash chip page size (%d)",
                 flash_page_size);
         return ESP_ERR_INVALID_ARG;
     }
@@ -268,11 +275,11 @@ static esp_err_t esp_spiffs_init(const esp_vfs_spiffs_conf_t* conf)
                             efs->cache, efs->cache_sz, spiffs_api_check);
 
     if (conf->format_if_mount_failed && res != SPIFFS_OK) {
-        ESP_LOGW(TAG, "mount failed, %" PRId32 ". formatting...", SPIFFS_errno(efs->fs));
+        ESP_LOGW(TAG, "mount failed, %i. formatting...", SPIFFS_errno(efs->fs));
         SPIFFS_clearerr(efs->fs);
         res = SPIFFS_format(efs->fs);
         if (res != SPIFFS_OK) {
-            ESP_LOGE(TAG, "format failed, %" PRId32, SPIFFS_errno(efs->fs));
+            ESP_LOGE(TAG, "format failed, %i", SPIFFS_errno(efs->fs));
             SPIFFS_clearerr(efs->fs);
             esp_spiffs_free(&efs);
             return ESP_FAIL;
@@ -281,7 +288,7 @@ static esp_err_t esp_spiffs_init(const esp_vfs_spiffs_conf_t* conf)
                             efs->cache, efs->cache_sz, spiffs_api_check);
     }
     if (res != SPIFFS_OK) {
-        ESP_LOGE(TAG, "mount failed, %" PRId32, SPIFFS_errno(efs->fs));
+        ESP_LOGE(TAG, "mount failed, %i", SPIFFS_errno(efs->fs));
         SPIFFS_clearerr(efs->fs);
         esp_spiffs_free(&efs);
         return ESP_FAIL;
@@ -354,7 +361,7 @@ esp_err_t esp_spiffs_format(const char* partition_label)
 
     s32_t res = SPIFFS_format(_efs[index]->fs);
     if (res != SPIFFS_OK) {
-        ESP_LOGE(TAG, "format failed, %" PRId32, SPIFFS_errno(_efs[index]->fs));
+        ESP_LOGE(TAG, "format failed, %i", SPIFFS_errno(_efs[index]->fs));
         SPIFFS_clearerr(_efs[index]->fs);
         /* If the partition was previously mounted, but format failed, don't
          * try to mount the partition back (it will probably fail). On the
@@ -371,30 +378,12 @@ esp_err_t esp_spiffs_format(const char* partition_label)
                             _efs[index]->fds, _efs[index]->fds_sz, _efs[index]->cache,
                             _efs[index]->cache_sz, spiffs_api_check);
         if (res != SPIFFS_OK) {
-            ESP_LOGE(TAG, "mount failed, %" PRId32, SPIFFS_errno(_efs[index]->fs));
+            ESP_LOGE(TAG, "mount failed, %i", SPIFFS_errno(_efs[index]->fs));
             SPIFFS_clearerr(_efs[index]->fs);
             return ESP_FAIL;
         }
     } else {
         esp_spiffs_free(&_efs[index]);
-    }
-    return ESP_OK;
-}
-
-esp_err_t esp_spiffs_gc(const char* partition_label, size_t size_to_gc)
-{
-    int index;
-    if (esp_spiffs_by_label(partition_label, &index) != ESP_OK) {
-        return ESP_ERR_INVALID_STATE;
-    }
-    int res = SPIFFS_gc(_efs[index]->fs, size_to_gc);
-    if (res != SPIFFS_OK) {
-        ESP_LOGE(TAG, "SPIFFS_gc failed, %d", res);
-        SPIFFS_clearerr(_efs[index]->fs);
-        if (res == SPIFFS_ERR_FULL) {
-            return ESP_ERR_NOT_FINISHED;
-        }
-        return ESP_FAIL;
     }
     return ESP_OK;
 }
@@ -740,8 +729,7 @@ static int vfs_spiffs_readdir_r(void* ctx, DIR* pdir, struct dirent* entry,
     }
     entry->d_ino = 0;
     entry->d_type = out.type;
-    strncpy(entry->d_name, item_name, SPIFFS_OBJ_NAME_LEN);
-    entry->d_name[SPIFFS_OBJ_NAME_LEN - 1] = '\0';
+    snprintf(entry->d_name, SPIFFS_OBJ_NAME_LEN, "%s", item_name);
     dir->offset++;
     *out_dirent = entry;
     return 0;

@@ -11,9 +11,9 @@
 
 ::
 
-    openocd -f board/esp32c3-builtin.cfg
+    openocd -f board/esp32s2-kaluga-1.cfg
 
-.. |run-openocd-device-name| replace:: 通过内置 USB 连接的 ESP32-C3
+.. |run-openocd-device-name| replace:: ESP32-S2-Kaluga-1 开发板
 
 ---
 

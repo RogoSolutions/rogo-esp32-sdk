@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2017-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2017-2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef _ESP_HIDH_PRIVATE_H_
 #define _ESP_HIDH_PRIVATE_H_
@@ -66,8 +74,8 @@ struct esp_hidh_dev_s {
     void                    *tmp;
     size_t                  tmp_len;
 
-    SemaphoreHandle_t        semaphore;
-    SemaphoreHandle_t        mutex;
+    xSemaphoreHandle        semaphore;
+    xSemaphoreHandle        mutex;
 
     esp_err_t               (*close)        (esp_hidh_dev_t *dev);
     esp_err_t               (*report_write) (esp_hidh_dev_t *dev, size_t map_index, size_t report_id, int report_type, uint8_t *data, size_t len);
@@ -123,9 +131,7 @@ esp_hidh_dev_report_t *esp_hidh_dev_get_input_report_by_id_and_proto(esp_hidh_de
 esp_hidh_dev_report_t *esp_hidh_dev_get_input_report_by_proto_and_data(esp_hidh_dev_t *dev, int protocol_mode,
                                                                        size_t len, const uint8_t *data, bool *has_report_id);
 esp_hidh_dev_report_t *esp_hidh_dev_get_report_by_handle(esp_hidh_dev_t *dev, uint16_t handle);  //BLE Only
-void esp_hidh_preprocess_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
-                                       void *event_data);
-void esp_hidh_post_process_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
+void esp_hidh_process_event_data_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
                                          void *event_data);
 void esp_hidh_dev_lock(esp_hidh_dev_t *dev);
 void esp_hidh_dev_unlock(esp_hidh_dev_t *dev);

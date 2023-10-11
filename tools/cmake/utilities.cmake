@@ -22,8 +22,8 @@ endfunction()
 # Take a variable whose value was space-delimited values, convert to a cmake
 # list (semicolon-delimited)
 #
-# Note: do not use this for directories or full paths, as they may contain
-# spaces.
+# Note: if using this for directories, keeps the issue in place that
+# directories can't contain spaces...
 #
 # TODO: look at cmake separate_arguments, which is quote-aware
 function(spaces2list variable_name)
@@ -103,7 +103,7 @@ function(target_add_binary_data target embed_file embed_type)
         WORKING_DIRECTORY "${build_dir}"
         VERBATIM)
 
-    set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" APPEND PROPERTY ADDITIONAL_CLEAN_FILES "${embed_srcfile}")
+    set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${embed_srcfile}")
 
     target_sources("${target}" PRIVATE "${embed_srcfile}")
 endfunction()
@@ -152,18 +152,24 @@ function(target_linker_script target deptype scriptfiles)
         get_filename_component(search_dir "${abs_script}" DIRECTORY)
         get_filename_component(scriptname "${abs_script}" NAME)
 
-        target_link_directories("${target}" "${deptype}" ${search_dir})
-        # Regarding the usage of SHELL, see
-        # https://cmake.org/cmake/help/latest/command/target_link_options.html#option-de-duplication
-        target_link_options("${target}" "${deptype}" "SHELL:-T ${scriptname}")
+        if(deptype STREQUAL INTERFACE OR deptype STREQUAL PUBLIC)
+            get_target_property(link_libraries "${target}" INTERFACE_LINK_LIBRARIES)
+        else()
+            get_target_property(link_libraries "${target}" LINK_LIBRARIES)
+        endif()
+
+        list(FIND "${link_libraries}" "-L \"${search_dir}\"" found_search_dir)
+        if(found_search_dir EQUAL "-1")  # not already added as a search path
+            target_link_libraries("${target}" "${deptype}" "-L \"${search_dir}\"")
+        endif()
+
+        target_link_libraries("${target}" "${deptype}" "-T ${scriptname}")
 
         # Note: In ESP-IDF, most targets are libraries and libary LINK_DEPENDS don't propagate to
-        # executable(s) the library is linked to. Since CMake 3.13, INTERFACE_LINK_DEPENDS is
-        # available to solve this. However, when GNU Make generator is used, this property also
-        # propagates INTERFACE_LINK_DEPENDS dependencies to other static libraries.
-        # TODO: see if this is an expected behavior and possibly report this as a bug to CMake.
-        # For the time being, record all linker scripts in __LINK_DEPENDS and attach manually to
-        # the executable target once it is known.
+        # executable(s) the library is linked to. Attach manually to executable once it is known.
+        #
+        # Property INTERFACE_LINK_DEPENDS is available in CMake 3.13 which should propagate link
+        # dependencies.
         if(NOT __PROCESS)
             idf_build_set_property(__LINK_DEPENDS ${abs_script} APPEND)
         endif()
@@ -172,12 +178,7 @@ endfunction()
 
 # Convert a CMake list to a JSON list and store it in a variable
 function(make_json_list list variable)
-    list(LENGTH list length)
-    if(${length})
-        string(REPLACE ";" "\", \"" result "[ \"${list}\" ]")
-    else()
-        set(result "[]")
-    endif()
+    string(REPLACE ";" "\", \"" result "[ \"${list}\" ]")
     set("${variable}" "${result}" PARENT_SCOPE)
 endfunction()
 
@@ -335,7 +336,7 @@ function(file_generate output)
     endif()
 
     set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        APPEND PROPERTY ADDITIONAL_CLEAN_FILES "${output}")
+        APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${output}")
 endfunction()
 
 # add_subdirectory_if_exists
@@ -357,9 +358,9 @@ endfunction()
 # Creates an alias for exising target and shows deprectation warning
 function(add_deprecated_target_alias old_target new_target)
     add_custom_target(${old_target}
-     # `COMMAND` is important to print the `COMMENT` message at the end of the target action.
-        COMMAND ${CMAKE_COMMAND} -E echo ""
-        COMMENT "Warning: command \"${old_target}\" is deprecated. Have you wanted to run \"${new_target}\" instead?"
+        COMMAND ${CMAKE_COMMAND} -E echo
+        "Warning: Command \"${old_target}\" is deprecated and will be removed in the next major release. \
+        Please use \"${new_target}\" instead."
     )
     add_dependencies(${old_target} ${new_target})
 endfunction()

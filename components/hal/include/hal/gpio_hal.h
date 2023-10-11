@@ -1,8 +1,16 @@
-/*
- * SPDX-FileCopyrightText: 2015-2022 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+// Copyright 2015-2019 Espressif Systems (Shanghai) PTE LTD
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 /*******************************************************************************
  * NOTICE
@@ -18,6 +26,10 @@
 #include "soc/soc_caps.h"
 #include "hal/gpio_ll.h"
 #include "hal/gpio_types.h"
+
+#ifdef CONFIG_LEGACY_INCLUDE_COMMON_HEADERS
+#include "soc/rtc_io_reg.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -95,13 +107,20 @@ typedef struct {
 #define gpio_hal_get_intr_status_high(hal, core_id, status) gpio_ll_get_intr_status_high((hal)->dev, core_id, status)
 
 /**
- * @brief Clear GPIO interrupt status bit
- *
- * @param hal Context of the HAL layer
- * @param gpio_num GPIO number. If you want to clear the interrupt status bit of e.g. GPIO16, gpio_num should be GPIO_NUM_16 (16);
- */
-#define gpio_hal_clear_intr_status_bit(hal, gpio_num) (((gpio_num) < 32) ? gpio_ll_clear_intr_status((hal)->dev, 1 << gpio_num) \
-                                                                         : gpio_ll_clear_intr_status_high((hal)->dev, 1 << (gpio_num - 32)))
+  * @brief Clear GPIO interrupt status
+  *
+  * @param hal Context of the HAL layer
+  * @param mask interrupt status clear mask
+  */
+#define gpio_hal_clear_intr_status(hal, mask) gpio_ll_clear_intr_status((hal)->dev, mask)
+
+/**
+  * @brief Clear GPIO interrupt status high
+  *
+  * @param hal Context of the HAL layer
+  * @param mask interrupt status high clear mask
+  */
+#define gpio_hal_clear_intr_status_high(hal, mask) gpio_ll_clear_intr_status_high((hal)->dev, mask)
 
 /**
  * @brief  Enable GPIO module interrupt signal
@@ -110,7 +129,7 @@ typedef struct {
  * @param  gpio_num GPIO number. If you want to enable the interrupt of e.g. GPIO16, gpio_num should be GPIO_NUM_16 (16);
  * @param  core_id Interrupt enabled CPU to corresponding ID
  */
-void gpio_hal_intr_enable_on_core(gpio_hal_context_t *hal, uint32_t gpio_num, uint32_t core_id);
+void gpio_hal_intr_enable_on_core(gpio_hal_context_t *hal, gpio_num_t gpio_num, uint32_t core_id);
 
 /**
  * @brief  Disable GPIO module interrupt signal
@@ -118,7 +137,7 @@ void gpio_hal_intr_enable_on_core(gpio_hal_context_t *hal, uint32_t gpio_num, ui
  * @param  hal Context of the HAL layer
  * @param  gpio_num GPIO number. If you want to disable the interrupt of e.g. GPIO16, gpio_num should be GPIO_NUM_16 (16);
  */
-void gpio_hal_intr_disable(gpio_hal_context_t *hal, uint32_t gpio_num);
+void gpio_hal_intr_disable(gpio_hal_context_t *hal, gpio_num_t gpio_num);
 
 /**
   * @brief Disable input mode on GPIO.
@@ -169,15 +188,6 @@ void gpio_hal_intr_disable(gpio_hal_context_t *hal, uint32_t gpio_num);
 #define gpio_hal_od_enable(hal, gpio_num) gpio_ll_od_enable((hal)->dev, gpio_num)
 
 /**
- * @brief  Select a function for the pin in the IOMUX
- *
- * @param  hw Peripheral GPIO hardware instance address.
- * @param  gpio_num GPIO number
- * @param  func Function to assign to the pin
- */
-#define gpio_hal_func_sel(hal, gpio_num, func)  gpio_ll_func_sel((hal)->dev, gpio_num, func)
-
-/**
  * @brief  GPIO set output level
  *
  * @param  hal Context of the HAL layer
@@ -205,8 +215,9 @@ void gpio_hal_intr_disable(gpio_hal_context_t *hal, uint32_t gpio_num);
  *
  * @param hal Context of the HAL layer
  * @param gpio_num GPIO number.
+ * @param intr_type GPIO wake-up type. Only GPIO_INTR_LOW_LEVEL or GPIO_INTR_HIGH_LEVEL can be used.
  */
-#define gpio_hal_wakeup_enable(hal, gpio_num) gpio_ll_wakeup_enable((hal)->dev, gpio_num)
+#define gpio_hal_wakeup_enable(hal, gpio_num, intr_type) gpio_ll_wakeup_enable((hal)->dev, gpio_num, intr_type)
 
 /**
  * @brief Disable GPIO wake-up function.
@@ -242,8 +253,8 @@ void gpio_hal_intr_disable(gpio_hal_context_t *hal, uint32_t gpio_num);
   *   in output mode: the output level of the pad will be force locked and can not be changed.
   *   in input mode: the input value read will not change, regardless the changes of input signal.
   *
-  * On ESP32/S2/C3/S3/C2, the state of digital gpio cannot be held during Deep-sleep, and it will resume the hold
-  * function when the chip wakes up from Deep-sleep. If the digital gpio also needs to be held during Deep-sleep,
+  * The state of digital gpio cannot be held during Deep-sleep, and it will resume the hold function
+  * when the chip wakes up from Deep-sleep. If the digital gpio also needs to be held during Deep-sleep,
   * `gpio_deep_sleep_hold_en` should also be called.
   *
   * Power down or call gpio_hold_dis will disable this function.
@@ -270,23 +281,6 @@ void gpio_hal_intr_disable(gpio_hal_context_t *hal, uint32_t gpio_num);
 #define gpio_hal_hold_dis(hal, gpio_num) gpio_ll_hold_dis((hal)->dev, gpio_num)
 
 /**
-  * @brief Get wether digital gpio pad is held
-  *
-  * @param hal Context of the HAL layer
-  * @param gpio_num GPIO number, only support output GPIOs
-  *
-  * @note digital io means io pad powered by VDD3P3_CPU or VDD_SPI
-  *       rtc io means io pad powered by VDD3P3_RTC
-  *       caller must ensure that gpio_num is a digital io pad
-  *
-  * @return
-  *     - true  digital gpio pad is held
-  *     - false digital gpio pad is unheld
-  */
-#define gpio_hal_is_digital_io_hold(hal, gpio_num) gpio_ll_is_digital_io_hold((hal)->dev, gpio_num)
-
-#if !SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
-/**
   * @brief Enable all digital gpio pad hold function during Deep-sleep.
   *
   * When the chip is in Deep-sleep mode, all digital gpio will hold the state before sleep, and when the chip is woken up,
@@ -305,18 +299,6 @@ void gpio_hal_intr_disable(gpio_hal_context_t *hal, uint32_t gpio_num);
   * @param hal Context of the HAL layer
   */
 #define gpio_hal_deep_sleep_hold_dis(hal) gpio_ll_deep_sleep_hold_dis((hal)->dev)
-
-/**
-  * @brief Get whether all digital gpio pad hold function during Deep-sleep is enabled.
-  *
-  * @param hal Context of the HAL layer
-  *
-  * @return
-  *     - true  deep sleep hold is enabled
-  *     - false deep sleep hold is disabled
-  */
-#define gpio_hal_deep_sleep_hold_is_en(hal) gpio_ll_deep_sleep_hold_is_en((hal)->dev)
-#endif //!SOC_GPIO_SUPPORT_HOLD_SINGLE_IO_IN_DSLP
 
 /**
   * @brief Set pad input to a peripheral signal through the IOMUX.
@@ -340,18 +322,23 @@ void gpio_hal_intr_disable(gpio_hal_context_t *hal, uint32_t gpio_num);
 
 #if SOC_GPIO_SUPPORT_FORCE_HOLD
 /**
-  * @brief Force hold all digital gpio pads (including those powered by VDD3P3_RTC power domain).
+  * @brief Force hold digital and rtc gpio pad.
   * @note GPIO force hold, whether the chip in sleep mode or wakeup mode.
-  */
-#define gpio_hal_force_hold_all() gpio_ll_force_hold_all()
+  *
+  * @param hal Context of the HAL layer
+  * */
+#define gpio_hal_force_hold_all(hal) gpio_ll_force_hold_all((hal)->dev)
 
 /**
-  * @brief Force unhold all digital gpio pads (including those powered by VDD3P3_RTC power domain).
+  * @brief Force unhold digital and rtc gpio pad.
   * @note GPIO force unhold, whether the chip in sleep mode or wakeup mode.
-  */
+  *
+  * @param hal Context of the HAL layer
+  * */
 #define gpio_hal_force_unhold_all() gpio_ll_force_unhold_all()
 #endif
 
+#if SOC_GPIO_SUPPORT_SLP_SWITCH
 /**
   * @brief Enable pull-up on GPIO when system sleep.
   *
@@ -439,7 +426,7 @@ void gpio_hal_intr_disable(gpio_hal_context_t *hal, uint32_t gpio_num);
  * @param  hal Context of the HAL layer
  * @param  gpio_num GPIO number.
  */
-void gpio_hal_sleep_pupd_config_apply(gpio_hal_context_t *hal, uint32_t gpio_num);
+void gpio_hal_sleep_pupd_config_apply(gpio_hal_context_t *hal, gpio_num_t gpio_num);
 
 /**
  * @brief  Restore fun_pu/fun_pd configuration when system wakeup.
@@ -447,10 +434,12 @@ void gpio_hal_sleep_pupd_config_apply(gpio_hal_context_t *hal, uint32_t gpio_num
  * @param  hal Context of the HAL layer
  * @param  gpio_num GPIO number.
  */
-void gpio_hal_sleep_pupd_config_unapply(gpio_hal_context_t *hal, uint32_t gpio_num);
+void gpio_hal_sleep_pupd_config_unapply(gpio_hal_context_t *hal, gpio_num_t gpio_num);
 #endif // CONFIG_GPIO_ESP32_SUPPORT_SWITCH_SLP_PULL
+#endif //SOC_GPIO_SUPPORT_SLP_SWITCH
 
-#if SOC_GPIO_SUPPORT_DEEPSLEEP_WAKEUP && (SOC_RTCIO_PIN_COUNT == 0)
+#if SOC_GPIO_SUPPORT_DEEPSLEEP_WAKEUP
+
 /**
  * @brief Enable GPIO deep-sleep wake-up function.
  *
@@ -469,14 +458,12 @@ void gpio_hal_sleep_pupd_config_unapply(gpio_hal_context_t *hal, uint32_t gpio_n
 #define gpio_hal_deepsleep_wakeup_disable(hal, gpio_num) gpio_ll_deepsleep_wakeup_disable((hal)->dev, gpio_num)
 
 /**
- * @brief Get the status of whether an IO is used for deep-sleep wake-up.
+ * @brief Judge if the gpio is valid for waking up chip from deep-sleep
  *
- * @param hal Context of the HAL layer
  * @param gpio_num GPIO number
- *
- * @return True if the pin is enabled to wake up from deep-sleep
  */
-#define gpio_hal_deepsleep_wakeup_is_enabled(hal, gpio_num) gpio_ll_deepsleep_wakeup_is_enabled((hal)->dev, gpio_num)
+#define gpio_hal_is_valid_deepsleep_wakeup_gpio(gpio_num) (gpio_num <= GPIO_NUM_5)
+
 #endif //SOC_GPIO_SUPPORT_DEEPSLEEP_WAKEUP
 
 /**
@@ -486,25 +473,6 @@ void gpio_hal_sleep_pupd_config_unapply(gpio_hal_context_t *hal, uint32_t gpio_n
  * @param  func Function to assign to the pin
  */
 #define gpio_hal_iomux_func_sel(pin_name, func) gpio_ll_iomux_func_sel(pin_name, func)
-
-#if SOC_GPIO_SUPPORT_PIN_HYS_FILTER
-/**
- * @brief Control gpio hysteresis enable/disable by software.
- *
- * @param hal Context of the HAL layer
- * @param gpio_num GPIO number
- * @param enable enable or disable the hysteresis
- */
-void gpio_hal_hysteresis_soft_enable(gpio_hal_context_t *hal, uint32_t gpio_num, bool enable);
-
-/**
- * @brief Set gpio hysteresis enable/disable by efuse.
- *
- * @param hal Context of the HAL layer
- * @param gpio_num GPIO number
- */
-#define gpio_hal_hysteresis_from_efuse(hal, gpio_num) gpio_ll_pin_input_hysteresis_ctrl_sel_efuse((hal)->dev, gpio_num)
-#endif  // SOC_GPIO_SUPPORT_PIN_HYS_FILTER
 
 #ifdef __cplusplus
 }

@@ -19,6 +19,7 @@ menu "Wi-Fi Provisioning Manager"
         bool
         prompt "Enable BLE bonding"
         depends on BT_ENABLED
+        default y
         help
             This option is applicable only when provisioning transport is BLE.
 
@@ -33,28 +34,8 @@ menu "Wi-Fi Provisioning Manager"
     config WIFI_PROV_BLE_FORCE_ENCRYPTION
         bool
         prompt "Force Link Encryption during characteristic Read / Write"
+        default y
         help
             Used to enforce link encryption when attempting to read / write characteristic
 
-    config WIFI_PROV_KEEP_BLE_ON_AFTER_PROV
-        bool "Keep BT on after provisioning is done"
-        depends on BT_ENABLED
-
-    config WIFI_PROV_DISCONNECT_AFTER_PROV
-        bool "Terminate connection after provisioning is done"
-        depends on WIFI_PROV_KEEP_BLE_ON_AFTER_PROV
-        default y
-
-    choice WIFI_PROV_STA_SCAN_METHOD
-        bool "Wifi Provisioning Scan Method"
-        default WIFI_PROV_STA_ALL_CHANNEL_SCAN
-        config WIFI_PROV_STA_ALL_CHANNEL_SCAN
-            bool "All Channel Scan"
-            help
-                    Scan will end after scanning the entire channel. This option is useful in Mesh WiFi Systems.
-        config WIFI_PROV_STA_FAST_SCAN
-            bool "Fast Scan"
-            help
-                    Scan will end after an AP matching with the SSID has been detected.
-    endchoice
 endmenu
