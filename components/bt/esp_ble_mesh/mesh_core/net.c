@@ -1586,6 +1586,54 @@ void bt_mesh_net_start(void)
     }
 }
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 11.12.2023 */
+void bt_mesh_net_rogo_start(void)
+{
+    if (bt_mesh_beacon_get() == BLE_MESH_BEACON_ENABLED) {
+        bt_mesh_beacon_enable();
+    } else {
+        bt_mesh_beacon_disable();
+    }
+
+    if (IS_ENABLED(CONFIG_BLE_MESH_GATT_PROXY_SERVER) &&
+            bt_mesh_gatt_proxy_get() != BLE_MESH_GATT_PROXY_NOT_SUPPORTED) {
+        // bt_mesh_proxy_server_gatt_enable();
+        bt_mesh_adv_update();
+    }
+
+#if defined(CONFIG_BLE_MESH_USE_DUPLICATE_SCAN)
+    /* Add Mesh beacon type (Secure Network Beacon) to the exceptional list */
+    bt_mesh_update_exceptional_list(BLE_MESH_EXCEP_LIST_SUB_CODE_ADD,
+                                    BLE_MESH_EXCEP_LIST_TYPE_MESH_BEACON, NULL);
+#endif
+
+    if (IS_ENABLED(CONFIG_BLE_MESH_LOW_POWER)) {
+        /* TODO: Enable duplicate scan in Low Power Mode */
+        bt_mesh_lpn_init();
+    } else {
+        bt_mesh_scan_enable();
+    }
+
+    if (IS_ENABLED(CONFIG_BLE_MESH_FRIEND)) {
+        bt_mesh_friend_init();
+    }
+
+    if (IS_ENABLED(CONFIG_BLE_MESH_PROV)) {
+        uint16_t net_idx = bt_mesh.sub[0].net_idx;
+        uint16_t addr = bt_mesh_primary_addr();
+        uint32_t iv_index = bt_mesh.iv_index;
+        uint8_t flags = (uint8_t)bt_mesh.sub[0].kr_flag;
+        const uint8_t *net_key = bt_mesh.sub[0].keys[flags].net;
+        if (bt_mesh_atomic_test_bit(bt_mesh.flags, BLE_MESH_IVU_IN_PROGRESS)) {
+            flags |= BLE_MESH_NET_FLAG_IVU;
+        }
+
+        bt_mesh_prov_complete(net_idx, net_key, addr, flags, iv_index);
+    }
+}
+/* Rogo API *************************************************************************************/
+
 void bt_mesh_net_init(void)
 {
     k_delayed_work_init(&bt_mesh.ivu_timer, ivu_refresh);

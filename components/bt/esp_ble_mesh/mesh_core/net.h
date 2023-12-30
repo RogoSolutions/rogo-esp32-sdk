@@ -368,6 +368,11 @@ uint32_t bt_mesh_next_seq(void);
 
 void bt_mesh_net_start(void);
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 11.12.2023 */
+void bt_mesh_net_rogo_start(void);
+/************************************************************************************************/
+
 void bt_mesh_net_init(void);
 void bt_mesh_net_reset(void);
 void bt_mesh_net_deinit(void);
