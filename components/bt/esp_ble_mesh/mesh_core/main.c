@@ -147,7 +147,15 @@ int bt_mesh_rogo_provision(const uint8_t net_key[16], uint16_t net_idx,
         bt_mesh_store_iv(false);
     }
 
+    #ifdef CONFIG_BT_NIMBLE_ENABLED
+    // Todo: Why?
+    /* Rogo API *************************************************************************************/
+    /* Ninh.D.H 11.12.2023 */
+    bt_mesh_net_rogo_start();
+    /************************************************************************************************/
+    #else
     bt_mesh_net_start();
+    #endif
 
     return 0;
 }
