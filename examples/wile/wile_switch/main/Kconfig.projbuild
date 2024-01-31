@@ -1,0 +1,41 @@
+menu "WiLe device"
+
+    choice WILE_BOARD
+        prompt "Board selection"
+        default ESP_WROOM_32 if IDF_TARGET_ESP32
+        default ESP32C3_DEV if IDF_TARGET_ESP32C3
+        default ESP32S3_DEV if IDF_TARGET_ESP32S3
+        help
+            Select this option to choose the board for BLE Mesh. The default is ESP32-WROOM-32
+
+        config ESP_WROOM_32
+            bool "ESP32-WROOM-32"
+            depends on IDF_TARGET_ESP32
+
+        config ESP_WROVER
+            bool "ESP32-WROVER"
+            depends on IDF_TARGET_ESP32
+
+        config ESP32C3_DEV
+            bool "ESP32C3-DevKitC"
+            depends on IDF_TARGET_ESP32C3
+        
+        config ESP32C3_WM_TY2_V05_4SW
+            bool "GDKES-SWITCH-4"
+            depends on IDF_TARGET_ESP32C3
+        
+        config ESP32C3_RD_CN_04_V11
+            bool "RANG-DONG-SWITCH-4"
+            depends on IDF_TARGET_ESP32C3
+
+        config BESP32S3_DEV
+            bool "ESP32S3-DevKitC"
+            depends on IDF_TARGET_ESP32S3
+    endchoice
+
+    menu "Device configuration"      
+        config BOARD_TEST_ENABLE
+            bool "Enable factory board test"
+            default n
+    endmenu
+endmenu
