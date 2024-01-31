@@ -1,0 +1,14 @@
+
+menu "WILE"
+    menu "WILE Configuration"
+        config WILE_ENABLE
+            bool "Enable WiLe"
+            default y
+
+        config DEVICE_NAME
+            string "Device product ID"
+            default "WILE_DEV"
+            depends on WILE_ENABLE
+    endmenu
+
+endmenu  # WiLe
