@@ -1,34 +1,27 @@
-# Espressif IoT Development Framework
+# Rogo IoT Development Framework
 
-* [中文版](./README_CN.md)
+This is the development framework for Espressif SoCs to deloy WiLe devices, based on ESP_IDF, supported on Windows, Linux and macOS.
 
-ESP-IDF is the development framework for Espressif SoCs supported on Windows, Linux and macOS.
+# Rogo IoT SDK Release and SoC Compatibility
 
-# ESP-IDF Release Support Schedule
+The following table shows SDK support of Espressif SoCs where ![alt text][preview] and ![alt text][supported] denote preview status and support, respectively. The preview support is usually limited in time and intended for beta versions of chips. Please use an ESP-IDF release where the desired SoC is already supported.
 
-![Support Schedule](https://dl.espressif.com/dl/esp-idf/support-periods.svg)
-
-- Please read [the support policy](SUPPORT_POLICY.md) and [the documentation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/versions.html) for more information about ESP-IDF versions.
-- Please see the [End-of-Life Advisories](https://www.espressif.com/en/support/documents/advisories?keys=&field_type_of_advisory_tid%5B%5D=817) for information about ESP-IDF releases with discontinued support.
-
-# ESP-IDF Release and SoC Compatibility
-
-The following table shows ESP-IDF support of Espressif SoCs where ![alt text][preview] and ![alt text][supported] denote preview status and support, respectively. The preview support is usually limited in time and intended for beta versions of chips. Please use an ESP-IDF release where the desired SoC is already supported.
-
-|Chip         |          v4.2          |         v4.3           |          v4.4          |          v5.0          |         v5.1           |                                                            |
-|:----------- | :---------------------:| :---------------------:| :---------------------:| :---------------------:| :--------------------: | :----------------------------------------------------------|
-|ESP32        | ![alt text][supported] | ![alt text][supported] | ![alt text][supported] | ![alt text][supported] | ![alt text][supported] |                                                            |
-|ESP32-S2     | ![alt text][supported] | ![alt text][supported] | ![alt text][supported] | ![alt text][supported] | ![alt text][supported] |                                                            |
-|ESP32-C3     |                        | ![alt text][supported] | ![alt text][supported] | ![alt text][supported] | ![alt text][supported] |                                                            |
-|ESP32-S3     |                        |                        | ![alt text][supported] | ![alt text][supported] | ![alt text][supported] | [Announcement](https://www.espressif.com/en/news/ESP32_S3) |
-|ESP32-C2     |                        |                        |                        | ![alt text][supported] | ![alt text][supported] | [Announcement](https://www.espressif.com/en/news/ESP32-C2) |
-|ESP32-C6     |                        |                        |                        |                        | ![alt text][supported] | [Announcement](https://www.espressif.com/en/news/ESP32_C6) |
-|ESP32-H2     |                        |                        |                        |                        | ![alt text][supported] | [Announcement](https://www.espressif.com/en/news/ESP32_H2) |
+|Chip         |          v4.4          |          v5.0          |         v5.1            |
+|:----------- | :---------------------:| :---------------------:| :----------------------:|
+|ESP32        | ![alt text][preview]   |                        | ![alt text][preview]    |
+|ESP32-S2     |                        |                        | ![alt text][!supported] |
+|ESP32-C3     | ![alt text][supported] |                        | ![alt text][supported]  |
+|ESP32-S3     |                        |                        | ![alt text][process]    |
+|ESP32-C2     |                        |                        | ![alt text][!supported] |
+|ESP32-C6     |                        |                        | ![alt text][process]    |
+|ESP32-H2     |                        |                        | ![alt text][!supported] |
 
 [supported]: https://img.shields.io/badge/-supported-green "supported"
 [preview]: https://img.shields.io/badge/-preview-orange "preview"
+[process]: https://img.shields.io/badge/-in_process-yellow "process"
+[!supported]: https://img.shields.io/badge/-not_supported-red "!supported"
 
-Espressif SoCs released before 2016 (ESP8266 and ESP8285) are supported by [RTOS SDK](https://github.com/espressif/ESP8266_RTOS_SDK) instead.
+Example project directory: [examples/wile/](examples/wile/)
 
 # Developing With ESP-IDF
 
@@ -119,7 +112,3 @@ This can be combined with other targets, ie `idf.py -p PORT erase-flash flash` w
 * Documentation for the latest version: https://docs.espressif.com/projects/esp-idf/. This documentation is built from the [docs directory](docs) of this repository.
 
 * The [esp32.com forum](https://esp32.com/) is a place to ask questions and find community resources.
-
-* [Check the Issues section on github](https://github.com/espressif/esp-idf/issues) if you find a bug or have a feature request. Please check existing Issues before opening a new one.
-
-* If you're interested in contributing to ESP-IDF, please check the [Contributions Guide](https://docs.espressif.com/projects/esp-idf/en/latest/contribute/index.html).
