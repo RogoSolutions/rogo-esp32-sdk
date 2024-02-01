@@ -3,7 +3,7 @@ menu "WiLe device"
     choice WILE_BOARD
         prompt "Board selection"
         default ESP_WROOM_32 if IDF_TARGET_ESP32
-        default ESP32C3_DEV if IDF_TARGET_ESP32C3
+        default ESP32C3_WM_TY2_V05_4SW if IDF_TARGET_ESP32C3
         default ESP32S3_DEV if IDF_TARGET_ESP32S3
         help
             Select this option to choose the board for BLE Mesh. The default is ESP32-WROOM-32
