@@ -12,7 +12,7 @@ extern "C"
 #include "led_strip_spi.h"
 
 #define LED_ALL    -1
-#define LED_YELLOW 50
+#define LED_YELLOW 40
 #define LED_GREEN  120
 #define LED_MINT   130
 #define LED_BLUE   240
@@ -63,6 +63,7 @@ void board_led_rgb_flip_task(void *pvParameters);
 void board_led_rgb_prov_none_task(void *pvParameters);
 void board_led_rgb_prov_run_task(void *pvParameters);
 void board_led_rgb_wifi_drop_task(void *pvParameters);
+void board_led_rgb_hardware_fail_task(void *pvParameters);
 
 #ifdef __cplusplus
 }

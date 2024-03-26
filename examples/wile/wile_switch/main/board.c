@@ -55,6 +55,19 @@ struct switch_state sw_state[BTN_NUM] = {
 };
 #endif
 
+#ifdef CONFIG_ESP32C3_RD_CN_03_REM_V11
+struct button_state btn_state[BTN_NUM] = {
+    { 1, BTN_IDLE, BTN_IDLE, BTN_1, "open"  },
+    { 2, BTN_IDLE, BTN_IDLE, BTN_2, "stop"  },
+    { 3, BTN_IDLE, BTN_IDLE, BTN_3, "close" },
+};
+struct switch_state sw_state[BTN_NUM] = {
+    { 1, SW_INIT, SW_1, false, "L1" },
+    { 2, SW_INIT, SW_2, false, "L2" },
+    { 3, SW_INIT, SW_3, false, "L3" },
+};
+#endif
+
 #ifdef CONFIG_ESP32C3_DEV
 struct _led_state led_state[3] = {
     { LED_OFF, LED_OFF, LED_R, "red"   },
@@ -67,7 +80,7 @@ struct switch_state sw_state[BTN_NUM] = {};
 
 void board_led_operation(uint8_t pin, uint8_t onoff)
 {
-    #ifdef CONFIG_ESP32C3_RD_CN_04_V11
+    #if defined(CONFIG_ESP32C3_RD_CN_04_V11) || defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
 
     #else
     for (int i = 0; i < 3; i++) {
@@ -137,7 +150,7 @@ static void button_task(void* arg)
         root_device_factory_reset();
     }
     #endif
-    #ifdef CONFIG_ESP32C3_RD_CN_04_V11
+    #if defined(CONFIG_ESP32C3_RD_CN_04_V11) || defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
     if (btn->pin == BTN_3){
         // esp_restart();
         // root_device_factory_reset();
@@ -156,9 +169,9 @@ static void button_task(void* arg)
     if (btnPressNum > 1){
         TickType_t xLastWakeTime = xTaskGetTickCount();
         while (gpio_get_level(btn->pin) == BTN_PRESS){
-            if(xTaskGetTickCount()-xLastWakeTime >= 5000){
+            if(xTaskGetTickCount()-xLastWakeTime >= 3000){
                 // root_device_factory_reset();
-                #ifdef CONFIG_ESP32C3_RD_CN_04_V11
+                #if defined(CONFIG_ESP32C3_RD_CN_04_V11) || defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
                 deviceLedFlipNum = 2;
                 xTaskCreate(board_led_rgb_flip_task, "board_led_rgb_flip_task", 1024, &deviceLedFlipNum, tskIDLE_PRIORITY, NULL);
                 #endif
@@ -372,7 +385,14 @@ sw_zerocross_task_end:
     }
     else{
         ESP_LOGE("BOARD", "ZeroCross Fail");
-        if (PROV_STATE == STEP_CFG_COMPLETE) board_led_rgb_set_color(LED_ALL, LED_RED, true);
+        deviceZeroCrossingCheck = false;
+        // if (PROV_STATE == STEP_CFG_COMPLETE) board_led_rgb_set_color(LED_ALL, LED_RED, true);
+        if (boardLedIndicateHardwareHandle == NULL){
+            #if defined(CONFIG_ESP32C3_RD_CN_04_V11) || defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
+            board_led_rgb_set_color(LED_ALL, LED_RED, true);
+            xTaskCreate(board_led_rgb_hardware_fail_task, "board_led_rgb_hardware_fail_task", 512, NULL, tskIDLE_PRIORITY, &boardLedIndicateHardwareHandle);
+            #endif
+        }
     }
     gpio_set_level(sw->pin, sw->current);
 
@@ -408,7 +428,6 @@ void board_sw_zc_control(int8_t element, uint8_t onoff){
     sw_state[swIdx].current = onoff;
     sw_state[swIdx].set = false;
 
-    // gpio_isr_handler_add(ZERO_CROSS, zero_crossing_freq_count, (void *)ZERO_CROSS);
     xTaskCreate(sw_zerocross_task, "sw_zerocross_task", 1024*2, &(sw_state[swIdx]), configMAX_PRIORITIES - 1, NULL);
 
     // sw_state[element].set = true;
@@ -417,7 +436,7 @@ void board_sw_zc_control(int8_t element, uint8_t onoff){
 
 static void board_led_init(void)
 {
-    #ifdef CONFIG_ESP32C3_RD_CN_04_V11
+    #if defined(CONFIG_ESP32C3_RD_CN_04_V11) || defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
     board_led_rgb_init();
     #else
     for (int i = 0; i < 3; i++) {
@@ -455,21 +474,21 @@ void board_switch_init(void){
     gpio_config(&gpio_conf);
     #endif
 
-    uint8_t *devState = NULL;
-    uint8_t devStateSize = 0;
-    if (root_device_get_state((void *)&devState, &devStateSize) == ESP_OK){
-        ESP_LOG_BUFFER_HEX("ROOT DEVICE STATE", devState, devStateSize);
-        root_device_control(0x01, FEATURE_ONOFF, devState);
-    }
-    // if (devState == NULL) ESP_LOGE("DEVICE", "State NULL");
-    if (devState != NULL) free(devState);
+    // uint8_t *devState = NULL;
+    // uint8_t devStateSize = 0;
+    // if (root_device_get_state((void *)&devState, &devStateSize) == ESP_OK){
+    //     ESP_LOG_BUFFER_HEX("ROOT DEVICE STATE", devState, devStateSize);
+    //     root_device_control(0x01, FEATURE_ONOFF, devState);
+    // }
+    // // if (devState == NULL) ESP_LOGE("DEVICE", "State NULL");
+    // if (devState != NULL) free(devState);
 }
 
 void board_button_init(void){
     gpio_config_t gpio_conf;
     gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1);
 
-    #ifdef CONFIG_ESP32C3_RD_CN_04_V11
+    #if defined(CONFIG_ESP32C3_RD_CN_04_V11) || defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
     // gpio_reset_pin(TOUCH_EN);
     gpio_conf.mode = GPIO_MODE_OUTPUT;
     gpio_conf.pin_bit_mask = (1ULL << TOUCH_EN);
@@ -543,6 +562,6 @@ esp_err_t board_init(void){
     board_zerocross_init();
     #endif
     board_switch_init();
-    root_device_state_init();
+    // root_device_state_init();
     return ESP_OK;
 }

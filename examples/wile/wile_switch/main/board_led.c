@@ -9,6 +9,8 @@ const hsv_state_t hsv_init = { // BLUE
     .saturation = 100,
     .value      = 100,
 };
+
+#if defined(CONFIG_ESP32C3_RD_CN_04_V11)
 struct led_state_rgb led_rgb_state[LED_NUM] = {
     { 2, 0, hsv_init, hsv_init, "BTN2_1" },
     { 2, 1, hsv_init, hsv_init, "BTN2_2" },
@@ -19,6 +21,17 @@ struct led_state_rgb led_rgb_state[LED_NUM] = {
     { 4, 6, hsv_init, hsv_init, "BTN4_1" },
     { 4, 7, hsv_init, hsv_init, "BTN4_2" },
 };
+#elif defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
+struct led_state_rgb led_rgb_state[LED_NUM] = {
+    { 1, 0, hsv_init, hsv_init, "BTN2_1" },
+    { 1, 1, hsv_init, hsv_init, "BTN2_2" },
+    { 2, 2, hsv_init, hsv_init, "BTN1_1" },
+    { 2, 3, hsv_init, hsv_init, "BTN1_2" },
+    { 3, 4, hsv_init, hsv_init, "BTN3_1" },
+    { 3, 5, hsv_init, hsv_init, "BTN3_2" },
+};
+#endif
+
 bool boardledFlipDone = true;
 
 void board_led_rgb_init(void){
@@ -319,6 +332,17 @@ void board_led_rgb_wifi_drop_task(void *pvParameters){
         xTaskCreate(board_led_rgb_flip_task, "board_led_rgb_flip_task", 1024, &deviceLedFlipNum, tskIDLE_PRIORITY, NULL);
         vTaskDelay(300*1000);
         // vTaskDelay(1000);
+    }
+    vTaskDelete(NULL);
+}
+
+void board_led_rgb_hardware_fail_task(void *pvParameters){
+    while(1){
+        // ESP_LOGW("BOARD", "board_led_rgb_wifi_drop_task");
+        while (!boardledFlipDone) vTaskDelay(1);
+        deviceLedFlipNum = 2;
+        xTaskCreate(board_led_rgb_flip_task, "board_led_rgb_flip_task", 1024, &deviceLedFlipNum, tskIDLE_PRIORITY, NULL);
+        vTaskDelay(3*1000);
     }
     vTaskDelete(NULL);
 }
