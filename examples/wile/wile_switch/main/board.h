@@ -89,6 +89,27 @@ extern "C"
 // #define ZERO_CROSS_HALF_PERIOD  1
 // #define OSCILLOSCOPE_TEST       1
 #define OSCILLOSCOPE_TEST_TRIG  GPIO_NUM_9
+#elif defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
+#define BTN_NUM      3
+#define LED_NUM      6
+#define LED_RGB_CLK  GPIO_NUM_10
+#define LED_RGB_DATA GPIO_NUM_3
+#define BTN_1        GPIO_NUM_19
+#define BTN_2        GPIO_NUM_7
+#define BTN_3        GPIO_NUM_18
+#define SW_1         GPIO_NUM_0
+#define SW_2         GPIO_NUM_1
+#define SW_3         GPIO_NUM_5
+#define TOUCH_EN     GPIO_NUM_8
+// #define ZERO_CROSS   GPIO_NUM_2
+#define SW_RELAY_TIME      5600
+#define SW_TIME_ON         3800
+#define SW_TIME_OFF        5600
+// #define SW_TIME_ON   5000
+// #define SW_TIME_OFF  5600
+// #define ZERO_CROSS_HALF_PERIOD  1
+// #define OSCILLOSCOPE_TEST       1
+// #define OSCILLOSCOPE_TEST_TRIG  GPIO_NUM_9
 #elif defined(CONFIG_ESP32S3_DEV)
 #define LED_R GPIO_NUM_47
 #define LED_G GPIO_NUM_47
@@ -109,7 +130,13 @@ extern "C"
 
 #ifdef CONFIG_ESP32C3_RD_CN_04_V11
 #define LED_ON          100
-#define LED_OFF         20
+#define LED_OFF         10
+#define LED_FLIP        0
+#define BTN_IDLE        0
+#define BTN_PRESS       1
+#elif defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
+#define LED_ON          100
+#define LED_OFF         10
 #define LED_FLIP        0
 #define BTN_IDLE        0
 #define BTN_PRESS       1

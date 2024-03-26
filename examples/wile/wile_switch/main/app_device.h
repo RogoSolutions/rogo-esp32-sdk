@@ -21,18 +21,18 @@ typedef struct element_power_state{
 } element_power_state_t;
 
 extern uint8_t deviceLedFlipNum;
-extern TaskHandle_t boardLedIndicateWifiHandle;
+extern TaskHandle_t boardLedIndicateHardwareHandle;
+extern uint8_t deviceZeroCrossingCheck;
 
 void      root_device_state_init(void);
 esp_err_t root_device_control(uint16_t element, uint16_t type, uint8_t *value);
 esp_err_t root_device_local_control(uint8_t element, uint8_t mode);
 void      root_device_identify(void);
-void      root_device_network_indicate(esp_event_base_t event_base, int32_t event_id, void* event_data);
 void      root_device_delete_indicate(void);
 void      root_device_prov_complete(void);
 void      root_device_prov_none(void);
 esp_err_t root_device_set_state(uint16_t element, uint16_t type, uint8_t *value);
-esp_err_t root_device_get_state(void **state, uint8_t *stateSize);
+esp_err_t root_device_get_state(uint16_t element, uint16_t feature, void **state, uint8_t *stateSize);
 
 #ifdef __cplusplus
 }

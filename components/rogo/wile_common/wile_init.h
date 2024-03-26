@@ -54,7 +54,9 @@ extern "C"
 
 #ifdef CONFIG_BT_NIMBLE_ENABLED
 #include "nimble/ble.h"
+#ifndef CONFIG_IDF_TARGET_ESP32C6
 #include "esp_nimble_hci.h"
+#endif
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
 #include "host/ble_hs.h"
@@ -175,7 +177,6 @@ extern char rootDevIdStr[DEVICE_ID_LEN*2+1];
 // extern uint8_t rootEid[2];
 extern uint16_t rootEID;
 extern uint16_t rootGroup;
-extern uint16_t deviceMaxAddr;
 
 extern uint16_t devNwkAddr;
 extern uint16_t devManuFactory;
@@ -188,6 +189,9 @@ extern uint32_t meshSeq;
 extern uint8_t devTaskRunning;
 extern QueueHandle_t devControlParaQueue;
 extern QueueHandle_t rgmgtDevControlParaQueue;
+#define RG_DEV_CONTROL_QUEUE_SIZE           16
+#define RG_SMART_EVENT_CHECK_TIME           100
+extern EventGroupHandle_t rgmgtSmartControlEvt;
 extern uint8_t *devControlPara;
 
 // extern char *mqttEnp;
@@ -222,6 +226,17 @@ typedef struct {
     void *arg;
 } rgmsg_t;
 
+typedef struct devEidInfo{
+    uint16_t eid;
+    uint16_t rootEid;
+    uint16_t protocol;
+    uint16_t nwkAddr;
+    uint16_t manufactory;
+    uint16_t type;
+    uint16_t elmNum;
+    uint16_t group;
+} devEidInfo_t;
+
 typedef struct rgdev_control_para{
     uint16_t deviceType;
     uint16_t eid;
@@ -229,6 +244,8 @@ typedef struct rgdev_control_para{
     uint16_t delay;
     uint16_t reverse;
     uint8_t  report;
+    uint8_t  trigger; // is check trigger smart
+    uint16_t smart; // control from smart
     uint16_t feature;
     uint8_t  *featureValue;
 } rgdev_control_para_t;
@@ -252,6 +269,14 @@ typedef struct rgsmt_trig_smart{
     uint8_t  weekDay;
     uint8_t  zone;
 } rgsmt_trig_smart_t;
+
+typedef struct rgdev_log_part{
+    uint16_t day;
+    uint16_t year;
+    uint16_t elm;
+    uint16_t attr;
+} rgdev_log_part_t;
+
 
 struct lightState{
     int16_t power;
