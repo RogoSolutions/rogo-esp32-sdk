@@ -83,6 +83,11 @@
 #define NVS_MESH_SEQ                        "meshSeq"
 #define NVS_SMART_TRIGGER                   "smartTrigger"
 
+/* Sensor log */
+#define SENSOR_LOG_DAY_NUM                  2
+// #define SENSOR_LOG_SIZE_MAX                 3*5 // test
+#define SENSOR_LOG_SIZE_MAX                 32*14
+
 /**/
 #define MSG_HEADER_FULL                     0x00
 #define MSG_HEADER_SHORT                    0x01
@@ -195,6 +200,7 @@
 #define CMDs_STATE_SENSOR_LOG                0x05
 #define CMDs_STATE_DEVICE_REPORT             0x06
 #define CMDs_STATE_DEVICE_NOTIFY             0x07
+#define CMDs_STATE_DEVICE_REPORT_EVT         0x08
 #define CMDs_STATE_DEVICE                    0x0A
 #define CMDs_STATE_DEVICE_ATTRIBUTES         0x0B
 
@@ -306,6 +312,7 @@
 #define SENDER_GOOGLE_VOICE                  0x20
 #define SENDER_ALEXA                         0x21
 #define SENDER_MAIKA                         0x22
+#define SENDER_THIRD_PARTY                   0x29
 
 /* BlockType */
 #define BLOCK_ID_HEX                         0x01
@@ -328,6 +335,8 @@
 #define BLOCK_EID_GRP                        0x43 // eid - Group
 #define BLOCK_EID_PRTC_ELMS                  0x44 // eid - protocol - elms
 #define BLOCK_EID_INFO                       0x45 // eid - rootEid - protocol - nwkAddr - manuFactory - deviceType - elmSize - group
+#define BLOCK_EID_SYNC_SMART_CMD             0x47 // eid - cfm
+#define BLOCK_EID_SYNC_SMART_TRIGGER         0x48 // eid - mode - timeDisable - cfm
 #define BLOCK_SMID                           0x50 // smid
 #define BLOCK_SMID_EID                       0x52 // smid - eid
 #define BLOCK_SMID_TRIGGER                   0x53 // smid - triggerType
@@ -364,6 +373,9 @@
 #define BLOCK_CINF                           0x8A //64
 #define BLOCK_STATE_AND_LOG_CID              0x8B //65
 #define BLOCK_LOG_DATA                       0x8C //65
+#define BLOCK_STATE_SENSOR_INFO              0x8D
+#define BLOCK_STATE_SENSOR_LOG_SORT_ID       0x8E
+#define BLOCK_STATE_SENSOR_LOG_DATA          0x8F
 #define BLOCK_CUSTOM_DATA                    0xDF //223
 #define BLOCK_LARGE_DATA_RAW                 0xE0 //224 - 2 byte
 #define BLOCK_LARGE_STRING                   0xE1 //225 - 2 byte
@@ -509,6 +521,16 @@
 #define CTR_DOOR_LOCKED                       0
 #define CTR_DOOR_UNLOCKED                     1
 
+#define CTR_WALL_MOUNTED                      1
+#define CTR_WALL_UNMOUNT                      0
+
+#define CTR_SMOKE_DETECTED                    1
+#define CTR_SMOKE_UNDETECTED                  0
+
+#define CTR_MOTION_DETECTED                   1
+
+#define CTR_BATTERY_LOW                       15
+
 #define CTR_AC_MODE_AUTO                      0
 #define CTR_AC_MODE_COOLING                   1
 #define CTR_AC_MODE_DRY                       2
@@ -530,6 +552,25 @@
 
 #define CTR_AC_FEATURE_NUM                    5
 #define CTR_LIGHT_FEATURE_NUM                 6
+
+#define CTR_WILE_MQTT_USER                    0
+#define CTR_WILE_MQTT_REPORT                  1  // update state database
+#define CTR_WILE_MQTT_NOTIFY                  2  // send notify
+#define CTR_WILE_MQTT_REPORT_EVT              3  // Low power message, update state, send notify, check automation all in one
+#define CTR_WILE_MQTT_NOT_UPDATE              0xFF
+
+#define CTR_SMART_ENABLE                      0x00
+#define CTR_SMART_DISABLE                     0x02
+
+#define CTR_WILE_EVT_WIFI_CONNECTED           0x00
+#define CTR_WILE_EVT_WIFI_DISCONNECTED        0x01
+#define CTR_WILE_EVT_WIFI_CONNECT_FAIL        0x0F
+#define CTR_WILE_EVT_CLOUD_CONNECTED          0x10
+#define CTR_WILE_EVT_CLOUD_DISCONNECTED       0x1F
+#define CTR_WILE_EVT_OTA_SUCCESS              0x20
+#define CTR_WILE_EVT_OTA_NEWEST               0x21
+#define CTR_WILE_EVT_OTA_FAIL                 0x2F
+#define CTR_WILE_EVT_OTHER                    0xFF
 
 /* CONDITION */
 #define COND_ANY                              1
@@ -629,6 +670,7 @@
 // Wile in-device feature
 #define FEATURE_SMOKE_BATTERY                 65000
 #define FEATURE_MOUNT_BATTERY                 65001
+#define FEATURE_ALL                           65535
 
 #define FEATURE_SINGLE_PRESS_EVT_DEPRECATED   90 //Deprecated, end when old automation remove
 #define FEATURE_LONG_PRESS_EVT_DEPRECATED     91 //Deprecated, end when old automation remove
