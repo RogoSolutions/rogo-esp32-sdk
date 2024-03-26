@@ -1,0 +1,9 @@
+# Name,         Type,   SubType,    Offset,     Size,     Flags
+nvs,            data,   nvs,              ,     36k,
+RDtest,         data,   nvs,              ,     12k,
+otadata,        data,   ota,              ,     8k,       encrypted
+phy_init,       data,   phy,              ,     4k,       encrypted
+ota_0,          app,    ota_0,            ,     1920k,    encrypted
+ota_1,          app,    ota_1,            ,     1920k,    encrypted
+rogo,           data,   nvs,              ,     124k
+nvs_key,        data,   nvs_keys,         ,     4k,       encrypted
