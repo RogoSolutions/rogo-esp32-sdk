@@ -23,12 +23,12 @@ struct led_state_rgb led_rgb_state[LED_NUM] = {
 };
 #elif defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
 struct led_state_rgb led_rgb_state[LED_NUM] = {
-    { 1, 0, hsv_init, hsv_init, "BTN2_1" },
-    { 1, 1, hsv_init, hsv_init, "BTN2_2" },
-    { 2, 2, hsv_init, hsv_init, "BTN1_1" },
-    { 2, 3, hsv_init, hsv_init, "BTN1_2" },
-    { 3, 4, hsv_init, hsv_init, "BTN3_1" },
-    { 3, 5, hsv_init, hsv_init, "BTN3_2" },
+    { 1, 0, hsv_init, hsv_init, "OPEN_1"  },
+    { 1, 1, hsv_init, hsv_init, "OPEN_2"  },
+    { 2, 2, hsv_init, hsv_init, "STOP_1"  },
+    { 2, 3, hsv_init, hsv_init, "STOP_2"  },
+    { 3, 4, hsv_init, hsv_init, "CLOSE_1" },
+    { 3, 5, hsv_init, hsv_init, "CLOSE_2" },
 };
 #endif
 

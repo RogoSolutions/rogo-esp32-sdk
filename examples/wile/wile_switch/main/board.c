@@ -62,9 +62,12 @@ struct button_state btn_state[BTN_NUM] = {
     { 3, BTN_IDLE, BTN_IDLE, BTN_3, "close" },
 };
 struct switch_state sw_state[BTN_NUM] = {
-    { 1, SW_INIT, SW_1, false, "L1" },
-    { 2, SW_INIT, SW_2, false, "L2" },
-    { 3, SW_INIT, SW_3, false, "L3" },
+    { 1, SW_INIT, SW_1, false, "OPEN" },
+    { 2, SW_INIT, SW_2, false, "STOP-NO" },
+    { 3, SW_INIT, SW_3, false, "CLOSE" },
+};
+struct motor_state sw_motor_state[1] = {
+    { 1, CTR_OPENCLOSE_MODE_STOP, CTR_OPENCLOSE_MODE_STOP, false},
 };
 #endif
 
@@ -101,26 +104,6 @@ void board_led_operation(uint8_t pin, uint8_t onoff)
     ESP_LOGE(TAG, "LED is not found!");
 }
 
-// static void task_led_flip(void *pvParameters)
-// {
-//     uint8_t flipNum = *((uint8_t *)pvParameters);
-//     for (uint8_t i=0; i<flipNum; i++){
-//         board_led_rgb_set_brightness(LED_ALL, LED_ON);
-//         vTaskDelay(200);
-//         board_led_rgb_set_brightness(LED_ALL, LED_OFF);
-//         vTaskDelay(200);
-//     };
-//     for (uint8_t i=0; i<BTN_NUM; i++){
-//         if (sw_state[i].current == CTR_ONOFF_ON){
-//             board_led_rgb_set_brightness(sw_state[i].element, LED_ON);
-//         }
-//         else{
-//             board_led_rgb_set_brightness(sw_state[i].element, LED_OFF);
-//         }
-//     }
-//     vTaskDelete(NULL);
-// }
-
 TaskHandle_t btnTask = NULL;
 
 static void button_task(void* arg)
@@ -150,20 +133,34 @@ static void button_task(void* arg)
         root_device_factory_reset();
     }
     #endif
-    #if defined(CONFIG_ESP32C3_RD_CN_04_V11) || defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
-    if (btn->pin == BTN_3){
-        // esp_restart();
-        // root_device_factory_reset();
-    }
-    #endif
 
     for (int i=0; i<BTN_NUM; i++){
+        #ifdef CONFIG_ESP32C3_RD_CN_03_REM_V11
+        if (btnPressNum == 1 && btn_state[i].current == BTN_PRESS){
+            ESP_LOGW("WILE", "Button Press: #%d-%s", btn_state[i].element, btn_state[i].name);
+            uint8_t controlMode = CTR_OPENCLOSE_MODE_STOP;
+            switch (btn_state[i].element){
+                case 1: // open
+                    controlMode = CTR_OPENCLOSE_MODE_OPEN;
+                    break;
+                case 2: // stop
+                    controlMode = CTR_OPENCLOSE_MODE_STOP;
+                    break;
+                case 3: // close
+                    controlMode = CTR_OPENCLOSE_MODE_CLOSE;
+                    break;
+            }
+            root_device_local_control(btn_state[i].element, controlMode);
+            btn_state[i].current = BTN_IDLE;
+        }
+        #else
         if (btn_state[i].current == BTN_PRESS){
             ESP_LOGW("WILE", "Button Press: %s", btn_state[i].name);
             root_device_local_control(btn_state[i].element, CTR_ONOFF_FLIP);
             // btn_state[i].previous = btn_state[i].current;
             btn_state[i].current = BTN_IDLE;
         }
+        #endif
     }
 
     if (btnPressNum > 1){
@@ -213,23 +210,6 @@ static void IRAM_ATTR button_gpio_isr_handler(void* arg){
     }
 }
 
-// esp_timer_handle_t switch_timer_handler;
-
-// static void board_sw_relay_control(void *arg)
-// {
-//     // gpio_set_level(SW1, localDevState);
-//     int8_t element = 0;
-//     gpio_set_level(sw_state[element].pin, sw_state[element].current);
-//     esp_timer_stop(switch_timer_handler);
-//     ESP_LOGI("Zero Crossing"," Relay latched ");
-// }
-
-// esp_timer_create_args_t switch_timer_args = {
-//     .callback = &board_sw_relay_control,
-//     .arg = NULL,
-//     .name = "Switch Relay Timer"
-// };
-
 void board_sw_control(uint8_t element, uint8_t onoff){
     // gpio_set_level(pin, onoff);
     uint8_t swIdx = 0;
@@ -247,6 +227,88 @@ void board_sw_control(uint8_t element, uint8_t onoff){
     gpio_set_level(sw_state[swIdx].pin, onoff);
     sw_state[swIdx].set = true;
 }
+
+#ifdef CONFIG_ESP32C3_RD_CN_03_REM_V11
+void board_sw_motor_control_normal(void){
+    board_sw_control(1, SW_OFF);
+    board_sw_control(2, SW_ON);
+    board_sw_control(3, SW_OFF);
+}
+void board_sw_motor_control_stop(void){
+    board_sw_control(1, SW_OFF);
+    board_sw_control(2, SW_OFF);
+    board_sw_control(3, SW_OFF);
+}
+void board_sw_motor_control_open(void){
+    board_sw_control(1, SW_ON);
+    board_sw_control(2, SW_ON);
+    board_sw_control(3, SW_OFF);
+}
+void board_sw_motor_control_close(void){
+    board_sw_control(1, SW_OFF);
+    board_sw_control(2, SW_OFF);
+    board_sw_control(3, SW_ON);
+}
+
+void board_sw_motor_control_task(void *arg){
+    ESP_LOGW("BOARD", "OPENCLOSE: %d - %d%%", sw_motor_state[0].current, sw_motor_state[0].level);
+    switch (sw_motor_state[0].current){
+        case CTR_OPENCLOSE_MODE_CLOSE:
+            board_led_rgb_set_brightness(1, LED_OFF);
+            board_led_rgb_set_brightness(2, LED_OFF);
+            board_led_rgb_set_brightness(3, LED_ON);
+            break;
+        case CTR_OPENCLOSE_MODE_OPEN:
+            board_led_rgb_set_brightness(1, LED_ON);
+            board_led_rgb_set_brightness(2, LED_OFF);
+            board_led_rgb_set_brightness(3, LED_OFF);
+            break;
+        case CTR_OPENCLOSE_MODE_STOP:
+            board_led_rgb_set_brightness(1, LED_OFF);
+            board_led_rgb_set_brightness(2, LED_ON);
+            board_led_rgb_set_brightness(3, LED_OFF);
+            break;
+    }
+
+    if (!sw_motor_state[0].set && sw_motor_state[0].current != sw_motor_state[0].previous &&
+                                  sw_motor_state[0].current != CTR_OPENCLOSE_MODE_STOP &&
+                                  sw_motor_state[0].previous != CTR_OPENCLOSE_MODE_STOP){
+        ESP_LOGE("GATE", "STOP");
+        board_sw_motor_control_stop();
+        vTaskDelay(1000);
+    }
+
+    sw_motor_state[0].previous = sw_motor_state[0].current;
+    sw_motor_state[0].set = false;
+    switch (sw_motor_state[0].current){
+        case CTR_OPENCLOSE_MODE_CLOSE:
+            board_sw_motor_control_close();
+            break;
+        case CTR_OPENCLOSE_MODE_OPEN:
+            board_sw_motor_control_open();
+            break;
+        case CTR_OPENCLOSE_MODE_STOP:
+            board_sw_motor_control_stop();
+            break;
+    }
+    vTaskDelay(1000);
+    board_led_rgb_set_brightness(LED_ALL, LED_OFF);
+    board_sw_motor_control_normal();
+
+    sw_motor_state[0].set = true;
+    boardSwMotorControlHandle = NULL;
+    vTaskDelete(NULL);
+}
+
+void board_sw_motor_control(int8_t element, uint8_t openclose, uint8_t level){
+    sw_motor_state[0].current = openclose;
+    sw_motor_state[0].level = level;
+    if (boardSwMotorControlHandle != NULL){
+        vTaskDelete(boardSwMotorControlHandle);
+    }
+    xTaskCreate(board_sw_motor_control_task, "board_sw_motor_control_task", 1024*2, &sw_motor_state[0], 8, &boardSwMotorControlHandle);
+}
+#endif
 
 #ifdef ZERO_CROSS
 #ifdef ZERO_CROSS_HALF_PERIOD
@@ -456,14 +518,7 @@ void board_switch_init(void){
         .intr_type = GPIO_INTR_DISABLE,
     };
     for (int i=0; i<BTN_NUM; i++){
-        // gpio_reset_pin(sw_state[i].pin);
-        // gpio_set_direction(sw_state[i].pin, GPIO_MODE_OUTPUT);
-
-        // gpio_conf.mode = GPIO_MODE_OUTPUT;
         gpio_conf.pin_bit_mask = (1ULL << sw_state[i].pin);
-        // gpio_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-        // gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-        // gpio_conf.intr_type = GPIO_INTR_DISABLE;
         gpio_config(&gpio_conf);
 
         // gpio_set_level(sw_state[i].pin, SW_OFF);
@@ -473,15 +528,6 @@ void board_switch_init(void){
     gpio_conf.pin_bit_mask = (1ULL << OSCILLOSCOPE_TEST_TRIG);
     gpio_config(&gpio_conf);
     #endif
-
-    // uint8_t *devState = NULL;
-    // uint8_t devStateSize = 0;
-    // if (root_device_get_state((void *)&devState, &devStateSize) == ESP_OK){
-    //     ESP_LOG_BUFFER_HEX("ROOT DEVICE STATE", devState, devStateSize);
-    //     root_device_control(0x01, FEATURE_ONOFF, devState);
-    // }
-    // // if (devState == NULL) ESP_LOGE("DEVICE", "State NULL");
-    // if (devState != NULL) free(devState);
 }
 
 void board_button_init(void){
@@ -550,8 +596,6 @@ void board_zerocross_init(void){
     gpio_new_pin_glitch_filter(&glitch_filter_cfg, &glitch_filter);
     gpio_glitch_filter_enable(glitch_filter);
     #endif
-
-    // esp_timer_create(&switch_timer_args, &switch_timer_handler);
 }
 #endif
 

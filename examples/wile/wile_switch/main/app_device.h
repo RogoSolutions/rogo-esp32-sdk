@@ -22,7 +22,7 @@ typedef struct element_power_state{
 
 extern uint8_t deviceLedFlipNum;
 extern TaskHandle_t boardLedIndicateHardwareHandle;
-extern uint8_t deviceZeroCrossingCheck;
+extern TaskHandle_t boardSwMotorControlHandle;
 
 void      root_device_state_init(void);
 esp_err_t root_device_control(uint16_t element, uint16_t type, uint8_t *value);
