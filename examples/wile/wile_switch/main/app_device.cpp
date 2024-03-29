@@ -22,13 +22,10 @@ TaskHandle_t boardLedIndicateHardwareHandle = NULL;
 uint8_t deviceZeroCrossingCheck = true;
 // __NOINIT_ATTR static element_power_state_t elementState[BTN_NUM];
 #elif defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
-element_power_state_t elementState[BTN_NUM] = {
-    { 1, CTR_ONOFF_OFF },
-    { 2, CTR_ONOFF_OFF },
-    { 3, CTR_ONOFF_OFF },
-};
 uint8_t deviceLedFlipNum = 2;
 TaskHandle_t boardLedIndicateHardwareHandle = NULL;
+TaskHandle_t boardSwMotorControlHandle = NULL;
+// uint8_t deviceZeroCrossingCheck = true;
 #else
 element_power_state_t elementState[BTN_NUM] = {
     { 1, CTR_ONOFF_OFF },
@@ -41,6 +38,12 @@ TaskHandle_t boardLedIndicateHardwareHandle = NULL;
 #endif
 
 void root_device_state_init(void){
+    #ifdef CONFIG_ESP32C3_RD_CN_03_REM_V11
+    board_sw_control(1, SW_OFF);
+    board_sw_control(2, SW_ON);
+    board_sw_control(3, SW_OFF);
+    board_led_rgb_set_brightness(LED_ALL, LED_OFF);
+    #else
     if (PROV_STATE == STEP_CFG_COMPLETE){
         uint8_t *devState = NULL;
         uint8_t devStateSize = 0;
@@ -60,6 +63,7 @@ void root_device_state_init(void){
             // board_sw_zc_control(i, CTR_ONOFF_OFF);
         }
     }
+    #endif
 }
 
 esp_err_t root_device_control(uint16_t element, uint16_t type, uint8_t *value){
@@ -68,52 +72,10 @@ esp_err_t root_device_control(uint16_t element, uint16_t type, uint8_t *value){
     ESP_LOGI("ROOT", "State: %d", devState);
 
     #ifdef CONFIG_ESP32C3_RD_CN_03_REM_V11
-    if (devState == CTR_ONOFF_ON){
-        board_led_rgb_set_brightness(element, LED_ON);
-    }
-    else if (devState == CTR_ONOFF_OFF){
-        board_led_rgb_set_brightness(element, LED_OFF);
-    }
-    switch (element){
-        case 1: // open
-            if (devState == CTR_ONOFF_ON){
-                board_sw_control(1, SW_ON);
-                board_sw_control(2, SW_ON);
-                board_sw_control(3, SW_OFF);
-            }
-            else if (devState == CTR_ONOFF_OFF){
-                board_sw_control(1, SW_OFF);
-                board_sw_control(2, SW_ON);
-                board_sw_control(3, SW_OFF);
-            }
-            break;
-        case 2: // stop
-            if (devState == CTR_ONOFF_ON){
-                board_sw_control(1, SW_OFF);
-                board_sw_control(2, SW_OFF);
-                board_sw_control(3, SW_OFF);
-            }
-            else if (devState == CTR_ONOFF_OFF){
-                board_sw_control(1, SW_OFF);
-                board_sw_control(2, SW_ON);
-                board_sw_control(3, SW_OFF);
-            }
-            break;
-        case 3: // close
-            if (devState == CTR_ONOFF_ON){
-                board_sw_control(1, SW_OFF);
-                board_sw_control(2, SW_OFF);
-                board_sw_control(3, SW_ON);
-            }
-            else if (devState == CTR_ONOFF_OFF){
-                board_sw_control(1, SW_OFF);
-                board_sw_control(2, SW_ON);
-                board_sw_control(3, SW_OFF);
-            }
-            break;
-    }
-    return ESP_OK;
-
+    if (type != FEATURE_OPEN_CLOSE_CTL) return ERR_RG_NOTSUPPORT;
+    ESP_LOGW("GATE", "OPENCLOSE: %d - %d%%", value[1], value[3]);
+    uint8_t level =  value[3];
+    board_sw_motor_control(element, devState, level);
     #else
 
     switch (type){
@@ -142,18 +104,32 @@ esp_err_t root_device_control(uint16_t element, uint16_t type, uint8_t *value){
         default:
             break;
     }
-
-    #endif
     for (uint8_t i=0; i<BTN_NUM; i++){
         if (elementState[i].element == element && elementState[i].state != devState){
             elementState[i].state = (uint8_t)devState;
             break;
         }
     }
+    #endif
+
     return ESP_OK;
 }
 
 esp_err_t root_device_local_control(uint8_t element, uint8_t mode){
+    #ifdef CONFIG_ESP32C3_RD_CN_03_REM_V11
+    uint8_t controlValue[4] = {0x00};
+    controlValue[1] = mode;
+    if (mode == CTR_OPENCLOSE_MODE_OPEN) controlValue[3] = 100;
+    uint8_t *devState = NULL;
+    uint8_t devStateSize = 0;
+    if (root_device_get_state(0x01, FEATURE_OPEN_CLOSE_CTL, (void **)&devState, &devStateSize) == ESP_OK){
+        // ESP_LOG_BUFFER_HEX("ROOT DEVICE STATE", devState, devStateSize);
+        root_device_set_state(0x01, FEATURE_OPEN_CLOSE_CTL, controlValue);
+    }
+
+    if (devState != NULL) free(devState);
+    return root_device_control(element, FEATURE_OPEN_CLOSE_CTL, controlValue);
+    #else
     uint8_t localIdx = 0;
     for (localIdx = 0; localIdx < BTN_NUM; localIdx++){
         if (element == elementState[localIdx].element) break;
@@ -182,6 +158,7 @@ esp_err_t root_device_local_control(uint8_t element, uint8_t mode){
     if (devState != NULL) free(devState);
 
     return root_device_control(element, FEATURE_ONOFF, controlValue);
+    #endif
 }
 
 #ifndef LED_RGB_DATA
@@ -226,20 +203,28 @@ void root_device_identify(void){
 esp_err_t rgmgt_device_event_cb(uint16_t event){
     switch (event){
         case CTR_WILE_EVT_WIFI_CONNECTED:
+            #ifdef ZERO_CROSS
             if (deviceZeroCrossingCheck && PROV_STATE == STEP_CFG_COMPLETE){
                 board_led_rgb_set_color(LED_ALL, LED_BLUE, true);
             }
+            #endif
             break;
         case CTR_WILE_EVT_WIFI_DISCONNECTED:
+            #ifdef ZERO_CROSS
             if (deviceZeroCrossingCheck) board_led_rgb_set_color(LED_ALL, LED_YELLOW, true);
+            #endif
             break;
         case CTR_WILE_EVT_WIFI_CONNECT_FAIL:
             break;
         case CTR_WILE_EVT_CLOUD_CONNECTED:
+            #ifdef ZERO_CROSS
             if (deviceZeroCrossingCheck) board_led_rgb_set_color(LED_ALL, LED_BLUE, true);
+            #endif
             break;
         case CTR_WILE_EVT_CLOUD_DISCONNECTED:
+            #ifdef ZERO_CROSS
             if (deviceZeroCrossingCheck) board_led_rgb_set_color(LED_ALL, LED_RED, true);
+            #endif
             break;
         default:
             break;
@@ -256,8 +241,11 @@ void root_device_delete_indicate(void){
 }
 
 void root_device_prov_complete(void){
-    #if defined(CONFIG_ESP32C3_RD_CN_04_V11) || defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
+    #if defined(CONFIG_ESP32C3_RD_CN_04_V11)
     if (deviceZeroCrossingCheck) board_led_rgb_set_color(LED_ALL, LED_BLUE, false);
+    root_device_state_init();
+    #elif defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
+    board_led_rgb_set_color(LED_ALL, LED_BLUE, false);
     root_device_state_init();
     #else
     gpio_set_level(LED_R, LED_OFF);
@@ -265,11 +253,12 @@ void root_device_prov_complete(void){
 }
 
 void root_device_prov_none(void){
-    #if defined(CONFIG_ESP32C3_RD_CN_04_V11) || defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
+    #if defined(CONFIG_ESP32C3_RD_CN_04_V11)
     if (deviceZeroCrossingCheck) board_led_rgb_set_color(LED_ALL, LED_YELLOW, false);
-    // board_led_rgb_set_color(LED_ALL, LED_BLUE, false);
     root_device_state_init();
-    // xTaskCreate(board_led_rgb_prov_none_task, "board_led_rgb_prov_none_task", 512, NULL, tskIDLE_PRIORITY, &ledIndicateHandle);
+    #elif defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
+    board_led_rgb_set_color(LED_ALL, LED_YELLOW, false);
+    root_device_state_init();
     #else
     xTaskCreate(task_led_slow, "task_led_slow", 512, NULL, tskIDLE_PRIORITY, &ledIndicateHandle);
     #endif

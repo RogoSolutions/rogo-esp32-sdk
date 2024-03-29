@@ -105,11 +105,6 @@ extern "C"
 #define SW_RELAY_TIME      5600
 #define SW_TIME_ON         3800
 #define SW_TIME_OFF        5600
-// #define SW_TIME_ON   5000
-// #define SW_TIME_OFF  5600
-// #define ZERO_CROSS_HALF_PERIOD  1
-// #define OSCILLOSCOPE_TEST       1
-// #define OSCILLOSCOPE_TEST_TRIG  GPIO_NUM_9
 #elif defined(CONFIG_ESP32S3_DEV)
 #define LED_R GPIO_NUM_47
 #define LED_G GPIO_NUM_47
@@ -154,6 +149,10 @@ extern "C"
 
 #define ZERO_SAMPLING   10  // Sample number on zero crossing pin
 
+#ifdef ZERO_CROSS
+extern uint8_t deviceZeroCrossingCheck;
+#endif
+
 struct _led_state {
     uint8_t current;
     uint8_t previous;
@@ -177,6 +176,14 @@ extern struct switch_state{
     char *name;
 } sw_state[BTN_NUM];
 
+extern struct motor_state{
+    uint8_t element;
+    uint8_t current;
+    uint8_t previous;
+    uint8_t level;
+    bool set;
+} sw_motor_state[1];
+
 void board_prov_complete(void);
 
 void board_led_operation(uint8_t pin, uint8_t onoff);
@@ -187,6 +194,10 @@ void board_sw_control(uint8_t element, uint8_t onoff);
 
 #ifdef ZERO_CROSS
 void board_sw_zc_control(int8_t element, uint8_t onoff);
+#endif
+
+#ifdef CONFIG_ESP32C3_RD_CN_03_REM_V11
+void board_sw_motor_control(int8_t element, uint8_t openclose, uint8_t level);
 #endif
 
 void board_test(void);
