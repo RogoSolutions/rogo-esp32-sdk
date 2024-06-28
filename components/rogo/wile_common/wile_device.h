@@ -44,6 +44,7 @@ bool      rgmgt_device_feature_take_onoff(uint16_t featureType);
 bool      rgmgt_device_take_sensor_log(uint16_t deviceType);
 uint16_t  rgmgt_device_feature_log(uint16_t deviceType);
 bool      rgmgt_device_feature_log_value(uint16_t feature, uint8_t *value);
+bool      rgmgt_device_feature_state_notify(uint16_t feature, uint8_t *state);
 uint8_t   rgmgt_device_elm_num(uint8_t *elmInfo, size_t elmInfoLen);
 uint8_t   rgmgt_device_get_elmnum(uint8_t *deviceState, size_t stateLen);
 uint16_t  rgmgt_device_get_elmoffset(uint8_t elmIdx, uint8_t *deviceState, size_t stateLen);
@@ -52,6 +53,7 @@ uint16_t  rgmgt_device_get_elmid_nwk(uint16_t nwkAddr, uint8_t *deviceState, siz
 uint16_t  rgmgt_device_get_elmid_idx(uint16_t eid, uint8_t index);
 uint8_t   rgmgt_device_get_elmidx(uint16_t elmID, uint8_t *deviceState, size_t stateLen);
 uint16_t  rgmgt_device_get_elmtype(uint16_t elmID, uint8_t *deviceState, size_t stateLen);
+esp_err_t rgmgt_device_get_elmtype_eid(uint16_t eid, uint16_t elmID, uint16_t *elmType);
 esp_err_t rgmgt_device_get_state_elm_attr(uint16_t elmIdx, uint16_t attrType, uint8_t *deviceState, size_t stateLen, void **stateOut, size_t *stateOutLen);
 esp_err_t rgmgt_device_get_id_mac(uint16_t deviceEid, void **deviceInfo, size_t *deviceInfoLen);
 esp_err_t rgmgt_device_get_protocol(uint16_t deviceEid, uint16_t *deviceProtocol);
@@ -62,8 +64,8 @@ esp_err_t rgmgt_device_control(uint8_t typeDev, uint16_t eidControl, uint16_t el
                                uint8_t reportToMqtt, uint8_t checkTrigger, uint16_t smartSrc, uint16_t delay, uint16_t reverse);
 esp_err_t rgmgt_device_mesh_control(uint16_t eid, uint16_t elm, uint16_t attr, uint8_t *value);
 esp_err_t rgmgt_device_set_state(uint16_t eidTemp, uint16_t deviceElmId, uint16_t type, uint8_t *value, uint8_t toCloud, uint8_t checkTrigger);
-esp_err_t rgmgt_device_update_state(uint16_t deviceElmId, uint8_t **deviceState, size_t *stateSize, uint16_t type, uint8_t *value,
-                                    uint8_t *isOnOffChange, uint8_t *onOffValue);
+esp_err_t rgmgt_device_update_state(uint16_t deviceElmId, uint8_t **deviceState, size_t *stateSize, uint8_t **deviceStateOld, uint16_t type, uint8_t *value,
+                                    uint8_t *stateChange, uint8_t *isOnOffChange, uint8_t *onOffValue);
 esp_err_t rgmgt_device_get_state(uint16_t deviceEid, void **deviceState, size_t *stateSize);
 esp_err_t rgmgt_device_set_log(uint16_t deviceEid, uint16_t deviceElmId, uint16_t type, uint8_t *value);
 esp_err_t rgmgt_device_get_log(uint16_t deviceEid, uint16_t deviceElm, uint16_t attr, uint16_t year, uint16_t day, uint8_t **deviceLog, size_t *logSize);

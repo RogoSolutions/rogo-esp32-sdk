@@ -70,6 +70,8 @@ void device_control_handler(uint8_t cmdType, uint8_t *cmd, int cmdLen, char *ipA
 void mesh_state_control(uint16_t eidTemp, uint16_t nodeAddr, uint16_t nodeType, uint16_t type, uint8_t *value, uint8_t reportToMqtt);
 uint8_t ac_state_to_data(uint16_t *ac_value, char *eid, uint8_t tempAllow, uint8_t fanAllow);
 
+esp_err_t rgnet_send_state(char *msg, uint16_t msgLen, uint8_t msgOption);
+
 #ifdef __cplusplus
 }
 #endif

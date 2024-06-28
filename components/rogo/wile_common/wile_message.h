@@ -28,10 +28,15 @@ void rgmsg_add_full_header_default(struct rogoIotMsg *msg);
 
 void rgmsg_add_block(struct rogoIotMsg *msg, uint8_t blockType, uint16_t blockLen, uint8_t *data, int16_t srcEid);
 void rgmsg_add_block_state(struct rogoIotMsg *msg, uint16_t eid, uint8_t elmIdx, uint16_t stateType, uint8_t *deviceState, size_t deviceStateLen);
+void rgmsg_add_block_state_change(struct rogoIotMsg *msg, uint16_t eid, uint8_t elm, uint16_t deviceType, uint8_t **deviceState, uint8_t **deviceStateOld, size_t deviceStateLen);
+void rgmsg_add_block_reports(struct rogoIotMsg *msg, uint16_t eid, uint8_t elm, uint16_t deviceType, uint8_t **deviceState, uint8_t **deviceStateOld, size_t deviceStateLen, uint8_t stateChange);
+void rgmsg_add_block_report_option(struct rogoIotMsg *msg, bool nfy, bool log, bool trigger, uint8_t *service, uint8_t serviceNum);
 uint8_t rgmsg_feature_size(uint16_t featureType);
 
 esp_err_t rgmsg_handle(uint8_t src, uint8_t *srcMsg, uint16_t srcMsgLen, void *arg, uint16_t argLen);
 esp_err_t rgmsg_handle_response(struct rogoIotMsg *rogoCmdMsgResponse, rgmsg_t *rogoCmdMsg);
+
+void rgmsg_dump(uint8_t msgType, uint8_t *msg, uint16_t msgLen);
 
 esp_err_t rgblk_peek_type(rgmsg_t *rogoCmdMsg, uint16_t *blockStart, uint8_t *blockType);
 esp_err_t rgblk_read_data(uint8_t blockType, rgmsg_t *rogoCmdMsg, uint16_t *blockStart, uint8_t **data, uint16_t *dataLen);
