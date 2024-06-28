@@ -9,6 +9,11 @@ menu "WILE"
             string "Device product ID"
             default "WILE_DEV"
             depends on WILE_ENABLE
+        
+        config USE_REPORT_MSG_V1
+            bool "Using report state message v1"
+            default n
+            depends on WILE_ENABLE
     endmenu
 
 endmenu  # WiLe

@@ -21,6 +21,9 @@
 #endif
 #endif
 
+#define CONFIG_BOOTLOOP_RESET_CNT           8
+#define CONFIG_BOOTLOOP_RESET_TIME          8000
+
 #define STEP_CFG_NONE                       0x00
 #define STEP_CFG_DISCOVERY_WIFI             0x01
 #define STEP_CFG_WAIT_CONNECT_WIFI          0x02
@@ -36,6 +39,7 @@
 #define STEP_DEVICE_WAIT_DATA               0x10
 #define STEP_DEVICE_GET_DATA                0x11
 #define STEP_DEVICE_GET_DATA_COMPLETE       0x12
+#define STEP_CFG_UNKNOWN                    0xFF
 
 /* Firmware version */
 #define FIRMWARE_MAJOR                      0x00
@@ -62,6 +66,7 @@
 #define CERT_START                          "-----BEGIN CERTIFICATE-----\n"
 #define CERT_END                            "-----END CERTIFICATE-----"
 
+#define NVS_BOOTLOOP_CNT                    "bootloopCnt"
 #define NVS_PROV_STATE                      "prov"    
 #define NVS_ROOT_DEV_ID                     "rootDevID"
 #define NVS_ROOT_EID                        "rootEid"
@@ -84,7 +89,11 @@
 #define NVS_SMART_TRIGGER                   "smartTrigger"
 
 /* Sensor log */
+#ifndef CONFIG_SENSOR_LOG_DAY_NUM
 #define SENSOR_LOG_DAY_NUM                  2
+#else
+#define SENSOR_LOG_DAY_NUM                  CONFIG_SENSOR_LOG_DAY_NUM
+#endif
 // #define SENSOR_LOG_SIZE_MAX                 3*5 // test
 #define SENSOR_LOG_SIZE_MAX                 32*14
 
@@ -201,6 +210,7 @@
 #define CMDs_STATE_DEVICE_REPORT             0x06
 #define CMDs_STATE_DEVICE_NOTIFY             0x07
 #define CMDs_STATE_DEVICE_REPORT_EVT         0x08
+#define CMDs_STATE_DEVICE_REPORT_STATE       0x08
 #define CMDs_STATE_DEVICE                    0x0A
 #define CMDs_STATE_DEVICE_ATTRIBUTES         0x0B
 
@@ -245,14 +255,19 @@
 #define CMDs_SETTING_OTA_PROCESS             0xFE
 #define CMDs_SETTING_FIRM_OTA                0xFC
 #define CMDs_SETTING_VER_INFO                0xFD
+
+#define CMDs_SETTING_NETWORK_STATUS          0x02
+
 #define CMDs_SETTING_WIFI_SCAN               0x20
 #define CMDs_SETTING_WIFI_SCAN_RESULT        0x21
 #define CMDs_SETTING_WIFI_SSID_PWD           0x22
+
+#define CMDs_SETTING_DEVICE_ATTR             0x40
+
 #define CMDs_SETTING_CLOUD_INFO              0x80
 #define CMDs_SETTING_HTTPS_CERT              0x81
 #define CMDs_SETTING_MQTT_URL                0x84
 #define CMDs_SETTING_MQTT_CERT               0x85
-#define CMDs_SETTING_NETWORK_STATUS          0x02
     
 
 #define CMDs_SYNC_ENTITIES_DATA              0x01
@@ -331,7 +346,8 @@
 #define BLOCK_RAM_ROM_MEMORY                 0x2A
 #define BLOCK_EID                            0x40 // eid - 64
 #define BLOCK_EID_ELM                        0x41 // eid - elm
-#define BLOCK_TYPE_EID_ELM                   0x42 // device type - eid - elm
+#define BLOCK_EID_ELM_SIZESETTING            0x42
+#define BLOCK_TYPE_EID_ELM                   0x42 // REMOVE device type - eid - elm
 #define BLOCK_EID_GRP                        0x43 // eid - Group
 #define BLOCK_EID_PRTC_ELMS                  0x44 // eid - protocol - elms
 #define BLOCK_EID_INFO                       0x45 // eid - rootEid - protocol - nwkAddr - manuFactory - deviceType - elmSize - group
@@ -369,6 +385,7 @@
 #define BLOCK_ELM_TYPE_ATTRS                 0x84 //64
 #define BLOCK_ELM_TYPE_GRPS                  0x85 //64
 #define BLOCK_ATTR_VALUE_REVERSE_DELAY_ELM   0x86
+#define BLOCK_ATTR_REPORT_OPTION             0x87
 #define BLOCK_GRP_ELMS                       0x88 //64
 #define BLOCK_CINF                           0x8A //64
 #define BLOCK_STATE_AND_LOG_CID              0x8B //65
@@ -407,6 +424,7 @@
 #define DEVICE_TYPE_MOTION_SENSOR               34
 #define DEVICE_TYPE_LUX_SENSOR                  35
 #define DEVICE_TYPE_DUST_SENSOR                 36
+#define DEVICE_TYPE_PRESENSCE_SENSOR            38
 #define DEVICE_TYPE_AC_CONTROLLER               96
 #define DEVICE_TYPE_IR_DEVICE_CONTROLLER        99
 #define DEVICE_TYPE_GATE                        100
@@ -517,6 +535,9 @@
 #define CTR_BTN_PRESS_SINGLE                  0
 #define CTR_BTN_PRESS_DOUBLE                  1
 #define CTR_BTN_PRESS_LONG                    2
+#define CTR_BTN_UNLOCK_PERMANENT              0
+#define CTR_BTN_LOCK_PERMANENT                1
+#define CTR_BTN_UNLOCK_TEMPORARY              65532 
 
 #define CTR_DOOR_LOCKED                       0
 #define CTR_DOOR_UNLOCKED                     1
@@ -550,6 +571,14 @@
 #define CTR_FAN_SWING_HIGH                    3
 #define CTR_FAN_SWING_OFF                     255
 
+#define CTR_SENSITVE_LOW                      0x01
+#define CTR_SENSITVE_MEDIUM                   0x02
+#define CTR_SENSITVE_HIGH                     0x03
+#define CTR_SENSITVE_DISABLE                  0xFF
+
+#define CTR_PRESENCE_DETECTED                 1
+#define CTR_PRESENCE_NOT_DETECTED             0
+
 #define CTR_AC_FEATURE_NUM                    5
 #define CTR_LIGHT_FEATURE_NUM                 6
 
@@ -570,6 +599,9 @@
 #define CTR_WILE_EVT_OTA_SUCCESS              0x20
 #define CTR_WILE_EVT_OTA_NEWEST               0x21
 #define CTR_WILE_EVT_OTA_FAIL                 0x2F
+#define CTR_WILE_EVT_DEVICE_CONTROL_START     0xA0
+#define CTR_WILE_EVT_DEVICE_CONTROL_DONE      0xAA
+#define CTR_WILE_EVT_DEVICE_PROV_COMPLETE     0xAF
 #define CTR_WILE_EVT_OTHER                    0xFF
 
 /* CONDITION */
@@ -636,10 +668,14 @@
 #define FEATURE_LUX_EVT                       54
 #define FEATURE_SMOKE_EVT                     55
 #define FEATURE_WALL_MOUNTED_EVT              56
+#define FEATURE_PRESENSCE_EVT                 58
 #define FEATURE_BUTTON_PRESS_EVT              60
 // #define FEATURE_DUST_PM1_25_10                61
 #define FEATURE_KNOB_EVT                      61
 #define FEATURE_LEVEL_EVT                     62
+
+#define FEATURE_EVT_PRESENCE_SINGLE_ZONE      70
+#define FEATURE_PRESENCE_MUTIL_ZONE_EVT       71
 
 #define FEATURE_MOTOR_CALIB_TIME_INFO         226
 #define FEATURE_MOTOR_TYPE_INFO               227
@@ -666,6 +702,12 @@
 #define FEATURE_AC                            257
 #define FEATURE_AC_SHORT                      258
 #define FEATURE_AC_EXTRA                      259
+
+#define FEATURE_ENABLE_DISABLE_ATTR           4096
+#define FEATURE_TOUCH_SETTING                 4097
+
+#define FEATURE_SETTING_LOCK_BUTTON             61952
+#define FEATURE_SETTING_PRESENCE_ZONE_SENSITIVE  61968
 
 // Wile in-device feature
 #define FEATURE_SMOKE_BATTERY                 65000

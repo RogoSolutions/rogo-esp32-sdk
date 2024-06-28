@@ -147,6 +147,8 @@ extern TaskHandle_t ledIndicateHandle;
 extern const uint8_t wileMode;
 // extern uint8_t provStatus;
 
+extern uint8_t BOOTLOOP_CNT;
+
 extern uint16_t tid;
 extern uint8_t bleConnected;
 extern uint8_t wifiConnected;
@@ -323,6 +325,7 @@ void read_config_data(void);
 void sntp_time_init(void);
 void rogo_schedule_init(void);
 void root_device_factory_reset(void);
+void rgmgt_check_bootloop(void);
 
 #ifdef __cplusplus
 }
