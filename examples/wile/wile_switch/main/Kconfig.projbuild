@@ -32,9 +32,13 @@ menu "WiLe device"
             bool "RANG-DONG-SWITCH-GATE"
             depends on IDF_TARGET_ESP32C3
 
-        config BESP32S3_DEV
+        config ESP32S3_DEV
             bool "ESP32S3-DevKitC"
             depends on IDF_TARGET_ESP32S3
+        
+        config ESP32C6_DEV
+            bool "ESP32C6-DevKitC"
+            depends on IDF_TARGET_ESP32C6
     endchoice
 
     menu "Device configuration"      

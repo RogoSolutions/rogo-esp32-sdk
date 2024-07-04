@@ -9,8 +9,16 @@ idf_component_register(INCLUDE_DIRS
                        PRIV_REQUIRES main nvs_flash app_update)
 
 if(CONFIG_IDF_TARGET_ESP32)
+    add_prebuilt_library(libwile_common "esp32/libwile_common.a"
+                         PRIV_REQUIRES main spi_flash nvs_flash app_update log)
 elseif(CONFIG_IDF_TARGET_ESP32C3)
     add_prebuilt_library(libwile_common "esp32c3/libwile_common.a"
+                         PRIV_REQUIRES main spi_flash nvs_flash app_update log)
+elseif(CONFIG_IDF_TARGET_ESP32C6)
+    add_prebuilt_library(libwile_common "esp32c6/libwile_common.a"
+                         PRIV_REQUIRES main spi_flash nvs_flash app_update log)
+elseif(CONFIG_IDF_TARGET_ESP32S3)
+    add_prebuilt_library(libwile_common "esp32s3/libwile_common.a"
                          PRIV_REQUIRES main spi_flash nvs_flash app_update log)
 else()
     add_prebuilt_library(libwile_common "libwile_common.a"
