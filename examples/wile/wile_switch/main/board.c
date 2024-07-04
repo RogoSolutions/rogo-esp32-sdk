@@ -71,7 +71,47 @@ struct motor_state sw_motor_state[1] = {
 };
 #endif
 
+#ifdef CONFIG_ESP_WROOM_32
+struct _led_state led_state[3] = {
+    { LED_OFF, LED_OFF, LED_R, "red"   },
+    { LED_OFF, LED_OFF, LED_G, "green" },
+    { LED_OFF, LED_OFF, LED_B, "blue"  },
+};
+struct button_state btn_state[BTN_NUM] = {};
+struct switch_state sw_state[BTN_NUM] = {};
+#endif
+
+#ifdef CONFIG_ESP_WROVER
+struct _led_state led_state[3] = {
+    { LED_OFF, LED_OFF, LED_R, "red"   },
+    { LED_OFF, LED_OFF, LED_G, "green" },
+    { LED_OFF, LED_OFF, LED_B, "blue"  },
+};
+struct button_state btn_state[BTN_NUM] = {};
+struct switch_state sw_state[BTN_NUM] = {};
+#endif
+
 #ifdef CONFIG_ESP32C3_DEV
+struct _led_state led_state[3] = {
+    { LED_OFF, LED_OFF, LED_R, "red"   },
+    { LED_OFF, LED_OFF, LED_G, "green" },
+    { LED_OFF, LED_OFF, LED_B, "blue"  },
+};
+struct button_state btn_state[BTN_NUM] = {};
+struct switch_state sw_state[BTN_NUM] = {};
+#endif
+
+#ifdef CONFIG_ESP32S3_DEV
+struct _led_state led_state[3] = {
+    { LED_OFF, LED_OFF, LED_R, "red"   },
+    { LED_OFF, LED_OFF, LED_G, "green" },
+    { LED_OFF, LED_OFF, LED_B, "blue"  },
+};
+struct button_state btn_state[BTN_NUM] = {};
+struct switch_state sw_state[BTN_NUM] = {};
+#endif
+
+#ifdef CONFIG_ESP32C6_DEV
 struct _led_state led_state[3] = {
     { LED_OFF, LED_OFF, LED_R, "red"   },
     { LED_OFF, LED_OFF, LED_G, "green" },

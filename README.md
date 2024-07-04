@@ -8,7 +8,7 @@ The following table shows SDK support of Espressif SoCs where ![alt text][previe
 
 |Chip         |          v4.4          |          v5.0          |         v5.1            |
 |:----------- | :---------------------:| :---------------------:| :----------------------:|
-|ESP32        | ![alt text][preview]   |                        | ![alt text][preview]    |
+|ESP32        | ![alt text][preview]   |                        | ![alt text][NRND]       |
 |ESP32-S2     |                        |                        | ![alt text][!supported] |
 |ESP32-C3     | ![alt text][supported] |                        | ![alt text][supported]  |
 |ESP32-S3     |                        |                        | ![alt text][process]    |
@@ -16,6 +16,7 @@ The following table shows SDK support of Espressif SoCs where ![alt text][previe
 |ESP32-C6     |                        |                        | ![alt text][process]    |
 |ESP32-H2     |                        |                        | ![alt text][!supported] |
 
+[NRND]: https://img.shields.io/badge/-not_recommended_for_new_design-orange "NRND"
 [supported]: https://img.shields.io/badge/-supported-green "supported"
 [preview]: https://img.shields.io/badge/-preview-orange "preview"
 [process]: https://img.shields.io/badge/-in_process-yellow "process"
