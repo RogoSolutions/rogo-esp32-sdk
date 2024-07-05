@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wi-le example project in-depth exploration &mdash; ROGO ESP32 WILE SDK 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=2709fde1"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Getting started with Wi-LE projects, and Wi-LE examples" href="wile_project_start.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ROGO ESP32 WILE SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Get_started.html">Get started with Rogo ESP32 WILE SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="linux_mac_install.html">Standard Toolchain Setup for Linux and macOS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wile_project_start.html">Getting started with Wi-LE projects, and Wi-LE examples</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Wi-le example project in-depth exploration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#wi-le-source-and-config-files-structure">Wi-le Source and config files structure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#wi-le-config-files">Wi-le config files</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#cmakelists-txt">CMakeLists.txt</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#kconfig-projbuild">Kconfig.projbuild</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#idf-component-yml">idf_component.yml</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ROGO ESP32 WILE SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Wi-le example project in-depth exploration</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/wile_in_depth.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="wi-le-example-project-in-depth-exploration">
+<h1>Wi-le example project in-depth exploration<a class="headerlink" href="#wi-le-example-project-in-depth-exploration" title="Link to this heading"></a></h1>
+<section id="wi-le-source-and-config-files-structure">
+<h2>Wi-le Source and config files structure<a class="headerlink" href="#wi-le-source-and-config-files-structure" title="Link to this heading"></a></h2>
+<section id="wi-le-config-files">
+<h3>Wi-le config files<a class="headerlink" href="#wi-le-config-files" title="Link to this heading"></a></h3>
+<section id="cmakelists-txt">
+<h4>CMakeLists.txt<a class="headerlink" href="#cmakelists-txt" title="Link to this heading"></a></h4>
+<p>In order to use the built-in wile library, you need to add few lines of settings to the <em>CMakeLists.txt</em> of your project, located in your project folder, following is the <em>CMakeLists.txt</em> file of the <strong>wile_switch</strong> project.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There are <strong>2 CMakeLists.txt files</strong>, one located in the <strong>project directory</strong>, other locate inside <strong>main</strong> or <strong>src</strong> folder where source files of the project are located. Make sure you edit the correct file in the <strong>project directory</strong> !</p>
+</div>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># The following lines of boilerplate have to be in your project&#39;s</span>
+<span class="cp"># CMakeLists in this exact order for cmake to work correctly</span>
+<span class="n">cmake_minimum_required</span><span class="p">(</span><span class="n">VERSION</span><span class="w"> </span><span class="mf">3.5</span><span class="p">)</span>
+
+<span class="n">set</span><span class="p">(</span><span class="n">EXTRA_COMPONENT_DIRS</span><span class="w"> </span><span class="n">$ENV</span><span class="p">{</span><span class="n">IDF_PATH</span><span class="p">}</span><span class="o">/</span><span class="n">components</span><span class="o">/</span><span class="n">rogo</span><span class="o">/</span><span class="n">wile_config</span>
+<span class="w">                         </span><span class="n">$ENV</span><span class="p">{</span><span class="n">IDF_PATH</span><span class="p">}</span><span class="o">/</span><span class="n">components</span><span class="o">/</span><span class="n">rogo</span><span class="o">/</span><span class="n">wile_common</span><span class="p">)</span>
+
+<span class="n">include</span><span class="p">(</span><span class="n">$ENV</span><span class="p">{</span><span class="n">IDF_PATH</span><span class="p">}</span><span class="o">/</span><span class="n">tools</span><span class="o">/</span><span class="n">cmake</span><span class="o">/</span><span class="n">project</span><span class="p">.</span><span class="n">cmake</span><span class="p">)</span>
+
+<span class="n">list</span><span class="p">(</span><span class="n">PREPEND</span><span class="w"> </span><span class="n">SDKCONFIG_DEFAULTS</span><span class="w"> </span><span class="s">&quot;$ENV{IDF_PATH}/components/rogo/wile_common/sdkconfig.wile&quot;</span><span class="p">)</span>
+
+<span class="k">if</span><span class="p">(</span><span class="n">CONFIG_IDF_TARGET_ESP32C3</span><span class="p">)</span>
+<span class="n">list</span><span class="p">(</span><span class="n">PREPEND</span><span class="w"> </span><span class="n">SDKCONFIG_DEFAULTS</span><span class="w"> </span><span class="s">&quot;$ENV{IDF_PATH}/components/rogo/wile_common/sdkconfig.wile.esp32c3&quot;</span><span class="p">)</span>
+<span class="n">endif</span><span class="p">()</span>
+
+<span class="n">list</span><span class="p">(</span><span class="n">PREPEND</span><span class="w"> </span><span class="n">SDKCONFIG_DEFAULTS</span><span class="w"> </span><span class="s">&quot;sdkconfig.defaults&quot;</span><span class="p">)</span>
+
+<span class="n">project</span><span class="p">(</span><span class="n">wile_switch</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>First of all you need to tell the compiler where to find the library, header files, which are located at <code class="docutils literal notranslate"><span class="pre">{path</span> <span class="pre">to</span> <span class="pre">SDK}/components/rogo</span></code> with following lines:</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">set</span><span class="p">(</span><span class="n">EXTRA_COMPONENT_DIRS</span><span class="w"> </span><span class="n">$ENV</span><span class="p">{</span><span class="n">IDF_PATH</span><span class="p">}</span><span class="o">/</span><span class="n">components</span><span class="o">/</span><span class="n">rogo</span><span class="o">/</span><span class="n">wile_config</span>
+<span class="w">                         </span><span class="n">$ENV</span><span class="p">{</span><span class="n">IDF_PATH</span><span class="p">}</span><span class="o">/</span><span class="n">components</span><span class="o">/</span><span class="n">rogo</span><span class="o">/</span><span class="n">wile_common</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this projects, we will need to use header files inside <code class="docutils literal notranslate"><span class="pre">wile_config</span></code> and <code class="docutils literal notranslate"><span class="pre">wile_common</span></code> folders, which are <strong>required</strong> if you want to use Wi-le.
+You can also add your own remote components (source file, library) using this command !</p>
+<p>After that you also <strong>required</strong> to add an <strong>default SDK config for Wi-le projects</strong>, and also <strong>chip target specified sdk config</strong> , which can occasionally be omitted.</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">list</span><span class="p">(</span><span class="n">PREPEND</span><span class="w"> </span><span class="n">SDKCONFIG_DEFAULTS</span><span class="w"> </span><span class="s">&quot;$ENV{IDF_PATH}/components/rogo/wile_common/sdkconfig.wile&quot;</span><span class="p">)</span>
+
+<span class="k">if</span><span class="p">(</span><span class="n">CONFIG_IDF_TARGET_ESP32C3</span><span class="p">)</span>
+<span class="n">list</span><span class="p">(</span><span class="n">PREPEND</span><span class="w"> </span><span class="n">SDKCONFIG_DEFAULTS</span><span class="w"> </span><span class="s">&quot;$ENV{IDF_PATH}/components/rogo/wile_common/sdkconfig.wile.esp32c3&quot;</span><span class="p">)</span>
+<span class="n">endif</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>They are configurations in the SDK config which are needed to run Wi-le.</p>
+<p>The rest of the file is similar to the normal esp32 project .</p>
+</section>
+</section>
+<section id="kconfig-projbuild">
+<h3>Kconfig.projbuild<a class="headerlink" href="#kconfig-projbuild" title="Link to this heading"></a></h3>
+<p>This file belongs to the project configuration of the ESP-IDF, you can refer here for more details, below just a summary of how this work in the context of the <strong>Wile_switch</strong> which belongs to ROGO ESP32 SDK.
+This file is for adding options, and configuration of your own into the <strong>menuconfig</strong>, these setting will be treated as <em>define</em> when including <code class="docutils literal notranslate"><span class="pre">sdkconfig.h</span></code> file.
+Note: that whenever you need to use any of the define variable, you can just include <code class="docutils literal notranslate"><span class="pre">sdkconfig.h</span></code> files, but the <code class="docutils literal notranslate"><span class="pre">sdkconfig.h</span></code> file itself doesn’t exist, every definition will be written to <code class="docutils literal notranslate"><span class="pre">sdkconfig</span></code>, and the compiler will knows which definition belongs to <code class="docutils literal notranslate"><span class="pre">sdkconfig.h</span></code> and execute accordingly ‘for example :</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="n">menu</span><span class="w"> </span><span class="s">&quot;WiLe device&quot;</span>
+
+<span class="w">   </span><span class="p">...</span>
+
+<span class="w">    </span><span class="n">menu</span><span class="w"> </span><span class="s">&quot;Device configuration&quot;</span><span class="w">      </span>
+<span class="w">        </span><span class="n">config</span><span class="w"> </span><span class="n">BOARD_TEST_ENABLE</span>
+<span class="w">            </span><span class="kt">bool</span><span class="w"> </span><span class="s">&quot;Enable factory board test&quot;</span>
+<span class="w">            </span><span class="k">default</span><span class="w"> </span><span class="n">n</span>
+<span class="w">    </span><span class="n">endmenu</span>
+<span class="n">endmenu</span>
+</pre></div>
+</div>
+<p>In the <code class="docutils literal notranslate"><span class="pre">sdkconfig</span></code> file will have this definition :</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="cp"># Device configuration</span>
+<span class="cp">#</span>
+<span class="cp"># CONFIG_BOARD_TEST_ENABLE is not set</span>
+<span class="cp"># end of Device configuration</span>
+<span class="cp"># end of WiLe device</span>
+</pre></div>
+</div>
+<p>and if you want to use it in your source file :</p>
+<figure class="align-center">
+<img alt="../src/picture/ex1.jpg" src="../src/picture/ex1.jpg" />
+</figure>
+</section>
+<section id="idf-component-yml">
+<h3>idf_component.yml<a class="headerlink" href="#idf-component-yml" title="Link to this heading"></a></h3>
+<p>This is a manifest file which contains the components that user want to add bui</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="wile_project_start.html" class="btn btn-neutral float-left" title="Getting started with Wi-LE projects, and Wi-LE examples" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright workshop participant.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Getting started with Wi-LE projects, and Wi-LE examples &mdash; ROGO ESP32 WILE SDK 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=2709fde1"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Wi-le example project in-depth exploration" href="wile_in_depth.html" />
+    <link rel="prev" title="Standard Toolchain Setup for Linux and macOS" href="linux_mac_install.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ROGO ESP32 WILE SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Get_started.html">Get started with Rogo ESP32 WILE SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="linux_mac_install.html">Standard Toolchain Setup for Linux and macOS</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Getting started with Wi-LE projects, and Wi-LE examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#start-a-project">Start a Project</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#project-introduction-wile-switch">Project Introduction (wile-switch)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#connect-your-device">Connect your device</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configure-your-project">Configure Your Project.</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#wile-device-parameter-settings">Wile device parameter settings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#enable-wile-and-configure-product-id">Enable WILE and configure product ID</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#build-flash-and-monitor">Build, Flash, and Monitor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#exploring-the-wile-switch-example">Exploring the wile_switch example</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#adding-device-to-rogo-app">Adding device to Rogo app</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#controlling-devices">Controlling devices</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#automation">Automation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="wile_in_depth.html">Wi-le example project in-depth exploration</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ROGO ESP32 WILE SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Getting started with Wi-LE projects, and Wi-LE examples</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/wile_project_start.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="getting-started-with-wi-le-projects-and-wi-le-examples">
+<h1>Getting started with Wi-LE projects, and Wi-LE examples<a class="headerlink" href="#getting-started-with-wi-le-projects-and-wi-le-examples" title="Link to this heading"></a></h1>
+<section id="start-a-project">
+<h2>Start a Project<a class="headerlink" href="#start-a-project" title="Link to this heading"></a></h2>
+<p>You can open the <code class="docutils literal notranslate"><span class="pre">examples</span></code> folder inside the SDK folder, if you strictly follow the instruction of installing the SDK manually it should be at <code class="docutils literal notranslate"><span class="pre">~/rogo-esp32-sdk/examples/</span></code>, This folder contains all of the examples from ESP-IDF, open the folder named <code class="docutils literal notranslate"><span class="pre">wile</span></code>, which contains examples for Wi-LE based example projects.</p>
+<p>*Currently, there is only one project available, which is “wile_switch”, so this doc will mainly explore the “wile_switch” project, other projects will be added in the future”</p>
+</section>
+<section id="project-introduction-wile-switch">
+<h2>Project Introduction (wile-switch)<a class="headerlink" href="#project-introduction-wile-switch" title="Link to this heading"></a></h2>
+<p>This is the very first project example of the <strong>Rogo ESP32 Wile SDK</strong>, which is a smart switch using Wi-LE protocol. On the hardware side, this smart switch will have 1-4 output ports for 1-4 devices. Thus, the firmware will support a hardware with 1-4 buttons/touch buttons correspond to 1-4 relays, and 1-4 LEDs indicator (either bicolor LEDs, or RGB LEDs ).</p>
+<p><em>image of a Wile switch</em></p>
+</section>
+<section id="connect-your-device">
+<h2>Connect your device<a class="headerlink" href="#connect-your-device" title="Link to this heading"></a></h2>
+<p><em>similar to last part</em></p>
+</section>
+<section id="configure-your-project">
+<h2>Configure Your Project.<a class="headerlink" href="#configure-your-project" title="Link to this heading"></a></h2>
+<p>Navigate to your <code class="docutils literal notranslate"><span class="pre">wile_switch</span></code> directory, set WILE ESP32 device as the target, and run the project configuration utility <code class="docutils literal notranslate"><span class="pre">menuconfig</span></code>.</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="n">idf</span><span class="p">.</span><span class="n">py</span><span class="w"> </span><span class="n">set</span><span class="o">-</span><span class="n">target</span><span class="w"> </span><span class="n">esp32c3</span>
+<span class="n">idf</span><span class="p">.</span><span class="n">py</span><span class="w"> </span><span class="n">menuconfig</span>
+</pre></div>
+</div>
+<p>You should first set the target with <code class="docutils literal notranslate"><span class="pre">idf.py</span> <span class="pre">set-target</span> <span class="pre">{ESP32</span> <span class="pre">chip</span> <span class="pre">name}</span></code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>{ESP32 chip name}</strong> is the name of the ESP32 chip series inside your Wile product, e.g esp32c3, esp32s3, esp32c3,..etc… Currently <strong>Rogo ESP32 WILE SDK</strong> has only been tested and verified on the ESP32C3 series, thus, this document will mostly use esp32c3 in all examples. However, others ESP32 chip series may also works, you try it on your own by changing the <cite>idf.py set-target</cite> command with other targets and upload it to your compatible hardware !</p>
+</div>
+<p>If the previous steps have been done correctly, the following menu appears:</p>
+<figure class="align-center" id="id1">
+<img alt="Project configuration - Home window" src="_images/wile0.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - Home window</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>You are using this menu to set up project specific variables, e.g., Wi-Fi network name and password, the processor speed, etc.</p>
+<section id="wile-device-parameter-settings">
+<h3>Wile device parameter settings<a class="headerlink" href="#wile-device-parameter-settings" title="Link to this heading"></a></h3>
+<p>For <strong>WiLE Projects</strong> there is an additional submenu named <code class="docutils literal notranslate"><span class="pre">Wile</span> <span class="pre">device</span></code>, This menu contains configuration and parameters for the hardware of the Wile devices.</p>
+<figure class="align-center" id="id2">
+<img alt="Project configuration - WILE device menu" src="_images/wile1.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - WILE device menu</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>There are 2 options in this submenu, the first one is for choosing the board you are using, with <strong>Wile_switch example</strong> there are three options, choose the board according to your hardware, if your hardware doesn’t match any of those boards, you can open <code class="docutils literal notranslate"><span class="pre">{project</span> <span class="pre">folder}/src/board.h</span></code> to see if your board is compatible with any of those board. In addition, if none of those board matched, you can define your own board in side the <code class="docutils literal notranslate"><span class="pre">board.h</span></code> file, detail can be found at <a class="reference internal" href="another-feature.html"><span class="std std-doc">this part</span></a></p>
+<figure class="align-center" id="id3">
+<img alt="Project configuration - WILE device - Board Selection" src="_images/wile2.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - WILE device - Board Selection</span><a class="headerlink" href="#id3" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>The second option is to whether or not you want to enable factory test, this function is used at the manufacturer’s factory for the <strong>Quality Assurance</strong> process. <strong>For development</strong> you <strong>do not</strong> need to enable this feature, and for manufacturing, you can work with your OEM to come up with your own QA process.</p>
+<figure class="align-center" id="id4">
+<img alt="Project configuration - WILE device - Factory board test" src="_images/wile3.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - WILE device - Factory board test</span><a class="headerlink" href="#id4" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="enable-wile-and-configure-product-id">
+<h3>Enable WILE and configure product ID<a class="headerlink" href="#enable-wile-and-configure-product-id" title="Link to this heading"></a></h3>
+<p>Before you can use Wile functionality in your project, you need first to enable it and config some of there parameters. Since this is an wile example project, it is already precongiged, but can find this setting at <code class="docutils literal notranslate"><span class="pre">Project</span> <span class="pre">configuration</span> <span class="pre">-&gt;</span> <span class="pre">Component</span> <span class="pre">Config</span> <span class="pre">-&gt;</span> <span class="pre">WILE</span> </code></p>
+<figure class="align-center" id="id5">
+<img alt="Project configuration - Component Config - WILE" src="_images/wile4.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - Component Config - WILE</span><a class="headerlink" href="#id5" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Inside currently there is only one option <code class="docutils literal notranslate"><span class="pre">WILE</span> <span class="pre">Configuration</span></code></p>
+<figure class="align-center" id="id6">
+<img alt="Project configuration - Component Config - WILE" src="_images/wile5.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - Component Config - WILE</span><a class="headerlink" href="#id6" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Currently, you can choose to <strong>enable/disable Wile</strong>, and set the <strong>product ID</strong> here.</p>
+<figure class="align-center" id="id7">
+<img alt="Project configuration - Component Config - WILE - WILE Configuration" src="_images/wile6.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - Component Config - WILE - WILE Configuration</span><a class="headerlink" href="#id7" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id8">
+<img alt="Project configuration - Component Config - WILE - WILE Configuration - Device product ID" src="_images/wile8.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - Component Config - WILE - WILE Configuration - Device product ID</span><a class="headerlink" href="#id8" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>The <strong>Product ID</strong> is an unique ID of your product, which is <strong>registered to Rogo</strong> with unique set of feature. For this example you can just leave the default Product ID, the default product ID is a 4 buttons switch.</p>
+<p>In order to obtain <strong>your own product ID</strong> for your devices with unique features , you can create one on Rogo’s Dashboard following <a class="reference external" href="https://iot.rogo.com.vn/org/docs">this</a> instruction.</p>
+</section>
+</section>
+<section id="build-flash-and-monitor">
+<h2>Build, Flash, and Monitor<a class="headerlink" href="#build-flash-and-monitor" title="Link to this heading"></a></h2>
+<p>After finished <strong>Configure Your Project</strong> you can start building the example, the building process is identical to a normal projects, if you run into any problem, refer to <a class="reference internal" href="start-project.html"><span class="std std-doc">this</span></a></p>
+<p>If everything has been done correctly your monitor output should look like this :</p>
+<figure class="align-center" id="id9">
+<img alt="Output log of the wile_switch example at the first run" src="_images/wile_log2.png" />
+<figcaption>
+<p><span class="caption-text">Output log of the wile_switch example at the first run</span><a class="headerlink" href="#id9" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="exploring-the-wile-switch-example">
+<h2>Exploring the wile_switch example<a class="headerlink" href="#exploring-the-wile-switch-example" title="Link to this heading"></a></h2>
+<section id="adding-device-to-rogo-app">
+<h3>Adding device to Rogo app<a class="headerlink" href="#adding-device-to-rogo-app" title="Link to this heading"></a></h3>
+</section>
+<section id="controlling-devices">
+<h3>Controlling devices<a class="headerlink" href="#controlling-devices" title="Link to this heading"></a></h3>
+</section>
+<section id="automation">
+<h3>Automation<a class="headerlink" href="#automation" title="Link to this heading"></a></h3>
+<p>After toying with the wile_switch</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="linux_mac_install.html" class="btn btn-neutral float-left" title="Standard Toolchain Setup for Linux and macOS" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="wile_in_depth.html" class="btn btn-neutral float-right" title="Wi-le example project in-depth exploration" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright workshop participant.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

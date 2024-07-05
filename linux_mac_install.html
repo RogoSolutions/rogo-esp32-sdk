@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Standard Toolchain Setup for Linux and macOS &mdash; ROGO ESP32 WILE SDK 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=2709fde1"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Getting started with Wi-LE projects, and Wi-LE examples" href="wile_project_start.html" />
+    <link rel="prev" title="Get started with Rogo ESP32 WILE SDK" href="Get_started.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ROGO ESP32 WILE SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="Get_started.html">Get started with Rogo ESP32 WILE SDK</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Standard Toolchain Setup for Linux and macOS</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#installation-step-by-step">Installation Step by Step</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#setting-up-development-environment">Setting up Development Environment</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#step-1-install-prerequisites">Step 1. Install Prerequisites</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#for-linux-users">For Linux Users</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#for-macos-users">For macOS Users</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#apple-m1-users">Apple M1 Users</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#installing-python-3">Installing Python 3</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#step-2-get-rogo-esp32-wile-sdk">Step 2. Get ROGO_ESP32_WILE_SDK</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-3-set-up-the-tools">Step 3. Set up the Tools</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#alternative-file-downloads">Alternative File Downloads</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#customizing-the-tools-installation-path">Customizing the Tools Installation Path</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#step-4-set-up-the-environment-variables">Step 4. Set up the Environment Variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-5-first-steps-on-rogo-esp32-wile-sdk">Step 5. First Steps on ROGO_ESP32_WILE_SDK</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#start-a-project">Start a Project</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#connect-your-device">Connect Your Device</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configure-your-project">Configure Your Project</a><ul class="simple">
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#build-the-project">Build the Project</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#flash-onto-the-device">Flash onto the Device</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#normal-operation">Normal Operation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#monitor-the-output">Monitor the Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#additional-tips">Additional Tips</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#permission-denied-issue">Permission Denied Issue</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#python-compatibility">Python Compatibility</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#flash-erase">Flash Erase</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#related-documents">Related Documents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="wile_project_start.html">Getting started with Wi-LE projects, and Wi-LE examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wile_in_depth.html">Wi-le example project in-depth exploration</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ROGO ESP32 WILE SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Standard Toolchain Setup for Linux and macOS</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/linux_mac_install.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="standard-toolchain-setup-for-linux-and-macos">
+<h1>Standard Toolchain Setup for Linux and macOS<a class="headerlink" href="#standard-toolchain-setup-for-linux-and-macos" title="Link to this heading"></a></h1>
+<section id="installation-step-by-step">
+<h2>Installation Step by Step<a class="headerlink" href="#installation-step-by-step" title="Link to this heading"></a></h2>
+<p>This is a detailed roadmap to walk you through the installation process.</p>
+<section id="setting-up-development-environment">
+<h3>Setting up Development Environment<a class="headerlink" href="#setting-up-development-environment" title="Link to this heading"></a></h3>
+<p>These are the steps for setting up the ROGO_ESP32_WILE_SDK for your WILE ESP32 device.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#get-started-prerequisites"><span class="std std-ref">Step 1. Install Prerequisites</span></a></p></li>
+<li><p><a class="reference internal" href="#get-started-get-esp-idf"><span class="std std-ref">Step 2. Get ROGO_ESP32_WILE_SDK</span></a></p></li>
+<li><p><a class="reference internal" href="#get-started-set-up-tools"><span class="std std-ref">Step 3. Set up the Tools</span></a></p></li>
+<li><p><a class="reference internal" href="#get-started-set-up-env"><span class="std std-ref">Step 4. Set up the Environment Variables</span></a></p></li>
+<li><p><a class="reference internal" href="#get-started-start-a-project"><span class="std std-ref">Step 5. First Steps on ROGO_ESP32_WILE_SDK</span></a></p></li>
+</ul>
+</section>
+</section>
+<section id="step-1-install-prerequisites">
+<span id="get-started-prerequisites"></span><h2>Step 1. Install Prerequisites<a class="headerlink" href="#step-1-install-prerequisites" title="Link to this heading"></a></h2>
+<p>In order to use ROGO_ESP32_WILE_SDK with the WILE ESP32 device, you need to install some software packages based on your Operating System. This setup guide helps you on getting everything installed on Linux and macOS based systems.</p>
+<section id="for-linux-users">
+<h3>For Linux Users<a class="headerlink" href="#for-linux-users" title="Link to this heading"></a></h3>
+<p>To compile using ROGO_ESP32_WILE_SDK, you need to get the following packages. The command to run depends on which distribution of Linux you are using:</p>
+<ul>
+<li><p>Ubuntu and Debian:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">git</span> <span class="n">wget</span> <span class="n">flex</span> <span class="n">bison</span> <span class="n">gperf</span> <span class="n">python3</span> <span class="n">python3</span><span class="o">-</span><span class="n">pip</span> <span class="n">python3</span><span class="o">-</span><span class="n">venv</span> <span class="n">cmake</span> <span class="n">ninja</span><span class="o">-</span><span class="n">build</span> <span class="n">ccache</span> <span class="n">libffi</span><span class="o">-</span><span class="n">dev</span> <span class="n">libssl</span><span class="o">-</span><span class="n">dev</span> <span class="n">dfu</span><span class="o">-</span><span class="n">util</span> <span class="n">libusb</span><span class="o">-</span><span class="mf">1.0</span><span class="o">-</span><span class="mi">0</span>
+</pre></div>
+</div>
+</li>
+<li><p>CentOS 7 &amp; 8:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">yum</span> <span class="o">-</span><span class="n">y</span> <span class="n">update</span> <span class="o">&amp;&amp;</span> <span class="n">sudo</span> <span class="n">yum</span> <span class="n">install</span> <span class="n">git</span> <span class="n">wget</span> <span class="n">flex</span> <span class="n">bison</span> <span class="n">gperf</span> <span class="n">python3</span> <span class="n">cmake</span> <span class="n">ninja</span><span class="o">-</span><span class="n">build</span> <span class="n">ccache</span> <span class="n">dfu</span><span class="o">-</span><span class="n">util</span> <span class="n">libusbx</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p>CentOS 7 is still supported but CentOS version 8 is recommended for a better user experience.</p>
+<ul>
+<li><p>Arch:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">pacman</span> <span class="o">-</span><span class="n">S</span> <span class="o">--</span><span class="n">needed</span> <span class="n">gcc</span> <span class="n">git</span> <span class="n">make</span> <span class="n">flex</span> <span class="n">bison</span> <span class="n">gperf</span> <span class="n">python</span> <span class="n">cmake</span> <span class="n">ninja</span> <span class="n">ccache</span> <span class="n">dfu</span><span class="o">-</span><span class="n">util</span> <span class="n">libusb</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<ul class="simple">
+<li><p>CMake version 3.16 or newer is required for use with ROGO_ESP32_WILE_SDK. Run “tools/idf_tools.py install cmake” to install a suitable version if your OS versions does not have one.</p></li>
+<li><p>If you do not see your Linux distribution in the above list then please check its documentation to find out which command to use for package installation.</p></li>
+</ul>
+</div>
+</section>
+<section id="for-macos-users">
+<h3>For macOS Users<a class="headerlink" href="#for-macos-users" title="Link to this heading"></a></h3>
+<p>ROGO_ESP32_WILE_SDK uses the version of Python installed by default on macOS.</p>
+<ul>
+<li><p>Install CMake &amp; Ninja build:</p>
+<ul>
+<li><p>If you have <a class="reference external" href="https://brew.sh/">HomeBrew</a>, you can run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">brew</span> <span class="n">install</span> <span class="n">cmake</span> <span class="n">ninja</span> <span class="n">dfu</span><span class="o">-</span><span class="n">util</span>
+</pre></div>
+</div>
+</li>
+<li><p>If you have <a class="reference external" href="https://www.macports.org/install.php">MacPorts</a>, you can run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">port</span> <span class="n">install</span> <span class="n">cmake</span> <span class="n">ninja</span> <span class="n">dfu</span><span class="o">-</span><span class="n">util</span>
+</pre></div>
+</div>
+</li>
+<li><p>Otherwise, consult the <a class="reference external" href="https://cmake.org/">CMake</a> and <a class="reference external" href="https://ninja-build.org/">Ninja</a> home pages for macOS installation downloads.</p></li>
+</ul>
+</li>
+<li><p>It is strongly recommended to also install <a class="reference external" href="https://ccache.dev/">ccache</a> for faster builds. If you have <a class="reference external" href="https://brew.sh/">HomeBrew</a>, this can be done via <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">install</span> <span class="pre">ccache</span></code> or <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">port</span> <span class="pre">install</span> <span class="pre">ccache</span></code> on <a class="reference external" href="https://www.macports.org/install.php">MacPorts</a>.</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If an error like this is shown during any step:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">xcrun</span><span class="p">:</span> <span class="n">error</span><span class="p">:</span> <span class="n">invalid</span> <span class="n">active</span> <span class="n">developer</span> <span class="n">path</span> <span class="p">(</span><span class="o">/</span><span class="n">Library</span><span class="o">/</span><span class="n">Developer</span><span class="o">/</span><span class="n">CommandLineTools</span><span class="p">),</span> <span class="n">missing</span> <span class="n">xcrun</span> <span class="n">at</span><span class="p">:</span> <span class="o">/</span><span class="n">Library</span><span class="o">/</span><span class="n">Developer</span><span class="o">/</span><span class="n">CommandLineTools</span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">xcrun</span>
+</pre></div>
+</div>
+<p>Then you need to install the XCode command line tools to continue. You can install these by running <code class="docutils literal notranslate"><span class="pre">xcode-select</span> <span class="pre">--install</span></code>.</p>
+</div>
+</section>
+<section id="apple-m1-users">
+<h3>Apple M1 Users<a class="headerlink" href="#apple-m1-users" title="Link to this heading"></a></h3>
+<p>If you use Apple M1 platform and see an error like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">WARNING</span><span class="p">:</span> <span class="n">directory</span> <span class="k">for</span> <span class="n">tool</span> <span class="n">xtensa</span><span class="o">-</span><span class="n">esp32</span><span class="o">-</span><span class="n">elf</span> <span class="n">version</span> <span class="n">esp</span><span class="o">-</span><span class="mi">2021</span><span class="n">r2</span><span class="o">-</span><span class="n">patch3</span><span class="o">-</span><span class="mf">8.4.0</span> <span class="ow">is</span> <span class="n">present</span><span class="p">,</span> <span class="n">but</span> <span class="n">tool</span> <span class="n">was</span> <span class="ow">not</span> <span class="n">found</span>
+<span class="n">ERROR</span><span class="p">:</span> <span class="n">tool</span> <span class="n">xtensa</span><span class="o">-</span><span class="n">esp32</span><span class="o">-</span><span class="n">elf</span> <span class="n">has</span> <span class="n">no</span> <span class="n">installed</span> <span class="n">versions</span><span class="o">.</span> <span class="n">Please</span> <span class="n">run</span> <span class="s1">&#39;install.sh&#39;</span> <span class="n">to</span> <span class="n">install</span> <span class="n">it</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>or:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">zsh</span><span class="p">:</span> <span class="n">bad</span> <span class="n">CPU</span> <span class="nb">type</span> <span class="ow">in</span> <span class="n">executable</span><span class="p">:</span> <span class="o">~/.</span><span class="n">espressif</span><span class="o">/</span><span class="n">tools</span><span class="o">/</span><span class="n">xtensa</span><span class="o">-</span><span class="n">esp32</span><span class="o">-</span><span class="n">elf</span><span class="o">/</span><span class="n">esp</span><span class="o">-</span><span class="mi">2021</span><span class="n">r2</span><span class="o">-</span><span class="n">patch3</span><span class="o">-</span><span class="mf">8.4.0</span><span class="o">/</span><span class="n">xtensa</span><span class="o">-</span><span class="n">esp32</span><span class="o">-</span><span class="n">elf</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">xtensa</span><span class="o">-</span><span class="n">esp32</span><span class="o">-</span><span class="n">elf</span><span class="o">-</span><span class="n">gcc</span>
+</pre></div>
+</div>
+<p>Then you need to install Apple Rosetta 2 by running</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/usr/sbin/softwareupdate<span class="w"> </span>--install-rosetta<span class="w"> </span>--agree-to-license
+</pre></div>
+</div>
+</section>
+<section id="installing-python-3">
+<h3>Installing Python 3<a class="headerlink" href="#installing-python-3" title="Link to this heading"></a></h3>
+<p>Based on macOS <a class="reference external" href="https://developer.apple.com/documentation/macos-release-notes/macos-catalina-10_15-release-notes">Catalina 10.15 release notes</a>, use of Python 2.7 is not recommended and Python 2.7 is not included by default in future versions of macOS. Check what Python you currently have:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="o">--</span><span class="n">version</span>
+</pre></div>
+</div>
+<p>If the output is like <code class="docutils literal notranslate"><span class="pre">Python</span> <span class="pre">2.7.17</span></code>, your default interpreter is Python 2.7. If so, also check if Python 3 is not already installed on your computer:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">--</span><span class="n">version</span>
+</pre></div>
+</div>
+<p>If the above command returns an error, it means Python 3 is not installed.</p>
+<p>Below is an overview of the steps to install Python 3.</p>
+<blockquote>
+<div><ul>
+<li><p>Installing with <a class="reference external" href="https://brew.sh/">HomeBrew</a> can be done as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">brew</span> <span class="n">install</span> <span class="n">python3</span>
+</pre></div>
+</div>
+</li>
+<li><p>If you have <a class="reference external" href="https://www.macports.org/install.php">MacPorts</a>, you can run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">port</span> <span class="n">install</span> <span class="n">python38</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</div></blockquote>
+</section>
+</section>
+<section id="step-2-get-rogo-esp32-wile-sdk">
+<span id="get-started-get-esp-idf"></span><h2>Step 2. Get ROGO_ESP32_WILE_SDK<a class="headerlink" href="#step-2-get-rogo-esp32-wile-sdk" title="Link to this heading"></a></h2>
+<p>To build applications for the WILE ESP32 device, you need the software libraries in <a class="reference external" href="https://github.com/espressif/rogo-esp32-sdk">ROGO_ESP32_WILE_SDK repository</a>.</p>
+<p>To get ROGO_ESP32_WILE_SDK, navigate to your installation directory and clone the repository with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span></code>, following instructions below specific to your operating system.</p>
+<p>Open Terminal, and run the following commands:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span>~/esp
+<span class="nb">cd</span><span class="w"> </span>~/esp
+git<span class="w"> </span>clone<span class="w"> </span>-b<span class="w"> </span>dev/v5.1.1<span class="w"> </span>--recursive<span class="w"> </span>https://github.com/RogoSolutions/rogo-esp32-sdk.git
+</pre></div>
+</div>
+<p>ROGO_ESP32_WILE_SDK is downloaded into <code class="docutils literal notranslate"><span class="pre">~/esp/rogo-esp32-sdk</span></code>.</p>
+<p>Consult <span class="xref std std-doc">/versions</span> for information about which ROGO_ESP32_WILE_SDK version to use in a given situation.</p>
+</section>
+<section id="step-3-set-up-the-tools">
+<span id="get-started-set-up-tools"></span><h2>Step 3. Set up the Tools<a class="headerlink" href="#step-3-set-up-the-tools" title="Link to this heading"></a></h2>
+<p>Aside from the ROGO_ESP32_WILE_SDK, you also need to install the tools used by ROGO_ESP32_WILE_SDK, such as the compiler, debugger, Python packages, etc, for projects supporting WILE ESP32 device.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/esp/rogo-esp32-sdk
+./install.sh<span class="w"> </span>esp32c3
+</pre></div>
+</div>
+<p>or with Fish shell</p>
+<div class="highlight-fish notranslate"><div class="highlight"><pre><span></span><span class="k">cd</span> ~/esp/rogo-esp32-sdk
+./install.fish esp32c3
+</pre></div>
+</div>
+<p>The above commands install tools for WILE ESP32 device with esp32c3 chip only. Currently Rogo ESP32 WILE SDK only supports ESP32C3, other ESP32 chip platform may also works but will not be guaranteed, functions wise</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For macOS users, if an error like this is shown during any step:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">urlopen</span> <span class="n">error</span> <span class="p">[</span><span class="n">SSL</span><span class="p">:</span> <span class="n">CERTIFICATE_VERIFY_FAILED</span><span class="p">]</span> <span class="n">certificate</span> <span class="n">verify</span> <span class="n">failed</span><span class="p">:</span> <span class="n">unable</span> <span class="n">to</span> <span class="n">get</span> <span class="n">local</span> <span class="n">issuer</span> <span class="n">certificate</span> <span class="p">(</span><span class="n">_ssl</span><span class="o">.</span><span class="n">c</span><span class="p">:</span><span class="n">xxx</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You may run <code class="docutils literal notranslate"><span class="pre">Install</span> <span class="pre">Certificates.command</span></code> in the Python folder of your computer to install certificates. For details, see <a class="reference external" href="https://github.com/espressif/rogo-esp32-sdk/issues/4775">Download Error While Installing ROGO_ESP32_WILE_SDK Tools</a>.</p>
+</div>
+<section id="alternative-file-downloads">
+<h3>Alternative File Downloads<a class="headerlink" href="#alternative-file-downloads" title="Link to this heading"></a></h3>
+<p>The tools installer downloads a number of files attached to GitHub Releases. If accessing GitHub is slow then it is possible to set an environment variable to prefer Espressif’s download server for GitHub asset downloads.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This setting only controls individual tools downloaded from GitHub releases, it does not change the URLs used to access any Git repositories.</p>
+</div>
+<p>To prefer the Espressif download server when installing tools, use the following sequence of commands when running <code class="docutils literal notranslate"><span class="pre">install.sh</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/esp/rogo-esp32-sdk
+<span class="nb">export</span><span class="w"> </span><span class="nv">IDF_GITHUB_ASSETS</span><span class="o">=</span><span class="s2">&quot;dl.espressif.com/github_assets&quot;</span>
+./install.sh
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For users in China, we recommend using our download server located in China for faster download speed.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/esp/rogo-esp32-sdk
+<span class="nb">export</span><span class="w"> </span><span class="nv">IDF_GITHUB_ASSETS</span><span class="o">=</span><span class="s2">&quot;dl.espressif.cn/github_assets&quot;</span>
+./install.sh
+</pre></div>
+</div>
+</div>
+</section>
+<section id="customizing-the-tools-installation-path">
+<h3>Customizing the Tools Installation Path<a class="headerlink" href="#customizing-the-tools-installation-path" title="Link to this heading"></a></h3>
+<p>The scripts introduced in this step install compilation tools required by ROGO_ESP32_WILE_SDK inside the user home directory: <code class="docutils literal notranslate"><span class="pre">$HOME/.espressif</span></code> on Linux. If you wish to install the tools into a different directory, set the environment variable <code class="docutils literal notranslate"><span class="pre">IDF_TOOLS_PATH</span></code> before running the installation scripts. Make sure that your user account has sufficient permissions to read and write this path.</p>
+<p>If changing the <code class="docutils literal notranslate"><span class="pre">IDF_TOOLS_PATH</span></code>, make sure it is set to the same value every time the Install script (<code class="docutils literal notranslate"><span class="pre">install.bat</span></code>, <code class="docutils literal notranslate"><span class="pre">install.ps1</span></code> or <code class="docutils literal notranslate"><span class="pre">install.sh</span></code>) and an Export script (<code class="docutils literal notranslate"><span class="pre">export.bat</span></code>, <code class="docutils literal notranslate"><span class="pre">export.ps1</span></code> or <code class="docutils literal notranslate"><span class="pre">export.sh</span></code>) are executed.</p>
+</section>
+</section>
+<section id="step-4-set-up-the-environment-variables">
+<span id="get-started-set-up-env"></span><h2>Step 4. Set up the Environment Variables<a class="headerlink" href="#step-4-set-up-the-environment-variables" title="Link to this heading"></a></h2>
+<p>The installed tools are not yet added to the PATH environment variable. To make the tools usable from the command line, some environment variables must be set. ROGO_ESP32_WILE_SDK provides another script which does that.</p>
+<p>In the terminal where you are going to use ROGO_ESP32_WILE_SDK, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>.<span class="w"> </span><span class="nv">$HOME</span>/esp/rogo-esp32-sdk/export.sh
+</pre></div>
+</div>
+<p>or for fish (supported only since fish version 3.0.0):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>.<span class="w"> </span><span class="nv">$HOME</span>/esp/rogo-esp32-sdk/export.fish
+</pre></div>
+</div>
+<p>Note the space between the leading dot and the path!</p>
+<p>If you plan to use esp-idf frequently, you can create an alias for executing <code class="docutils literal notranslate"><span class="pre">export.sh</span></code>:</p>
+<ol class="arabic">
+<li><p>Copy and paste the following command to your shell’s profile (<code class="docutils literal notranslate"><span class="pre">.profile</span></code>, <code class="docutils literal notranslate"><span class="pre">.bashrc</span></code>, <code class="docutils literal notranslate"><span class="pre">.zprofile</span></code>, etc.)</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">alias</span><span class="w"> </span><span class="nv">get_idf</span><span class="o">=</span><span class="s1">&#39;. $HOME/esp/rogo-esp32-sdk/export.sh&#39;</span>
+</pre></div>
+</div>
+</li>
+<li><p>Refresh the configuration by restarting the terminal session or by running <code class="docutils literal notranslate"><span class="pre">source</span> <span class="pre">[path</span> <span class="pre">to</span> <span class="pre">profile]</span></code>, for example, <code class="docutils literal notranslate"><span class="pre">source</span> <span class="pre">~/.bashrc</span></code>.</p></li>
+</ol>
+<p>Now you can run <code class="docutils literal notranslate"><span class="pre">get_idf</span></code> to set up or refresh the esp-idf environment in any terminal session.</p>
+<p>Technically, you can add <code class="docutils literal notranslate"><span class="pre">export.sh</span></code> to your shell’s profile directly; however, it is not recommended. Doing so activates IDF virtual environment in every terminal session (including those where IDF is not needed), defeating the purpose of the virtual environment and likely affecting other software.</p>
+</section>
+<section id="step-5-first-steps-on-rogo-esp32-wile-sdk">
+<span id="rst-anchor"></span><span id="get-started-linux-macos-first-steps"></span><span id="get-started-connect"></span><span id="get-started-configure"></span><span id="get-started-build"></span><span id="get-started-start-a-project"></span><h2>Step 5. First Steps on ROGO_ESP32_WILE_SDK<a class="headerlink" href="#step-5-first-steps-on-rogo-esp32-wile-sdk" title="Link to this heading"></a></h2>
+<p>Now since all requirements are met, the next topic will guide you on how to start your first project.</p>
+<p>This guide helps you on the first steps using ESP-IDF. Follow this guide to start a new project on the WILE ESP32 device and build, flash, and monitor the device output.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you have not yet installed ESP-IDF, please go to <span class="xref std std-ref">get-started-step-by-step</span> and follow the instruction in order to get all the software needed to use this guide.</p>
+</div>
+</section>
+<section id="start-a-project">
+<h2>Start a Project<a class="headerlink" href="#start-a-project" title="Link to this heading"></a></h2>
+<p>Now you are ready to prepare your application for WILE ESP32 device. You can start with <a href="#id1"><span class="problematic" id="id2">:example:`get-started/hello_world`</span></a> project from <a href="#id3"><span class="problematic" id="id4">:idf:`examples`</span></a> directory in ESP-IDF.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>The ESP-IDF build system does not support spaces in the paths to either ESP-IDF or to projects.</p>
+</div>
+<p>Copy the project <a href="#id5"><span class="problematic" id="id6">:example:`get-started/hello_world`</span></a> to <code class="docutils literal notranslate"><span class="pre">~/esp</span></code> directory:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/esp
+cp<span class="w"> </span>-r<span class="w"> </span><span class="nv">$IDF_PATH</span>/examples/get-started/hello_world<span class="w"> </span>.
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There is a range of example projects in the <a href="#id7"><span class="problematic" id="id8">:idf:`examples`</span></a> directory in ESP-IDF. You can copy any project in the same way as presented above and run it. It is also possible to build examples in-place without copying them first.</p>
+</div>
+</section>
+<section id="connect-your-device">
+<h2>Connect Your Device<a class="headerlink" href="#connect-your-device" title="Link to this heading"></a></h2>
+<p>Now connect your WILE ESP32 device board to the computer and check under which serial port the board is visible.</p>
+<p>Serial ports have the following naming patterns:</p>
+<ul class="simple">
+<li><p><strong>Linux</strong>: starting with <code class="docutils literal notranslate"><span class="pre">/dev/tty</span></code></p></li>
+<li><p><strong>macOS</strong>: starting with <code class="docutils literal notranslate"><span class="pre">/dev/cu.</span></code></p></li>
+</ul>
+<p>If you are not sure how to check the serial port name, please refer to <span class="xref std std-doc">establish-serial-connection</span> for full details.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Keep the port name handy as it is needed in the next steps.</p>
+</div>
+</section>
+<section id="configure-your-project">
+<h2>Configure Your Project<a class="headerlink" href="#configure-your-project" title="Link to this heading"></a></h2>
+<p>Navigate to your <code class="docutils literal notranslate"><span class="pre">hello_world</span></code> directory, set WILE ESP32 device as the target, and run the project configuration utility <code class="docutils literal notranslate"><span class="pre">menuconfig</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/esp/hello_world
+idf.py<span class="w"> </span>set-target<span class="w"> </span><span class="o">{</span>IDF_TARGET_PATH_NAME<span class="o">}</span>
+idf.py<span class="w"> </span>menuconfig
+</pre></div>
+</div>
+<p>After opening a new project, you should first set the target with <code class="docutils literal notranslate"><span class="pre">idf.py</span> <span class="pre">set-target</span> <span class="pre">{IDF_TARGET_PATH_NAME}</span></code>. Note that existing builds and configurations in the project, if any, are cleared and initialized in this process. The target may be saved in the environment variable to skip this step at all. See <span class="xref std std-ref">selecting-idf-target</span> for additional information.</p>
+<p>If the previous steps have been done correctly, the following menu appears:</p>
+<figure class="align-center" id="id11">
+<img alt="Project configuration - Home window" src="_images/menuconfig.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - Home window</span><a class="headerlink" href="#id11" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>You are using this menu to set up project specific variables, e.g., Wi-Fi network name and password, the processor speed, etc. Setting up the project with menuconfig may be skipped for “hello_world”, since this example runs with default configuration.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The colors of the menu could be different in your terminal. You can change the appearance with the option <code class="docutils literal notranslate"><span class="pre">--style</span></code>. Please run <code class="docutils literal notranslate"><span class="pre">idf.py</span> <span class="pre">menuconfig</span> <span class="pre">--help</span></code> for further information.</p>
+</div>
+</section>
+<section id="build-the-project">
+<h2>Build the Project<a class="headerlink" href="#build-the-project" title="Link to this heading"></a></h2>
+<p>Build the project by running:</p>
+<div class="highlight-batch notranslate"><div class="highlight"><pre><span></span>idf.py build
+</pre></div>
+</div>
+<p>This command compiles the application and all ESP-IDF components, then it generates the bootloader, partition table, and application binaries.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ idf.py build
+Running cmake in directory /path/to/hello_world/build
+Executing &quot;cmake -G Ninja --warn-uninitialized /path/to/hello_world&quot;...
+Warn about uninitialized values.
+-- Found Git: /usr/bin/git (found version &quot;2.17.0&quot;)
+-- Building empty aws_iot component due to configuration
+-- Component names: ...
+-- Component paths: ...
+
+... (more lines of build system output)
+
+[527/527] Generating hello_world.bin
+esptool.py v2.3.1
+
+Project build complete. To flash, run this command:
+../../../components/esptool_py/esptool/esptool.py -p (PORT) -b 921600 write_flash --flash_mode dio --flash_size detect --flash_freq 40m 0x10000 build/hello_world.bin  build 0x1000 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin
+or run &#39;idf.py -p PORT flash&#39;
+</pre></div>
+</div>
+<p>If there are no errors, the build finishes by generating the firmware binary .bin files.</p>
+</section>
+<section id="flash-onto-the-device">
+<h2>Flash onto the Device<a class="headerlink" href="#flash-onto-the-device" title="Link to this heading"></a></h2>
+<p>To flash the binaries that you just built for the WILE ESP32 device in the previous step, you need to run the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>idf.py<span class="w"> </span>-p<span class="w"> </span>PORT<span class="w"> </span>flash
+</pre></div>
+</div>
+<p>Replace <code class="docutils literal notranslate"><span class="pre">PORT</span></code> with your WILE ESP32 device board’s USB port name. If the <code class="docutils literal notranslate"><span class="pre">PORT</span></code> is not defined, the <span class="xref std std-ref">idf.py</span> will try to connect automatically using the available USB ports.</p>
+<p>For more information on <code class="docutils literal notranslate"><span class="pre">idf.py</span></code> arguments, see <span class="xref std std-ref">idf.py</span>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The option <code class="docutils literal notranslate"><span class="pre">flash</span></code> automatically builds and flashes the project, so running <code class="docutils literal notranslate"><span class="pre">idf.py</span> <span class="pre">build</span></code> is not necessary.</p>
+</div>
+<p>Encountered Issues While Flashing? See the “Additional Tips” below. You can also refer to <span class="xref std std-doc">flashing-troubleshooting</span> page or <span class="xref std std-doc">establish-serial-connection</span> for more detailed information.</p>
+<section id="normal-operation">
+<h3>Normal Operation<a class="headerlink" href="#normal-operation" title="Link to this heading"></a></h3>
+<p>When flashing, you will see the output log similar to the following:</p>
+<p>If there are no issues by the end of the flash process, the board will reboot and start up the “hello_world” application.</p>
+<p>If you would like to use the Eclipse or VS Code IDE instead of running <code class="docutils literal notranslate"><span class="pre">idf.py</span></code>, check out <a class="reference external" href="https://github.com/espressif/idf-eclipse-plugin/blob/master/README.md">Eclipse Plugin</a>, <a class="reference external" href="https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/tutorial/install.md">VSCode Extension</a>.</p>
+</section>
+</section>
+<section id="monitor-the-output">
+<h2>Monitor the Output<a class="headerlink" href="#monitor-the-output" title="Link to this heading"></a></h2>
+<p>To check if “hello_world” is indeed running, type <code class="docutils literal notranslate"><span class="pre">idf.py</span> <span class="pre">-p</span> <span class="pre">PORT</span> <span class="pre">monitor</span></code> (Do not forget to replace PORT with your serial port name).</p>
+<p>This command launches the <span class="xref std std-doc">IDF Monitor</span> application:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ idf.py -p &lt;PORT&gt; monitor
+Running idf_monitor in directory [...]/esp/hello_world/build
+Executing &quot;python [...]/esp-idf/tools/idf_monitor.py -b 115200 [...]/esp/hello_world/build/hello_world.elf&quot;...
+--- idf_monitor on &lt;PORT&gt; 115200 ---
+--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H ---
+ets Jun  8 2016 00:22:57
+
+rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+ets Jun  8 2016 00:22:57
+...
+</pre></div>
+</div>
+<p>After startup and diagnostic logs scroll up, you should see “Hello world!” printed out by the application.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>    ...
+    Hello world!
+    Restarting in 10 seconds...
+    This is {IDF_TARGET_PATH_NAME} chip with {IDF_TARGET_SOC_CPU_CORES_NUM} CPU core(s), {IDF_TARGET_FEATURES}
+Minimum free heap size: {IDF_TARGET_HEAP_SIZE} bytes
+    Restarting in 9 seconds...
+    Restarting in 8 seconds...
+    Restarting in 7 seconds...
+</pre></div>
+</div>
+<p>To exit IDF monitor use the shortcut <code class="docutils literal notranslate"><span class="pre">Ctrl+]</span></code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You can combine building, flashing and monitoring into one step by running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">idf</span><span class="o">.</span><span class="n">py</span> <span class="o">-</span><span class="n">p</span> <span class="n">PORT</span> <span class="n">flash</span> <span class="n">monitor</span>
+</pre></div>
+</div>
+</div>
+<p>See also:</p>
+<ul class="simple">
+<li><p><span class="xref std std-doc">IDF Monitor</span> for handy shortcuts and more details on using IDF monitor.</p></li>
+<li><p><span class="xref std std-ref">idf.py</span> for a full reference of <code class="docutils literal notranslate"><span class="pre">idf.py</span></code> commands and options.</p></li>
+</ul>
+<p><strong>That is all that you need to get started with |IDF_TARGET_NAME| !</strong></p>
+<p>Now you are ready to try some other <a href="#id9"><span class="problematic" id="id10">:idf:`examples`</span></a>, or go straight to developing your own applications.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Some of examples do not support WILE ESP32 device because required hardware is not included in WILE ESP32 device so it cannot be supported.</p>
+<p>If building an example, please check the README file for the <code class="docutils literal notranslate"><span class="pre">Supported</span> <span class="pre">Targets</span></code> table. If this is present including WILE ESP32 device target, or the table does not exist at all, the example will work on WILE ESP32 device.</p>
+</div>
+</section>
+<section id="additional-tips">
+<h2>Additional Tips<a class="headerlink" href="#additional-tips" title="Link to this heading"></a></h2>
+<section id="permission-denied-issue">
+<h3>Permission Denied Issue<a class="headerlink" href="#permission-denied-issue" title="Link to this heading"></a></h3>
+<p>With some Linux distributions, you may get the error message similar to <code class="docutils literal notranslate"><span class="pre">Could</span> <span class="pre">not</span> <span class="pre">open</span> <span class="pre">port</span> <span class="pre">&lt;PORT&gt;:</span> <span class="pre">Permission</span> <span class="pre">denied:</span> <span class="pre">'&lt;PORT&gt;'</span></code> when flashing the WILE ESP32 device. <span class="xref std std-ref">This can be solved by adding the current user to the specific group</span>, such as <code class="docutils literal notranslate"><span class="pre">dialout</span></code> or <code class="docutils literal notranslate"><span class="pre">uucp</span></code> group.</p>
+</section>
+<section id="python-compatibility">
+<h3>Python Compatibility<a class="headerlink" href="#python-compatibility" title="Link to this heading"></a></h3>
+<p>ESP-IDF supports Python 3.8 or newer. It is recommended to upgrade your operating system to a recent version satisfying this requirement. Other options include the installation of Python from <a class="reference external" href="https://www.python.org/downloads/">sources</a> or the use of a Python version management system such as <a class="reference external" href="https://github.com/pyenv/pyenv">pyenv</a>.</p>
+</section>
+<section id="flash-erase">
+<h3>Flash Erase<a class="headerlink" href="#flash-erase" title="Link to this heading"></a></h3>
+<p>Erasing the flash is also possible. To erase the entire flash memory you can run the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>idf.py<span class="w"> </span>-p<span class="w"> </span>PORT<span class="w"> </span>erase-flash
+</pre></div>
+</div>
+<p>For erasing the OTA data, if present, you can run this command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>idf.py<span class="w"> </span>-p<span class="w"> </span>PORT<span class="w"> </span>erase-otadata
+</pre></div>
+</div>
+<p>The flash erase command can take a while to be done. Do not disconnect your device while the flash erasing is in progress.</p>
+</section>
+</section>
+<section id="related-documents">
+<h2>Related Documents<a class="headerlink" href="#related-documents" title="Link to this heading"></a></h2>
+<blockquote>
+<div></div></blockquote>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="Get_started.html" class="btn btn-neutral float-left" title="Get started with Rogo ESP32 WILE SDK" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="wile_project_start.html" class="btn btn-neutral float-right" title="Getting started with Wi-LE projects, and Wi-LE examples" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright workshop participant.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

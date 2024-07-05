@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Installation with VScode extension on MacOS/Linux &mdash; ROGO ESP32 WILE SDK 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=2709fde1"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ROGO ESP32 WILE SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Get_started.html">Get started with Rogo ESP32 WILE SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="linux_mac_install.html">Standard Toolchain Setup for Linux and macOS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wile_project_start.html">Getting started with Wi-LE projects, and Wi-LE examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wile_in_depth.html">Wi-le example project in-depth exploration</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ROGO ESP32 WILE SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Installation with VScode extension on MacOS/Linux</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/vscode_extesion_linux_macos.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="installation-with-vscode-extension-on-macos-linux">
+<h1>Installation with VScode extension on MacOS/Linux<a class="headerlink" href="#installation-with-vscode-extension-on-macos-linux" title="Link to this heading"></a></h1>
+<section id="step-1-install-prerequisites">
+<h2>Step 1. Install Prerequisites<a class="headerlink" href="#step-1-install-prerequisites" title="Link to this heading"></a></h2>
+<p>In order to use ROGO_ESP32_WILE_SDK with the WILE ESP32 device, you need to install some software packages based on your Operating System. This setup guide helps you on getting everything installed on Linux and macOS based systems.</p>
+<section id="for-linux-users">
+<h3>For Linux Users<a class="headerlink" href="#for-linux-users" title="Link to this heading"></a></h3>
+<p>To compile using ROGO_ESP32_WILE_SDK, you need to get the following packages. The command to run depends on which distribution of Linux you are using:</p>
+<ul>
+<li><p>Ubuntu and Debian:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">apt</span><span class="o">-</span><span class="n">get</span> <span class="n">install</span> <span class="n">git</span> <span class="n">wget</span> <span class="n">flex</span> <span class="n">bison</span> <span class="n">gperf</span> <span class="n">python3</span> <span class="n">python3</span><span class="o">-</span><span class="n">pip</span> <span class="n">python3</span><span class="o">-</span><span class="n">venv</span> <span class="n">cmake</span> <span class="n">ninja</span><span class="o">-</span><span class="n">build</span> <span class="n">ccache</span> <span class="n">libffi</span><span class="o">-</span><span class="n">dev</span> <span class="n">libssl</span><span class="o">-</span><span class="n">dev</span> <span class="n">dfu</span><span class="o">-</span><span class="n">util</span> <span class="n">libusb</span><span class="o">-</span><span class="mf">1.0</span><span class="o">-</span><span class="mi">0</span>
+</pre></div>
+</div>
+</li>
+<li><p>CentOS 7 &amp; 8:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">yum</span> <span class="o">-</span><span class="n">y</span> <span class="n">update</span> <span class="o">&amp;&amp;</span> <span class="n">sudo</span> <span class="n">yum</span> <span class="n">install</span> <span class="n">git</span> <span class="n">wget</span> <span class="n">flex</span> <span class="n">bison</span> <span class="n">gperf</span> <span class="n">python3</span> <span class="n">cmake</span> <span class="n">ninja</span><span class="o">-</span><span class="n">build</span> <span class="n">ccache</span> <span class="n">dfu</span><span class="o">-</span><span class="n">util</span> <span class="n">libusbx</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p>CentOS 7 is still supported but CentOS version 8 is recommended for a better user experience.</p>
+<ul>
+<li><p>Arch:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">pacman</span> <span class="o">-</span><span class="n">S</span> <span class="o">--</span><span class="n">needed</span> <span class="n">gcc</span> <span class="n">git</span> <span class="n">make</span> <span class="n">flex</span> <span class="n">bison</span> <span class="n">gperf</span> <span class="n">python</span> <span class="n">cmake</span> <span class="n">ninja</span> <span class="n">ccache</span> <span class="n">dfu</span><span class="o">-</span><span class="n">util</span> <span class="n">libusb</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<ul class="simple">
+<li><p>CMake version 3.16 or newer is required for use with ROGO_ESP32_WILE_SDK. Run “tools/idf_tools.py install cmake” to install a suitable version if your OS versions does not have one.</p></li>
+<li><p>If you do not see your Linux distribution in the above list then please check its documentation to find out which command to use for package installation.</p></li>
+</ul>
+</div>
+</section>
+<section id="for-macos-users">
+<h3>For macOS Users<a class="headerlink" href="#for-macos-users" title="Link to this heading"></a></h3>
+<p>ROGO_ESP32_WILE_SDK uses the version of Python installed by default on macOS.</p>
+<ul>
+<li><p>Install CMake &amp; Ninja build:</p>
+<ul>
+<li><p>If you have <a href="#id32"><span class="problematic" id="id33">HomeBrew_</span></a>, you can run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">brew</span> <span class="n">install</span> <span class="n">cmake</span> <span class="n">ninja</span> <span class="n">dfu</span><span class="o">-</span><span class="n">util</span>
+</pre></div>
+</div>
+</li>
+<li><p>If you have <a href="#id34"><span class="problematic" id="id35">MacPorts_</span></a>, you can run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">port</span> <span class="n">install</span> <span class="n">cmake</span> <span class="n">ninja</span> <span class="n">dfu</span><span class="o">-</span><span class="n">util</span>
+</pre></div>
+</div>
+</li>
+<li><p>Otherwise, consult the <a href="#id36"><span class="problematic" id="id37">CMake_</span></a> and <a href="#id38"><span class="problematic" id="id39">Ninja_</span></a> home pages for macOS installation downloads.</p></li>
+</ul>
+</li>
+<li><p>It is strongly recommended to also install <a href="#id40"><span class="problematic" id="id41">ccache_</span></a> for faster builds. If you have <a href="#id42"><span class="problematic" id="id43">HomeBrew_</span></a>, this can be done via <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">install</span> <span class="pre">ccache</span></code> or <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">port</span> <span class="pre">install</span> <span class="pre">ccache</span></code> on <a href="#id44"><span class="problematic" id="id45">MacPorts_</span></a>.</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If an error like this is shown during any step:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">xcrun</span><span class="p">:</span> <span class="n">error</span><span class="p">:</span> <span class="n">invalid</span> <span class="n">active</span> <span class="n">developer</span> <span class="n">path</span> <span class="p">(</span><span class="o">/</span><span class="n">Library</span><span class="o">/</span><span class="n">Developer</span><span class="o">/</span><span class="n">CommandLineTools</span><span class="p">),</span> <span class="n">missing</span> <span class="n">xcrun</span> <span class="n">at</span><span class="p">:</span> <span class="o">/</span><span class="n">Library</span><span class="o">/</span><span class="n">Developer</span><span class="o">/</span><span class="n">CommandLineTools</span><span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">xcrun</span>
+</pre></div>
+</div>
+<p>Then you need to install the XCode command line tools to continue. You can install these by running <code class="docutils literal notranslate"><span class="pre">xcode-select</span> <span class="pre">--install</span></code>.</p>
+</div>
+</section>
+<section id="apple-m1-users">
+<h3>Apple M1 Users<a class="headerlink" href="#apple-m1-users" title="Link to this heading"></a></h3>
+<p>If you use Apple M1 platform and see an error like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">WARNING</span><span class="p">:</span> <span class="n">directory</span> <span class="k">for</span> <span class="n">tool</span> <span class="n">xtensa</span><span class="o">-</span><span class="n">esp32</span><span class="o">-</span><span class="n">elf</span> <span class="n">version</span> <span class="n">esp</span><span class="o">-</span><span class="mi">2021</span><span class="n">r2</span><span class="o">-</span><span class="n">patch3</span><span class="o">-</span><span class="mf">8.4.0</span> <span class="ow">is</span> <span class="n">present</span><span class="p">,</span> <span class="n">but</span> <span class="n">tool</span> <span class="n">was</span> <span class="ow">not</span> <span class="n">found</span>
+<span class="n">ERROR</span><span class="p">:</span> <span class="n">tool</span> <span class="n">xtensa</span><span class="o">-</span><span class="n">esp32</span><span class="o">-</span><span class="n">elf</span> <span class="n">has</span> <span class="n">no</span> <span class="n">installed</span> <span class="n">versions</span><span class="o">.</span> <span class="n">Please</span> <span class="n">run</span> <span class="s1">&#39;install.sh&#39;</span> <span class="n">to</span> <span class="n">install</span> <span class="n">it</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>or:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">zsh</span><span class="p">:</span> <span class="n">bad</span> <span class="n">CPU</span> <span class="nb">type</span> <span class="ow">in</span> <span class="n">executable</span><span class="p">:</span> <span class="o">~/.</span><span class="n">espressif</span><span class="o">/</span><span class="n">tools</span><span class="o">/</span><span class="n">xtensa</span><span class="o">-</span><span class="n">esp32</span><span class="o">-</span><span class="n">elf</span><span class="o">/</span><span class="n">esp</span><span class="o">-</span><span class="mi">2021</span><span class="n">r2</span><span class="o">-</span><span class="n">patch3</span><span class="o">-</span><span class="mf">8.4.0</span><span class="o">/</span><span class="n">xtensa</span><span class="o">-</span><span class="n">esp32</span><span class="o">-</span><span class="n">elf</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">xtensa</span><span class="o">-</span><span class="n">esp32</span><span class="o">-</span><span class="n">elf</span><span class="o">-</span><span class="n">gcc</span>
+</pre></div>
+</div>
+<p>Then you need to install Apple Rosetta 2 by running</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/usr/sbin/softwareupdate<span class="w"> </span>--install-rosetta<span class="w"> </span>--agree-to-license
+</pre></div>
+</div>
+</section>
+<section id="installing-python-3">
+<h3>Installing Python 3<a class="headerlink" href="#installing-python-3" title="Link to this heading"></a></h3>
+<p>Based on macOS <a href="#id46"><span class="problematic" id="id47">`Catalina 10.15 release notes`_</span></a>, use of Python 2.7 is not recommended and Python 2.7 is not included by default in future versions of macOS. Check what Python you currently have:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="o">--</span><span class="n">version</span>
+</pre></div>
+</div>
+<p>If the output is like <code class="docutils literal notranslate"><span class="pre">Python</span> <span class="pre">2.7.17</span></code>, your default interpreter is Python 2.7. If so, also check if Python 3 is not already installed on your computer:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python3</span> <span class="o">--</span><span class="n">version</span>
+</pre></div>
+</div>
+<p>If the above command returns an error, it means Python 3 is not installed.</p>
+<p>Below is an overview of the steps to install Python 3.</p>
+<blockquote>
+<div><ul>
+<li><p>Installing with <a href="#id48"><span class="problematic" id="id49">HomeBrew_</span></a> can be done as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">brew</span> <span class="n">install</span> <span class="n">python3</span>
+</pre></div>
+</div>
+</li>
+<li><p>If you have <a href="#id50"><span class="problematic" id="id51">MacPorts_</span></a>, you can run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sudo</span> <span class="n">port</span> <span class="n">install</span> <span class="n">python38</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</div></blockquote>
+</section>
+</section>
+<section id="step-2-download-rogo-esp32-wile-sdk">
+<span id="get-started-get-esp-idf"></span><h2>Step 2 Download ROGO_ESP32_WILE_SDK<a class="headerlink" href="#step-2-download-rogo-esp32-wile-sdk" title="Link to this heading"></a></h2>
+<p>To get ROGO_ESP32_WILE_SDK, navigate to your installation directory and clone the repository with <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span></code>, following instructions below specific to your operating system.</p>
+<p>Open Terminal, and run the following commands:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>mkdir -p ~/esp
+cd ~/esp
+git clone -b dev/v5.1.1 --recursive https://github.com/RogoSolutions/rogo-esp32-sdk.git
+</pre></div>
+</div>
+<p>ROGO_ESP32_WILE_SDK is downloaded into <code class="docutils literal notranslate"><span class="pre">~/esp/rogo-esp32-sdk</span></code>.</p>
+<p><strong>Alternatively</strong> you can also directly download from the <a class="reference external" href="https://github.com/RogoSolutions/rogo-esp32-sdk/tree/dev/v5.1.1">ROGO_ESP32_WILE_SDK’s github page</a></p>
+<p>
+  <img src="../src/picture/gitdw.png" alt="download zip file of the ROGO_ESP32_WILE_SDK " >
+</p>
+</section>
+<section id="step-3-install-vscode-extension-and-rogo-esp32-wile-sdk">
+<h2>Step 3 Install VScode extension and ROGO_ESP32_WILE_SDK<a class="headerlink" href="#step-3-install-vscode-extension-and-rogo-esp32-wile-sdk" title="Link to this heading"></a></h2>
+<p>Download and install <a class="reference external" href="https://code.visualstudio.com/">Visual Studio Code</a>.</p>
+<p>Open the <strong>Extensions</strong> view by clicking on the Extension icon in the Activity Bar on the side of Visual Studio Code or the <strong>View: Extensions</strong> command (shortcut: <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>X</kbd> or <kbd>Ctrl+Shift+X</kbd>.</p>
+<p>
+  <img src="../src/picture/vsc0.png" alt="Extension Search" >
+</p>
+<p>Search for <a class="reference external" href="https://marketplace.visualstudio.com/items?itemName=espressif.esp-idf-extension">ESP-IDF Extension</a>, and install it.</p>
+<p>
+  <img src="../src/picture/vsc1.png" alt="Extension Install" >
+</p>
+<p><strong>(OPTIONAL)</strong> Press <kbd>F1</kbd> and type <strong>ESP-IDF: Select where to Save Configuration Settings</strong>, which can be User Settings, Workspace Settings or Workspace Folder Settings. Please take a look at <a class="reference external" href="https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/MULTI_PROJECTS.md">Working with multiple projects</a> for more information. Default is User settings.</p>
+<p>
+  <img src="../src/picture/vsc2.png" alt="Extension Save Configuration Settings" >
+</p>
+<p>In Visual Studio Code, Press <kbd>F1</kbd> or select menu “View” and “Command Palette” and type [configure esp-idf extension]. After, choose the <strong>ESP-IDF: Configure ESP-IDF Extension</strong> option. You can also choose where to save settings in the setup wizard.</p>
+<p>
+  <img src="../src/picture/vsc3.png" alt="Configure ESP-IDF Extension" >
+</p>
+<p>Now the setup wizard window will be shown with several setup options: <strong>Express</strong>, <strong>Advanced</strong> or <strong>Use Existing Setup</strong>.</p>
+<!-- > **NOTE**: **Use Existing Setup** setup mode option is only shown if:
+>
+> - `esp-idf.json` is found in the current `idf.toolsPath` (MacOS/Linux users) or `idf.toolsPathWin` (Windows users). This file is generated when you install ESP-IDF with the [ESP-IDF Windows Installer](https://github.com/espressif/idf-installer) or using [IDF-ENV](https://github.com/espressif/idf-env).
+> - ESP-IDF is found in `idf.espIdfPath` or `idf.espIdfPathWin`, `IDF_PATH` environment variable, `$HOME/esp/esp-idf` on MacOS/Linux and `%USERPROFILE%\esp\esp-idf` or `%USERPROFILE%\Desktop\esp-idf` in Windows.
+> - ESP-IDF Tools and ESP-IDF Python virtual environment for the previous ESP-IDF are found in `idf.toolsPath` or`idf.toolsPathWin`, `IDF_TOOLS_PATH` environment variable, `$HOME\.espressif` on MacOS/Linux and `%USERPROFILE%\.espressif` on Windows. -->
+<p>
+  <img src="../src/picture/select-mode.png" alt="Select extension mode" width="950">
+</p>
+<!-- Choose **Express** for the fastest option (or **Use Existing Setup** if ESP-IDF is already installed)
+If you choose **Express** setup mode:
+  - Pick an ESP-IDF version to download (or find ESP-IDF in your system) and the python executable to create the virtual environment.
+  - Choose the location for ESP-IDF Tools and python virtual environment (also known as `IDF_TOOLS_PATH`) which is `$HOME\.espressif` on MacOS/Linux and `%USERPROFILE%\.espressif` on Windows by default.
+    > **NOTE:** Windows users don't need to select a python executable since it is part of the setup. -->
+<!-- (or **Use Existing Setup** if ESP-IDF is already installed) -->
+<!-- Choose **Advanced** option  -->
+<!-- <p>
+  <img src="../src/picture/vsc4.png" alt="Advance install" width="950">
+</p>
+
+If you choose **Express** setup mode:
+> **NOTE:** Make sure that `IDF_PATH` and `IDF_TOOLS_PATH` doesn't have any spaces to avoid any build issues.
+
+<p>
+  <img src="../src/picture/select-esp-idf.png" alt="Select ESP-IDF" width="950">
+</p>
+
+The user will see a page showing the setup progress status showing ESP-IDF download progress, ESP-IDF Tools download and install progress as well as the creation of a python virtual environment.
+
+<p>
+  <img src="../src/picture/install-status.png" alt="Install status" width="950">
+</p> -->
+<p>Choose <strong>Advanced</strong> option, after ESP-IDF is downloaded and extracted, select to either download ESP-IDF Tools or manually provide each ESP-IDF tool absolute path and required environment variables.
+&gt; <strong>NOTE:</strong> Consider that <code class="docutils literal notranslate"><span class="pre">IDF_PATH</span></code> requires each ESP-IDF tool to be of the version described in <code class="docutils literal notranslate"><span class="pre">IDF_PATH</span></code>/tools/tools.json.
+&gt; If it is desired to use a different ESP-IDF tool version, check <a class="reference external" href="https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/SETUP.md#JSON-Manual-Configuration">JSON Manual Configuration</a></p>
+<p>
+  <img src="../src/picture/vsc4.png" alt="Select ESP-IDF Tools" width="950">
+</p>
+<p>Next step, the user will be asked how to install the ESP_IDF tools, the user can just leave the default option of <strong>Download ESP-IDF tools</strong></p>
+<p>
+  <img src="../src/picture/vsc5.png" alt="Select ESP-IDF Tools" width="950">
+</p>
+<p>Otherwise, if the user already installed the ESP-IDF tools, and want to use them , they can select  <strong>Use existing ESP-IDF tools</strong> and provide the absolute path, please enter the executable container directory for each binary as shown below:
+&gt; <strong>NOTE:</strong> Check <a class="reference external" href="https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/SETUP.md#JSON-Manual-Configuration">JSON Manual Configuration</a> for more information.</p>
+<p>
+  <img src="../src/picture/advanced-manual.png" alt="Enter ESP-IDF Tools paths manually" width="950">
+</p>
+<p>If everything is installed <strong>correctly</strong>, the user will see a message that all settings have been configured. You can start using the extension.</p>
+<p>
+  <img src="../src/picture/install-complete.png" alt="Install complete">
+</p>
+<blockquote>
+<div><p><strong>NOTE</strong>: The advance mode allows the user to choose to use existing ESP-IDF tools by manually entering each ESP-IDF tool absolute path. Make sure each ESP-IDF tool path doesn’t have any spaces.</p>
+</div></blockquote>
+<p>Now that the extension setup is finally done, check the <a class="reference internal" href="#./basic_use.md"><span class="xref myst">Basic use</span></a> to learn how to use the SDK Configuration editor, build, flash and monitor your Espressif device.</p>
+<blockquote>
+<div><p><strong>NOTE</strong>: Visual Studio Code has many places where to set configuration settings. This extension uses the <code class="docutils literal notranslate"><span class="pre">idf.saveScope</span></code> configuration setting to determine where to save settings, Global (User Settings), Workspace and WorkspaceFolder. Please review <a class="reference external" href="https://code.visualstudio.com/docs/getstarted/settings#_settings-precedence">vscode settings precedence</a>.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>NOTE:</strong> the setup wizard will install ESP-IDF Python packages and ESP-IDF debug adapter (<code class="docutils literal notranslate"><span class="pre">EXTENSION_PATH</span></code>/esp_debug_adapter/requirements.txt) python packages. Make sure that if using an existing python virtual environment that installing these packages doesn’t affect your virtual environment. The <code class="docutils literal notranslate"><span class="pre">EXTENSION_PATH</span></code> is: <code class="docutils literal notranslate"><span class="pre">$HOME/.vscode/extensions/espressif.esp-idf-extension-VERSION</span></code></p>
+</div></blockquote>
+<!-- # Installing Nightly Build
+
+To install the nightly build follow the instructions below.
+
+Nightly builds are available for <a href="https://nightly.link/espressif/vscode-esp-idf-extension/workflows/ci/master/esp-idf-extension.vsix.zip">Visual Studio Code</a> or <a href="https://nightly.link/espressif/vscode-esp-idf-extension/workflows/ci/master/esp-idf-extension-open.vsix.zip">OpenVSX</a>.
+
+- Open VS Code
+- Go to Extensions
+- Click on the `...` from the top and choose `Install from VSIX...`
+- Browse to the VSIX file you downloaded
+- Wait for the extension to install
+- Click the Reload button on the VS Code notification that appears
+ -->
+<blockquote>
+<div><p><strong>NOTE:</strong> <a class="reference external" href="https://github.com/espressif/vscode-esp-idf-extension/blob/master/README.md#Troubleshooting">Troubleshooting</a></p>
+</div></blockquote>
+<p>Now since all requirements are met, the next topic will guide you on how to start your first project.</p>
+<p>This guide helps you on the first steps using ESP-IDF. Follow this guide to start a new project on the <a href="#id12"><span class="problematic" id="id13">|IDF_TARGET_NAME|</span></a> and build, flash, and monitor the device output.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you have not yet installed ESP-IDF, please go to <span class="xref std std-ref">get-started-step-by-step</span> and follow the instruction in order to get all the software needed to use this guide.</p>
+</div>
+<section id="start-a-project">
+<h3>Start a Project<a class="headerlink" href="#start-a-project" title="Link to this heading"></a></h3>
+<p>Now you are ready to prepare your application for <a href="#id14"><span class="problematic" id="id15">|IDF_TARGET_NAME|</span></a>. You can start with <a href="#id1"><span class="problematic" id="id2">:example:`get-started/hello_world`</span></a> project from <a href="#id3"><span class="problematic" id="id4">:idf:`examples`</span></a> directory in ESP-IDF.
+<a href="#id5"><span class="problematic" id="id6">``</span></a><a href="#id7"><span class="problematic" id="id8">`</span></a>{eval-rst}
+.. important:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">The</span> <span class="n">ESP</span><span class="o">-</span><span class="n">IDF</span> <span class="n">build</span> <span class="n">system</span> <span class="n">does</span> <span class="ow">not</span> <span class="n">support</span> <span class="n">spaces</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">paths</span> <span class="n">to</span> <span class="n">either</span> <span class="n">ESP</span><span class="o">-</span><span class="n">IDF</span> <span class="ow">or</span> <span class="n">to</span> <span class="n">projects</span><span class="o">.</span>
+</pre></div>
+</div>
+<p><a href="#id9"><span class="problematic" id="id10">``</span></a><a href="#id11"><span class="problematic" id="id12">`</span></a></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span><span class="o">[</span>Path<span class="w"> </span>to<span class="w"> </span>SDK<span class="o">]</span>/esp
+cp<span class="w"> </span>-r<span class="w"> </span><span class="nv">$IDF_PATH</span>/examples/get-started/hello_world<span class="w"> </span>.
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There is a range of example projects in the <a href="#id13"><span class="problematic" id="id14">:idf:`examples`</span></a> directory in ESP-IDF. You can copy any project in the same way as presented above and run it. It is also possible to build examples in-place without copying them first.</p>
+</div>
+<p>Open VScode, click on Espressif logo on the left panel, you will be greeted with a windows like this:</p>
+<figure class="align-center" id="id1">
+<img alt="IDF extension - Homepage" src="_images/vsc_st_0.png" />
+<figcaption>
+<p><span class="caption-text">IDF extension - Homepage</span><a class="headerlink" href="#id1" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Click on <strong>import project</strong> , a prompt windows will show up, navigate to <cite>[Path to SDK]/examples/get-started/hello_world</cite> and select the desired example, which is <cite>hello_world</cite>:</p>
+<figure class="align-center" id="id2">
+<img alt="Choosing example folder" src="../src/picture/vsc_st_00.png" />
+<figcaption>
+<p><span class="caption-text">Choosing example folder</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Then choose the location where you want to save/copy the example project to:</p>
+<figure class="align-center" id="id3">
+<img alt="Prompt to select folder" src="../src/picture/vsc_st_01.png" />
+<figcaption>
+<p><span class="caption-text">Prompt to select folder</span><a class="headerlink" href="#id3" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Then put in your project name.</p>
+<figure class="align-center" id="id4">
+<img alt="Project configuration - WILE device - Factory board test" src="_images/vsc_st_02.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - WILE device - Factory board test</span><a class="headerlink" href="#id4" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>After that open the project folder you just created.</p>
+<figure class="align-center" id="id5">
+<img alt="Project configuration - WILE device - Factory board test" src="../src/picture/vsc_st_03.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - WILE device - Factory board test</span><a class="headerlink" href="#id5" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id6">
+<img alt="Project configuration - WILE device - Factory board test" src="_images/vsc_st_04.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - WILE device - Factory board test</span><a class="headerlink" href="#id6" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="connect-your-device">
+<h3>Connect Your Device<a class="headerlink" href="#connect-your-device" title="Link to this heading"></a></h3>
+<p>Now connect your <a href="#id16"><span class="problematic" id="id17">|IDF_TARGET_NAME|</span></a> board to the computer and check under which serial port the board is visible.</p>
+<p>Serial ports have the following naming patterns:</p>
+<ul class="simple">
+<li><p><strong>Linux</strong>: starting with <code class="docutils literal notranslate"><span class="pre">/dev/tty</span></code></p></li>
+<li><p><strong>macOS</strong>: starting with <code class="docutils literal notranslate"><span class="pre">/dev/cu.</span></code></p></li>
+<li><p><strong>macOS</strong>: starting with <code class="docutils literal notranslate"><span class="pre">COM</span></code></p></li>
+</ul>
+<p>If you are not sure how to check the serial port name, please refer to <span class="xref std std-doc">establish-serial-connection</span> for full details.</p>
+<p>You can also see which serial ports are currently available by click on the serial port icon (🔌) at the tool bar of IDF extension, and choose your device serial port here</p>
+<figure class="align-center" id="id7">
+<img alt="Serial Port listing and selection" src="_images/vsc_st_05.png" />
+<figcaption>
+<p><span class="caption-text">Serial Port listing and selection</span><a class="headerlink" href="#id7" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Keep the port name handy as it is needed in the next steps.</p>
+</div>
+</section>
+<section id="configure-your-project">
+<h3>Configure Your Project<a class="headerlink" href="#configure-your-project" title="Link to this heading"></a></h3>
+<p>After opening a new project, you should first set the target with correspond to the hardware or chip module you are using .Note that existing builds and configurations in the project, if any, are cleared and initialized in this process. The target may be saved in the environment variable to skip this step at all. See <span class="xref std std-ref">selecting-idf-target</span> for additional information.</p>
+<p>Click on the <strong>`Set Espressif device target`</strong> icon, to select the correct ESP32 series you are using.</p>
+<figure class="align-center" id="id8">
+<img alt="Set target device for the project" src="_images/vsc_st_07.png" />
+<figcaption>
+<p><span class="caption-text">Set target device for the project</span><a class="headerlink" href="#id8" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Click on the <strong>`SDK Configuration`</strong> icon (⚙) on the tool bar to run the configuration, and the menuconfig should show up like this</p>
+<figure class="align-center" id="id9">
+<img alt="SDK Configuration (Menuconfig - GUI version)" src="_images/vsc_st_06.png" />
+<figcaption>
+<p><span class="caption-text">SDK Configuration (Menuconfig - GUI version)</span><a class="headerlink" href="#id9" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>You are using this menu to set up project specific variables, e.g., Wi-Fi network name and password, the processor speed, etc. Setting up the project with menuconfig may be skipped for “hello_world”, since this example runs with default configuration.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The colors of the menu could be different in your terminal. You can change the appearance with the option <code class="docutils literal notranslate"><span class="pre">--style</span></code>. Please run <code class="docutils literal notranslate"><span class="pre">idf.py</span> <span class="pre">menuconfig</span> <span class="pre">--help</span></code> for further information.</p>
+</div>
+</section>
+<section id="build-the-project">
+<h3>Build the Project<a class="headerlink" href="#build-the-project" title="Link to this heading"></a></h3>
+<p>Build the project by clicking <strong>build icon</strong> :</p>
+<figure class="align-center" id="id10">
+<img alt="Build project" src="_images/vsc_st_08.png" />
+<figcaption>
+<p><span class="caption-text">Build project</span><a class="headerlink" href="#id10" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>This compiles the application and all ESP-IDF components, then it generates the bootloader, partition table, and application binaries.</p>
+<p>If there are no errors, the build finishes by generating the firmware binary .bin files with output like this.</p>
+<figure class="align-center" id="id11">
+<img alt="Build result" src="_images/vsc_st_09.png" />
+<figcaption>
+<p><span class="caption-text">Build result</span><a class="headerlink" href="#id11" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="flash-onto-the-device">
+<h3>Flash onto the Device<a class="headerlink" href="#flash-onto-the-device" title="Link to this heading"></a></h3>
+<p>To flash the binaries that you just built for the <a href="#id18"><span class="problematic" id="id19">|IDF_TARGET_NAME|</span></a> in the previous step, you need to run the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>idf.py<span class="w"> </span>-p<span class="w"> </span>PORT<span class="w"> </span>flash
+</pre></div>
+</div>
+<p>Replace <code class="docutils literal notranslate"><span class="pre">PORT</span></code> with your <a href="#id20"><span class="problematic" id="id21">|IDF_TARGET_NAME|</span></a> board’s USB port name. If the <code class="docutils literal notranslate"><span class="pre">PORT</span></code> is not defined, the <span class="xref std std-ref">idf.py</span> will try to connect automatically using the available USB ports.</p>
+<p>For more information on <code class="docutils literal notranslate"><span class="pre">idf.py</span></code> arguments, see <span class="xref std std-ref">idf.py</span>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The option <code class="docutils literal notranslate"><span class="pre">flash</span></code> automatically builds and flashes the project, so running <code class="docutils literal notranslate"><span class="pre">idf.py</span> <span class="pre">build</span></code> is not necessary.</p>
+</div>
+<p>Encountered Issues While Flashing? See the “Additional Tips” below. You can also refer to <span class="xref std std-doc">flashing-troubleshooting</span> page or <span class="xref std std-doc">establish-serial-connection</span> for more detailed information.</p>
+<section id="normal-operation">
+<h4>Normal Operation<a class="headerlink" href="#normal-operation" title="Link to this heading"></a></h4>
+<p>When flashing, you will see the output log similar to the following:</p>
+<blockquote>
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>...
+esptool.py --chip esp32c3 -p /dev/ttyUSB0 -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 80m --flash_size 2MB 0x8000 partition_table/partition-table.bin 0x0 bootloader/bootloader.bin 0x10000 hello_world.bin
+esptool.py v3.0
+Serial port /dev/ttyUSB0
+Connecting....
+Chip is ESP32-C3
+Features: Wi-Fi
+Crystal is 40MHz
+MAC: 7c:df:a1:40:02:a4
+Uploading stub...
+Running stub...
+Stub running...
+Changing baud rate to 460800
+Changed.
+Configuring flash size...
+Compressed 3072 bytes to 103...
+Writing at 0x00008000... (100 %)
+Wrote 3072 bytes (103 compressed) at 0x00008000 in 0.0 seconds (effective 4238.1 kbit/s)...
+Hash of data verified.
+Compressed 18960 bytes to 11311...
+Writing at 0x00000000... (100 %)
+Wrote 18960 bytes (11311 compressed) at 0x00000000 in 0.3 seconds (effective 584.9 kbit/s)...
+Hash of data verified.
+Compressed 145520 bytes to 71984...
+Writing at 0x00010000... (20 %)
+Writing at 0x00014000... (40 %)
+Writing at 0x00018000... (60 %)
+Writing at 0x0001c000... (80 %)
+Writing at 0x00020000... (100 %)
+Wrote 145520 bytes (71984 compressed) at 0x00010000 in 2.3 seconds (effective 504.4 kbit/s)...
+Hash of data verified.
+
+Leaving...
+Hard resetting via RTS pin...
+Done
+</pre></div>
+</div>
+</div></blockquote>
+<p>If there are no issues by the end of the flash process, the board will reboot and start up the “hello_world” application.</p>
+<p>If you would like to use the Eclipse or VS Code IDE instead of running <code class="docutils literal notranslate"><span class="pre">idf.py</span></code>, check out <a class="reference external" href="https://github.com/espressif/idf-eclipse-plugin/blob/master/README.md">Eclipse Plugin</a>, <a class="reference external" href="https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/tutorial/install.md">VSCode Extension</a>.</p>
+</section>
+</section>
+<section id="monitor-the-output">
+<h3>Monitor the Output<a class="headerlink" href="#monitor-the-output" title="Link to this heading"></a></h3>
+<p>To check if “hello_world” is indeed running, type <code class="docutils literal notranslate"><span class="pre">idf.py</span> <span class="pre">-p</span> <span class="pre">PORT</span> <span class="pre">monitor</span></code> (Do not forget to replace PORT with your serial port name).</p>
+<p>This command launches the <span class="xref std std-doc">IDF Monitor</span> application:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ idf.py -p &lt;PORT&gt; monitor
+Running idf_monitor in directory [...]/esp/hello_world/build
+Executing &quot;python [...]/esp-idf/tools/idf_monitor.py -b 115200 [...]/esp/hello_world/build/hello_world.elf&quot;...
+--- idf_monitor on &lt;PORT&gt; 115200 ---
+--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H ---
+ets Jun  8 2016 00:22:57
+
+rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+ets Jun  8 2016 00:22:57
+...
+</pre></div>
+</div>
+<p>After startup and diagnostic logs scroll up, you should see “Hello world!” printed out by the application.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>    ...
+    Hello world!
+    Restarting in 10 seconds...
+    This is {IDF_TARGET_PATH_NAME} chip with {IDF_TARGET_SOC_CPU_CORES_NUM} CPU core(s), {IDF_TARGET_FEATURES}
+Minimum free heap size: {IDF_TARGET_HEAP_SIZE} bytes
+    Restarting in 9 seconds...
+    Restarting in 8 seconds...
+    Restarting in 7 seconds...
+</pre></div>
+</div>
+<p>To exit IDF monitor use the shortcut <code class="docutils literal notranslate"><span class="pre">Ctrl+]</span></code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You can combine building, flashing and monitoring into one step by running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">idf</span><span class="o">.</span><span class="n">py</span> <span class="o">-</span><span class="n">p</span> <span class="n">PORT</span> <span class="n">flash</span> <span class="n">monitor</span>
+</pre></div>
+</div>
+</div>
+<p>See also:</p>
+<ul class="simple">
+<li><p><span class="xref std std-doc">IDF Monitor</span> for handy shortcuts and more details on using IDF monitor.</p></li>
+<li><p><span class="xref std std-ref">idf.py</span> for a full reference of <code class="docutils literal notranslate"><span class="pre">idf.py</span></code> commands and options.</p></li>
+</ul>
+<p><strong>That is all that you need to get started with |IDF_TARGET_NAME| !</strong></p>
+<p>Now you are ready to try some other <a href="#id15"><span class="problematic" id="id16">:idf:`examples`</span></a>, or go straight to developing your own applications.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Some of examples do not support <a href="#id22"><span class="problematic" id="id23">|IDF_TARGET_NAME|</span></a> because required hardware is not included in <a href="#id24"><span class="problematic" id="id25">|IDF_TARGET_NAME|</span></a> so it cannot be supported.</p>
+<p>If building an example, please check the README file for the <code class="docutils literal notranslate"><span class="pre">Supported</span> <span class="pre">Targets</span></code> table. If this is present including <a href="#id26"><span class="problematic" id="id27">|IDF_TARGET_NAME|</span></a> target, or the table does not exist at all, the example will work on <a href="#id28"><span class="problematic" id="id29">|IDF_TARGET_NAME|</span></a>.</p>
+</div>
+</section>
+<section id="additional-tips">
+<h3>Additional Tips<a class="headerlink" href="#additional-tips" title="Link to this heading"></a></h3>
+<section id="permission-denied-issue">
+<h4>Permission Denied Issue<a class="headerlink" href="#permission-denied-issue" title="Link to this heading"></a></h4>
+<p>With some Linux distributions, you may get the error message similar to <code class="docutils literal notranslate"><span class="pre">Could</span> <span class="pre">not</span> <span class="pre">open</span> <span class="pre">port</span> <span class="pre">&lt;PORT&gt;:</span> <span class="pre">Permission</span> <span class="pre">denied:</span> <span class="pre">'&lt;PORT&gt;'</span></code> when flashing the <a href="#id30"><span class="problematic" id="id31">|IDF_TARGET_NAME|</span></a>. <span class="xref std std-ref">This can be solved by adding the current user to the specific group</span>, such as <code class="docutils literal notranslate"><span class="pre">dialout</span></code> or <code class="docutils literal notranslate"><span class="pre">uucp</span></code> group.</p>
+</section>
+<section id="python-compatibility">
+<h4>Python Compatibility<a class="headerlink" href="#python-compatibility" title="Link to this heading"></a></h4>
+<p>ESP-IDF supports Python 3.8 or newer. It is recommended to upgrade your operating system to a recent version satisfying this requirement. Other options include the installation of Python from <a class="reference external" href="https://www.python.org/downloads/">sources</a> or the use of a Python version management system such as <a class="reference external" href="https://github.com/pyenv/pyenv">pyenv</a>.</p>
+</section>
+<section id="flash-erase">
+<h4>Flash Erase<a class="headerlink" href="#flash-erase" title="Link to this heading"></a></h4>
+<p>Erasing the flash is also possible. To erase the entire flash memory you can run the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>idf.py<span class="w"> </span>-p<span class="w"> </span>PORT<span class="w"> </span>erase-flash
+</pre></div>
+</div>
+<p>For erasing the OTA data, if present, you can run this command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>idf.py<span class="w"> </span>-p<span class="w"> </span>PORT<span class="w"> </span>erase-otadata
+</pre></div>
+</div>
+<p>The flash erase command can take a while to be done. Do not disconnect your device while the flash erasing is in progress.</p>
+</section>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright workshop participant.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Start a Project &mdash; ROGO ESP32 WILE SDK 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=2709fde1"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ROGO ESP32 WILE SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Get_started.html">Get started with Rogo ESP32 WILE SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="linux_mac_install.html">Standard Toolchain Setup for Linux and macOS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wile_project_start.html">Getting started with Wi-LE projects, and Wi-LE examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wile_in_depth.html">Wi-le example project in-depth exploration</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ROGO ESP32 WILE SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Start a Project</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/vscode_linux-macos-start-project.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <p>Now since all requirements are met, the next topic will guide you on how to start your first project.</p>
+<p>This guide helps you on the first steps using ESP-IDF. Follow this guide to start a new project on the WILE ESP32 device and build, flash, and monitor the device output.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you have not yet installed ESP-IDF, please go to <span class="xref std std-ref">get-started-step-by-step</span> and follow the instruction in order to get all the software needed to use this guide.</p>
+</div>
+<section id="start-a-project">
+<h1>Start a Project<a class="headerlink" href="#start-a-project" title="Link to this heading"></a></h1>
+<p>Now you are ready to prepare your application for WILE ESP32 device. You can start with <a href="#id1"><span class="problematic" id="id2">:example:`get-started/hello_world`</span></a> project from <a href="#id3"><span class="problematic" id="id4">:idf:`examples`</span></a> directory in ESP-IDF.
+<a href="#id5"><span class="problematic" id="id6">``</span></a><a href="#id7"><span class="problematic" id="id8">`</span></a>{eval-rst}
+.. important:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">The</span> <span class="n">ESP</span><span class="o">-</span><span class="n">IDF</span> <span class="n">build</span> <span class="n">system</span> <span class="n">does</span> <span class="ow">not</span> <span class="n">support</span> <span class="n">spaces</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">paths</span> <span class="n">to</span> <span class="n">either</span> <span class="n">ESP</span><span class="o">-</span><span class="n">IDF</span> <span class="ow">or</span> <span class="n">to</span> <span class="n">projects</span><span class="o">.</span>
+</pre></div>
+</div>
+<p><a href="#id9"><span class="problematic" id="id10">``</span></a><a href="#id11"><span class="problematic" id="id12">`</span></a></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span><span class="o">[</span>Path<span class="w"> </span>to<span class="w"> </span>SDK<span class="o">]</span>/esp
+cp<span class="w"> </span>-r<span class="w"> </span><span class="nv">$IDF_PATH</span>/examples/get-started/hello_world<span class="w"> </span>.
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There is a range of example projects in the <a href="#id13"><span class="problematic" id="id14">:idf:`examples`</span></a> directory in ESP-IDF. You can copy any project in the same way as presented above and run it. It is also possible to build examples in-place without copying them first.</p>
+</div>
+<p>Open VScode, click on Espressif logo on the left panel, you will be greeted with a windows like this:</p>
+<figure class="align-center" id="id15">
+<img alt="IDF extension - Homepage" src="_images/vsc_st_0.png" />
+<figcaption>
+<p><span class="caption-text">IDF extension - Homepage</span><a class="headerlink" href="#id15" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Click on <strong>import project</strong> , a prompt windows will show up, navigate to <cite>[Path to SDK]/examples/get-started/hello_world</cite> and select the desired example, which is <cite>hello_world</cite>:</p>
+<figure class="align-center" id="id16">
+<img alt="Choosing example folder" src="../src/picture/vsc_st_00.png" />
+<figcaption>
+<p><span class="caption-text">Choosing example folder</span><a class="headerlink" href="#id16" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Then choose the location where you want to save/copy the example project to:</p>
+<figure class="align-center" id="id17">
+<img alt="Prompt to select folder" src="../src/picture/vsc_st_01.png" />
+<figcaption>
+<p><span class="caption-text">Prompt to select folder</span><a class="headerlink" href="#id17" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Then put in your project name.</p>
+<figure class="align-center" id="id18">
+<img alt="Project configuration - WILE device - Factory board test" src="_images/vsc_st_02.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - WILE device - Factory board test</span><a class="headerlink" href="#id18" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>After that open the project folder you just created.</p>
+<figure class="align-center" id="id19">
+<img alt="Project configuration - WILE device - Factory board test" src="../src/picture/vsc_st_03.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - WILE device - Factory board test</span><a class="headerlink" href="#id19" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="id20">
+<img alt="Project configuration - WILE device - Factory board test" src="_images/vsc_st_04.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - WILE device - Factory board test</span><a class="headerlink" href="#id20" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="connect-your-device">
+<h1>Connect Your Device<a class="headerlink" href="#connect-your-device" title="Link to this heading"></a></h1>
+<p>Now connect your WILE ESP32 device board to the computer and check under which serial port the board is visible.</p>
+<p>Serial ports have the following naming patterns:</p>
+<ul class="simple">
+<li><p><strong>Linux</strong>: starting with <code class="docutils literal notranslate"><span class="pre">/dev/tty</span></code></p></li>
+<li><p><strong>macOS</strong>: starting with <code class="docutils literal notranslate"><span class="pre">/dev/cu.</span></code></p></li>
+<li><p><strong>macOS</strong>: starting with <code class="docutils literal notranslate"><span class="pre">COM</span></code></p></li>
+</ul>
+<p>If you are not sure how to check the serial port name, please refer to <span class="xref std std-doc">establish-serial-connection</span> for full details.</p>
+<p>You can also see which serial ports are currently available by click on the serial port icon (🔌) at the tool bar of IDF extension, and choose your device serial port here</p>
+<figure class="align-center" id="id21">
+<img alt="Serial Port listing and selection" src="_images/vsc_st_05.png" />
+<figcaption>
+<p><span class="caption-text">Serial Port listing and selection</span><a class="headerlink" href="#id21" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Keep the port name handy as it is needed in the next steps.</p>
+</div>
+</section>
+<section id="configure-your-project">
+<h1>Configure Your Project<a class="headerlink" href="#configure-your-project" title="Link to this heading"></a></h1>
+<p>After opening a new project, you should first set the target with correspond to the hardware or chip module you are using .Note that existing builds and configurations in the project, if any, are cleared and initialized in this process. The target may be saved in the environment variable to skip this step at all. See <span class="xref std std-ref">selecting-idf-target</span> for additional information.</p>
+<p>Click on the <strong>`Set Espressif device target`</strong> icon, to select the correct ESP32 series you are using.</p>
+<figure class="align-center" id="id22">
+<img alt="Set target device for the project" src="_images/vsc_st_07.png" />
+<figcaption>
+<p><span class="caption-text">Set target device for the project</span><a class="headerlink" href="#id22" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Click on the <strong>`SDK Configuration`</strong> icon (⚙) on the tool bar to run the configuration, and the menuconfig should show up like this</p>
+<figure class="align-center" id="id23">
+<img alt="SDK Configuration (Menuconfig - GUI version)" src="_images/vsc_st_06.png" />
+<figcaption>
+<p><span class="caption-text">SDK Configuration (Menuconfig - GUI version)</span><a class="headerlink" href="#id23" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>You are using this menu to set up project specific variables, e.g., Wi-Fi network name and password, the processor speed, etc. Setting up the project with menuconfig may be skipped for “hello_world”, since this example runs with default configuration.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The colors of the menu could be different in your terminal. You can change the appearance with the option <code class="docutils literal notranslate"><span class="pre">--style</span></code>. Please run <code class="docutils literal notranslate"><span class="pre">idf.py</span> <span class="pre">menuconfig</span> <span class="pre">--help</span></code> for further information.</p>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright workshop participant.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

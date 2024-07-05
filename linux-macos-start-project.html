@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Start a Project &mdash; ROGO ESP32 WILE SDK 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=2709fde1"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ROGO ESP32 WILE SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Get_started.html">Get started with Rogo ESP32 WILE SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="linux_mac_install.html">Standard Toolchain Setup for Linux and macOS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wile_project_start.html">Getting started with Wi-LE projects, and Wi-LE examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wile_in_depth.html">Wi-le example project in-depth exploration</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ROGO ESP32 WILE SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Start a Project</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/linux-macos-start-project.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <p>Now since all requirements are met, the next topic will guide you on how to start your first project.</p>
+<p>This guide helps you on the first steps using ESP-IDF. Follow this guide to start a new project on the WILE ESP32 device and build, flash, and monitor the device output.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you have not yet installed ESP-IDF, please go to <span class="xref std std-ref">get-started-step-by-step</span> and follow the instruction in order to get all the software needed to use this guide.</p>
+</div>
+<section id="start-a-project">
+<h1>Start a Project<a class="headerlink" href="#start-a-project" title="Link to this heading"></a></h1>
+<p>Now you are ready to prepare your application for WILE ESP32 device. You can start with <a href="#id1"><span class="problematic" id="id2">:example:`get-started/hello_world`</span></a> project from <a href="#id3"><span class="problematic" id="id4">:idf:`examples`</span></a> directory in ESP-IDF.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>The ESP-IDF build system does not support spaces in the paths to either ESP-IDF or to projects.</p>
+</div>
+<p>Copy the project <a href="#id5"><span class="problematic" id="id6">:example:`get-started/hello_world`</span></a> to <code class="docutils literal notranslate"><span class="pre">~/esp</span></code> directory:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/esp
+cp<span class="w"> </span>-r<span class="w"> </span><span class="nv">$IDF_PATH</span>/examples/get-started/hello_world<span class="w"> </span>.
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There is a range of example projects in the <a href="#id7"><span class="problematic" id="id8">:idf:`examples`</span></a> directory in ESP-IDF. You can copy any project in the same way as presented above and run it. It is also possible to build examples in-place without copying them first.</p>
+</div>
+</section>
+<section id="connect-your-device">
+<h1>Connect Your Device<a class="headerlink" href="#connect-your-device" title="Link to this heading"></a></h1>
+<p>Now connect your WILE ESP32 device board to the computer and check under which serial port the board is visible.</p>
+<p>Serial ports have the following naming patterns:</p>
+<ul class="simple">
+<li><p><strong>Linux</strong>: starting with <code class="docutils literal notranslate"><span class="pre">/dev/tty</span></code></p></li>
+<li><p><strong>macOS</strong>: starting with <code class="docutils literal notranslate"><span class="pre">/dev/cu.</span></code></p></li>
+</ul>
+<p>If you are not sure how to check the serial port name, please refer to <span class="xref std std-doc">establish-serial-connection</span> for full details.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Keep the port name handy as it is needed in the next steps.</p>
+</div>
+</section>
+<section id="configure-your-project">
+<h1>Configure Your Project<a class="headerlink" href="#configure-your-project" title="Link to this heading"></a></h1>
+<p>Navigate to your <code class="docutils literal notranslate"><span class="pre">hello_world</span></code> directory, set WILE ESP32 device as the target, and run the project configuration utility <code class="docutils literal notranslate"><span class="pre">menuconfig</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/esp/hello_world
+idf.py<span class="w"> </span>set-target<span class="w"> </span><span class="o">{</span>IDF_TARGET_PATH_NAME<span class="o">}</span>
+idf.py<span class="w"> </span>menuconfig
+</pre></div>
+</div>
+<p>After opening a new project, you should first set the target with <code class="docutils literal notranslate"><span class="pre">idf.py</span> <span class="pre">set-target</span> <span class="pre">{IDF_TARGET_PATH_NAME}</span></code>. Note that existing builds and configurations in the project, if any, are cleared and initialized in this process. The target may be saved in the environment variable to skip this step at all. See <span class="xref std std-ref">selecting-idf-target</span> for additional information.</p>
+<p>If the previous steps have been done correctly, the following menu appears:</p>
+<figure class="align-center" id="id9">
+<img alt="Project configuration - Home window" src="_images/menuconfig.png" />
+<figcaption>
+<p><span class="caption-text">Project configuration - Home window</span><a class="headerlink" href="#id9" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>You are using this menu to set up project specific variables, e.g., Wi-Fi network name and password, the processor speed, etc. Setting up the project with menuconfig may be skipped for “hello_world”, since this example runs with default configuration.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The colors of the menu could be different in your terminal. You can change the appearance with the option <code class="docutils literal notranslate"><span class="pre">--style</span></code>. Please run <code class="docutils literal notranslate"><span class="pre">idf.py</span> <span class="pre">menuconfig</span> <span class="pre">--help</span></code> for further information.</p>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright workshop participant.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

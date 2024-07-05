@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Build the Project &mdash; ROGO ESP32 WILE SDK 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=2709fde1"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            ROGO ESP32 WILE SDK
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Get_started.html">Get started with Rogo ESP32 WILE SDK</a></li>
+<li class="toctree-l1"><a class="reference internal" href="linux_mac_install.html">Standard Toolchain Setup for Linux and macOS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wile_project_start.html">Getting started with Wi-LE projects, and Wi-LE examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="wile_in_depth.html">Wi-le example project in-depth exploration</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">ROGO ESP32 WILE SDK</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Build the Project</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/vscode_start_project.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="build-the-project">
+<h1>Build the Project<a class="headerlink" href="#build-the-project" title="Link to this heading"></a></h1>
+<p>Build the project by clicking <strong>build icon</strong> :</p>
+<figure class="align-center" id="id3">
+<img alt="Build project" src="_images/vsc_st_08.png" />
+<figcaption>
+<p><span class="caption-text">Build project</span><a class="headerlink" href="#id3" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>This compiles the application and all ESP-IDF components, then it generates the bootloader, partition table, and application binaries.</p>
+<p>If there are no errors, the build finishes by generating the firmware binary .bin files with output like this.</p>
+<figure class="align-center" id="id4">
+<img alt="Build result" src="_images/vsc_st_09.png" />
+<figcaption>
+<p><span class="caption-text">Build result</span><a class="headerlink" href="#id4" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+</section>
+<section id="flash-onto-the-device">
+<h1>Flash onto the Device<a class="headerlink" href="#flash-onto-the-device" title="Link to this heading"></a></h1>
+<p>To flash the binaries that you just built for the WILE ESP32 device in the previous step, you need to run the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>idf.py<span class="w"> </span>-p<span class="w"> </span>PORT<span class="w"> </span>flash
+</pre></div>
+</div>
+<p>Replace <code class="docutils literal notranslate"><span class="pre">PORT</span></code> with your WILE ESP32 device board’s USB port name. If the <code class="docutils literal notranslate"><span class="pre">PORT</span></code> is not defined, the <span class="xref std std-ref">idf.py</span> will try to connect automatically using the available USB ports.</p>
+<p>For more information on <code class="docutils literal notranslate"><span class="pre">idf.py</span></code> arguments, see <span class="xref std std-ref">idf.py</span>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The option <code class="docutils literal notranslate"><span class="pre">flash</span></code> automatically builds and flashes the project, so running <code class="docutils literal notranslate"><span class="pre">idf.py</span> <span class="pre">build</span></code> is not necessary.</p>
+</div>
+<p>Encountered Issues While Flashing? See the “Additional Tips” below. You can also refer to <span class="xref std std-doc">flashing-troubleshooting</span> page or <span class="xref std std-doc">establish-serial-connection</span> for more detailed information.</p>
+<section id="normal-operation">
+<h2>Normal Operation<a class="headerlink" href="#normal-operation" title="Link to this heading"></a></h2>
+<p>When flashing, you will see the output log similar to the following:</p>
+<blockquote>
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>...
+esptool.py --chip esp32c3 -p /dev/ttyUSB0 -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 80m --flash_size 2MB 0x8000 partition_table/partition-table.bin 0x0 bootloader/bootloader.bin 0x10000 hello_world.bin
+esptool.py v3.0
+Serial port /dev/ttyUSB0
+Connecting....
+Chip is ESP32-C3
+Features: Wi-Fi
+Crystal is 40MHz
+MAC: 7c:df:a1:40:02:a4
+Uploading stub...
+Running stub...
+Stub running...
+Changing baud rate to 460800
+Changed.
+Configuring flash size...
+Compressed 3072 bytes to 103...
+Writing at 0x00008000... (100 %)
+Wrote 3072 bytes (103 compressed) at 0x00008000 in 0.0 seconds (effective 4238.1 kbit/s)...
+Hash of data verified.
+Compressed 18960 bytes to 11311...
+Writing at 0x00000000... (100 %)
+Wrote 18960 bytes (11311 compressed) at 0x00000000 in 0.3 seconds (effective 584.9 kbit/s)...
+Hash of data verified.
+Compressed 145520 bytes to 71984...
+Writing at 0x00010000... (20 %)
+Writing at 0x00014000... (40 %)
+Writing at 0x00018000... (60 %)
+Writing at 0x0001c000... (80 %)
+Writing at 0x00020000... (100 %)
+Wrote 145520 bytes (71984 compressed) at 0x00010000 in 2.3 seconds (effective 504.4 kbit/s)...
+Hash of data verified.
+
+Leaving...
+Hard resetting via RTS pin...
+Done
+</pre></div>
+</div>
+</div></blockquote>
+<p>If there are no issues by the end of the flash process, the board will reboot and start up the “hello_world” application.</p>
+<p>If you would like to use the Eclipse or VS Code IDE instead of running <code class="docutils literal notranslate"><span class="pre">idf.py</span></code>, check out <a class="reference external" href="https://github.com/espressif/idf-eclipse-plugin/blob/master/README.md">Eclipse Plugin</a>, <a class="reference external" href="https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/tutorial/install.md">VSCode Extension</a>.</p>
+</section>
+</section>
+<section id="monitor-the-output">
+<h1>Monitor the Output<a class="headerlink" href="#monitor-the-output" title="Link to this heading"></a></h1>
+<p>To check if “hello_world” is indeed running, type <code class="docutils literal notranslate"><span class="pre">idf.py</span> <span class="pre">-p</span> <span class="pre">PORT</span> <span class="pre">monitor</span></code> (Do not forget to replace PORT with your serial port name).</p>
+<p>This command launches the <span class="xref std std-doc">IDF Monitor</span> application:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ idf.py -p &lt;PORT&gt; monitor
+Running idf_monitor in directory [...]/esp/hello_world/build
+Executing &quot;python [...]/esp-idf/tools/idf_monitor.py -b 115200 [...]/esp/hello_world/build/hello_world.elf&quot;...
+--- idf_monitor on &lt;PORT&gt; 115200 ---
+--- Quit: Ctrl+] | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H ---
+ets Jun  8 2016 00:22:57
+
+rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+ets Jun  8 2016 00:22:57
+...
+</pre></div>
+</div>
+<p>After startup and diagnostic logs scroll up, you should see “Hello world!” printed out by the application.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>    ...
+    Hello world!
+    Restarting in 10 seconds...
+    This is {IDF_TARGET_PATH_NAME} chip with {IDF_TARGET_SOC_CPU_CORES_NUM} CPU core(s), {IDF_TARGET_FEATURES}
+Minimum free heap size: {IDF_TARGET_HEAP_SIZE} bytes
+    Restarting in 9 seconds...
+    Restarting in 8 seconds...
+    Restarting in 7 seconds...
+</pre></div>
+</div>
+<p>To exit IDF monitor use the shortcut <code class="docutils literal notranslate"><span class="pre">Ctrl+]</span></code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You can combine building, flashing and monitoring into one step by running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">idf</span><span class="o">.</span><span class="n">py</span> <span class="o">-</span><span class="n">p</span> <span class="n">PORT</span> <span class="n">flash</span> <span class="n">monitor</span>
+</pre></div>
+</div>
+</div>
+<p>See also:</p>
+<ul class="simple">
+<li><p><span class="xref std std-doc">IDF Monitor</span> for handy shortcuts and more details on using IDF monitor.</p></li>
+<li><p><span class="xref std std-ref">idf.py</span> for a full reference of <code class="docutils literal notranslate"><span class="pre">idf.py</span></code> commands and options.</p></li>
+</ul>
+<p><strong>That is all that you need to get started with |IDF_TARGET_NAME| !</strong></p>
+<p>Now you are ready to try some other <a href="#id1"><span class="problematic" id="id2">:idf:`examples`</span></a>, or go straight to developing your own applications.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Some of examples do not support WILE ESP32 device because required hardware is not included in WILE ESP32 device so it cannot be supported.</p>
+<p>If building an example, please check the README file for the <code class="docutils literal notranslate"><span class="pre">Supported</span> <span class="pre">Targets</span></code> table. If this is present including WILE ESP32 device target, or the table does not exist at all, the example will work on WILE ESP32 device.</p>
+</div>
+</section>
+<section id="additional-tips">
+<h1>Additional Tips<a class="headerlink" href="#additional-tips" title="Link to this heading"></a></h1>
+<section id="permission-denied-issue">
+<h2>Permission Denied Issue<a class="headerlink" href="#permission-denied-issue" title="Link to this heading"></a></h2>
+<p>With some Linux distributions, you may get the error message similar to <code class="docutils literal notranslate"><span class="pre">Could</span> <span class="pre">not</span> <span class="pre">open</span> <span class="pre">port</span> <span class="pre">&lt;PORT&gt;:</span> <span class="pre">Permission</span> <span class="pre">denied:</span> <span class="pre">'&lt;PORT&gt;'</span></code> when flashing the WILE ESP32 device. <span class="xref std std-ref">This can be solved by adding the current user to the specific group</span>, such as <code class="docutils literal notranslate"><span class="pre">dialout</span></code> or <code class="docutils literal notranslate"><span class="pre">uucp</span></code> group.</p>
+</section>
+<section id="python-compatibility">
+<h2>Python Compatibility<a class="headerlink" href="#python-compatibility" title="Link to this heading"></a></h2>
+<p>ESP-IDF supports Python 3.8 or newer. It is recommended to upgrade your operating system to a recent version satisfying this requirement. Other options include the installation of Python from <a class="reference external" href="https://www.python.org/downloads/">sources</a> or the use of a Python version management system such as <a class="reference external" href="https://github.com/pyenv/pyenv">pyenv</a>.</p>
+</section>
+<section id="flash-erase">
+<h2>Flash Erase<a class="headerlink" href="#flash-erase" title="Link to this heading"></a></h2>
+<p>Erasing the flash is also possible. To erase the entire flash memory you can run the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>idf.py<span class="w"> </span>-p<span class="w"> </span>PORT<span class="w"> </span>erase-flash
+</pre></div>
+</div>
+<p>For erasing the OTA data, if present, you can run this command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>idf.py<span class="w"> </span>-p<span class="w"> </span>PORT<span class="w"> </span>erase-otadata
+</pre></div>
+</div>
+<p>The flash erase command can take a while to be done. Do not disconnect your device while the flash erasing is in progress.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright workshop participant.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
