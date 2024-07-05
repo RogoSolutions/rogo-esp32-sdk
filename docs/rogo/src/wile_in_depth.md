@@ -85,7 +85,7 @@ In the `sdkconfig` file will have this definition :
 and if you want to use it in your source file :
 
 ```{eval-rst}
-.. figure:: ../doc/picture/ex1.jpg
+.. figure:: ../src/picture/ex1.jpg
     :align: center
 
 ```

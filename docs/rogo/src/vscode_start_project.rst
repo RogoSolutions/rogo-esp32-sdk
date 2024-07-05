@@ -4,7 +4,7 @@ Build the Project
 
 Build the project by clicking **build icon** :
 
-.. figure:: ../doc/picture/vsc_st_08.png
+.. figure:: ../src/picture/vsc_st_08.png
     :align: center
     :alt: Build project
 
@@ -34,7 +34,7 @@ This compiles the application and all ESP-IDF components, then it generates the 
 
 If there are no errors, the build finishes by generating the firmware binary .bin files with output like this.
 
-.. figure:: ../doc/picture/vsc_st_09.png
+.. figure:: ../src/picture/vsc_st_09.png
     :align: center
     :alt: Build result
 

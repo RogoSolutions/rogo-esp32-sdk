@@ -116,7 +116,7 @@ ROGO_ESP32_WILE_SDK is downloaded into ``~/esp/rogo-esp32-sdk``.
 **Alternatively** you can also directly download from the [ROGO_ESP32_WILE_SDK's github page](https://github.com/RogoSolutions/rogo-esp32-sdk/tree/dev/v5.1.1)
 
 <p>
-  <img src="../doc/picture/gitdw.png" alt="download zip file of the ROGO_ESP32_WILE_SDK " >
+  <img src="../src/picture/gitdw.png" alt="download zip file of the ROGO_ESP32_WILE_SDK " >
 </p>
 
 ## Step 3 Install VScode extension and ROGO_ESP32_WILE_SDK
@@ -124,25 +124,25 @@ Download and install [Visual Studio Code](https://code.visualstudio.com/).
 
 Open the **Extensions** view by clicking on the Extension icon in the Activity Bar on the side of Visual Studio Code or the **View: Extensions** command (shortcut: <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>X</kbd> or <kbd>Ctrl+Shift+X</kbd>.
 <p>
-  <img src="../doc/picture/vsc0.png" alt="Extension Search" >
+  <img src="../src/picture/vsc0.png" alt="Extension Search" >
 </p>
 
 Search for [ESP-IDF Extension](https://marketplace.visualstudio.com/items?itemName=espressif.esp-idf-extension), and install it.
 
 <p>
-  <img src="../doc/picture/vsc1.png" alt="Extension Install" >
+  <img src="../src/picture/vsc1.png" alt="Extension Install" >
 </p>
 
 **(OPTIONAL)** Press <kbd>F1</kbd> and type **ESP-IDF: Select where to Save Configuration Settings**, which can be User Settings, Workspace Settings or Workspace Folder Settings. Please take a look at [Working with multiple projects](https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/MULTI_PROJECTS.md) for more information. Default is User settings.
 
 
 <p>
-  <img src="../doc/picture/vsc2.png" alt="Extension Save Configuration Settings" >
+  <img src="../src/picture/vsc2.png" alt="Extension Save Configuration Settings" >
 </p>
 
 In Visual Studio Code, Press <kbd>F1</kbd> or select menu "View" and "Command Palette" and type [configure esp-idf extension]. After, choose the **ESP-IDF: Configure ESP-IDF Extension** option. You can also choose where to save settings in the setup wizard.
 <p>
-  <img src="../doc/picture/vsc3.png" alt="Configure ESP-IDF Extension" >
+  <img src="../src/picture/vsc3.png" alt="Configure ESP-IDF Extension" >
 </p>
 
 
@@ -155,7 +155,7 @@ Now the setup wizard window will be shown with several setup options: **Express*
 > - ESP-IDF Tools and ESP-IDF Python virtual environment for the previous ESP-IDF are found in `idf.toolsPath` or`idf.toolsPathWin`, `IDF_TOOLS_PATH` environment variable, `$HOME\.espressif` on MacOS/Linux and `%USERPROFILE%\.espressif` on Windows. -->
 
 <p>
-  <img src="../doc/picture/select-mode.png" alt="Select extension mode" width="950">
+  <img src="../src/picture/select-mode.png" alt="Select extension mode" width="950">
 </p>
 
 <!-- Choose **Express** for the fastest option (or **Use Existing Setup** if ESP-IDF is already installed)
@@ -166,20 +166,20 @@ If you choose **Express** setup mode:
 <!-- (or **Use Existing Setup** if ESP-IDF is already installed) -->
 <!-- Choose **Advanced** option  -->
 <!-- <p>
-  <img src="../doc/picture/vsc4.png" alt="Advance install" width="950">
+  <img src="../src/picture/vsc4.png" alt="Advance install" width="950">
 </p>
 
 If you choose **Express** setup mode:
 > **NOTE:** Make sure that `IDF_PATH` and `IDF_TOOLS_PATH` doesn't have any spaces to avoid any build issues.
 
 <p>
-  <img src="../doc/picture/select-esp-idf.png" alt="Select ESP-IDF" width="950">
+  <img src="../src/picture/select-esp-idf.png" alt="Select ESP-IDF" width="950">
 </p>
 
 The user will see a page showing the setup progress status showing ESP-IDF download progress, ESP-IDF Tools download and install progress as well as the creation of a python virtual environment.
 
 <p>
-  <img src="../doc/picture/install-status.png" alt="Install status" width="950">
+  <img src="../src/picture/install-status.png" alt="Install status" width="950">
 </p> -->
 
 Choose **Advanced** option, after ESP-IDF is downloaded and extracted, select to either download ESP-IDF Tools or manually provide each ESP-IDF tool absolute path and required environment variables.
@@ -187,25 +187,25 @@ Choose **Advanced** option, after ESP-IDF is downloaded and extracted, select to
     > If it is desired to use a different ESP-IDF tool version, check [JSON Manual Configuration](https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/SETUP.md#JSON-Manual-Configuration)
 
 <p>
-  <img src="../doc/picture/vsc4.png" alt="Select ESP-IDF Tools" width="950">
+  <img src="../src/picture/vsc4.png" alt="Select ESP-IDF Tools" width="950">
 </p>
 
 Next step, the user will be asked how to install the ESP_IDF tools, the user can just leave the default option of **Download ESP-IDF tools**
 <p>
-  <img src="../doc/picture/vsc5.png" alt="Select ESP-IDF Tools" width="950">
+  <img src="../src/picture/vsc5.png" alt="Select ESP-IDF Tools" width="950">
 </p>
 
 Otherwise, if the user already installed the ESP-IDF tools, and want to use them , they can select  **Use existing ESP-IDF tools** and provide the absolute path, please enter the executable container directory for each binary as shown below:
     > **NOTE:** Check [JSON Manual Configuration](https://github.com/espressif/vscode-esp-idf-extension/blob/master/docs/SETUP.md#JSON-Manual-Configuration) for more information.
 
 <p>
-  <img src="../doc/picture/advanced-manual.png" alt="Enter ESP-IDF Tools paths manually" width="950">
+  <img src="../src/picture/advanced-manual.png" alt="Enter ESP-IDF Tools paths manually" width="950">
 </p>
 
 If everything is installed **correctly**, the user will see a message that all settings have been configured. You can start using the extension.
 
 <p>
-  <img src="../doc/picture/install-complete.png" alt="Install complete">
+  <img src="../src/picture/install-complete.png" alt="Install complete">
 </p>
 
 > **NOTE**: The advance mode allows the user to choose to use existing ESP-IDF tools by manually entering each ESP-IDF tool absolute path. Make sure each ESP-IDF tool path doesn't have any spaces.
