@@ -55,7 +55,7 @@ After opening a new project, you should first set the target with ``idf.py set-t
 
 If the previous steps have been done correctly, the following menu appears:
 
-.. figure:: ../doc/picture/menuconfig.png
+.. figure:: ../src/picture/menuconfig.png
     :align: center
     :alt: Project configuration - Home window
 

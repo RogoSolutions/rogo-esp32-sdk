@@ -30,7 +30,7 @@ You should first set the target with `idf.py set-target {ESP32 chip name}`.
 
 If the previous steps have been done correctly, the following menu appears:
 
-.. figure:: ../doc/picture/wile0.png
+.. figure:: ../src/picture/wile0.png
     :align: center
     :alt: Project configuration - Home window
 
@@ -43,7 +43,7 @@ For **WiLE Projects** there is an additional submenu named `Wile device`, This m
 
 
 ```{eval-rst}
-.. figure:: ../doc/picture/wile1.png
+.. figure:: ../src/picture/wile1.png
     :align: center
     :alt: Project configuration - WILE device menu
 
@@ -53,7 +53,7 @@ For **WiLE Projects** there is an additional submenu named `Wile device`, This m
 There are 2 options in this submenu, the first one is for choosing the board you are using, with **Wile_switch example** there are three options, choose the board according to your hardware, if your hardware doesn't match any of those boards, you can open `{project folder}/src/board.h` to see if your board is compatible with any of those board. In addition, if none of those board matched, you can define your own board in side the `board.h` file, detail can be found at [this part](./another-feature.md)
 
 ```{eval-rst}
-.. figure:: ../doc/picture/wile2.png
+.. figure:: ../src/picture/wile2.png
     :align: center
     :alt: Project configuration - WILE device - Board Selection
 
@@ -64,7 +64,7 @@ There are 2 options in this submenu, the first one is for choosing the board you
 The second option is to whether or not you want to enable factory test, this function is used at the manufacturer's factory for the **Quality Assurance** process. **For development** you **do not** need to enable this feature, and for manufacturing, you can work with your OEM to come up with your own QA process.     
 
 ```{eval-rst}
-.. figure:: ../doc/picture/wile3.png
+.. figure:: ../src/picture/wile3.png
     :align: center
     :alt: Project configuration - WILE device - Factory board test
 
@@ -76,7 +76,7 @@ The second option is to whether or not you want to enable factory test, this fun
 
 Before you can use Wile functionality in your project, you need first to enable it and config some of there parameters. Since this is an wile example project, it is already precongiged, but can find this setting at `Project configuration -> Component Config -> WILE ` 
 ```{eval-rst}
-.. figure:: ../doc/picture/wile4.png
+.. figure:: ../src/picture/wile4.png
     :align: center
     :alt: Project configuration - Component Config - WILE
 
@@ -87,7 +87,7 @@ Before you can use Wile functionality in your project, you need first to enable 
 Inside currently there is only one option `WILE Configuration`
 
 ```{eval-rst}
-.. figure:: ../doc/picture/wile5.png
+.. figure:: ../src/picture/wile5.png
     :align: center
     :alt: Project configuration - Component Config - WILE
 
@@ -97,7 +97,7 @@ Inside currently there is only one option `WILE Configuration`
 Currently, you can choose to **enable/disable Wile**, and set the **product ID** here. 
 
 ```{eval-rst}
-.. figure:: ../doc/picture/wile6.png
+.. figure:: ../src/picture/wile6.png
     :align: center
     :alt: Project configuration - Component Config - WILE - WILE Configuration
 
@@ -106,7 +106,7 @@ Currently, you can choose to **enable/disable Wile**, and set the **product ID**
 ```
 
 ```{eval-rst}
-.. figure:: ../doc/picture/wile8.png
+.. figure:: ../src/picture/wile8.png
     :align: center
     :alt: Project configuration - Component Config - WILE - WILE Configuration - Device product ID
 
@@ -124,7 +124,7 @@ After finished **Configure Your Project** you can start building the example, th
 If everything has been done correctly your monitor output should look like this :
 
 ```{eval-rst}
-.. figure:: ../doc/picture/wile_log.png
+.. figure:: ../src/picture/wile_log.png
     :align: center
     :alt: Output log of the wile_switch example at the first run
 
