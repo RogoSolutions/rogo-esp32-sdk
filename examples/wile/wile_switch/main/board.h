@@ -32,17 +32,17 @@ extern "C"
 #ifdef CONFIG_ESP_WROOM_32
 #define BTN_NUM     4
 #define LED_NUM     4
-#define LED_R       GPIO_NUM_25
+#define LED_R       GPIO_NUM_23
 #define LED_G       GPIO_NUM_26
 #define LED_B       GPIO_NUM_27
-#define BTN_1       GPIO_NUM_1
-#define BTN_2       GPIO_NUM_20
-#define BTN_3       GPIO_NUM_3
-#define BTN_4       GPIO_NUM_10  // GPIO_NUM_10
-#define SW_1        GPIO_NUM_32
-#define SW_2        GPIO_NUM_33
+#define BTN_1       GPIO_NUM_39
+#define BTN_2       GPIO_NUM_35
+#define BTN_3       GPIO_NUM_0
+#define BTN_4       GPIO_NUM_12  // GPIO_NUM_10
+#define SW_1        GPIO_NUM_33
+#define SW_2        GPIO_NUM_32
 #define SW_3        GPIO_NUM_5
-#define SW_4        GPIO_NUM_6
+#define SW_4        GPIO_NUM_13
 #elif defined(CONFIG_ESP_WROVER)
 #define BTN_NUM     4
 #define LED_NUM     4
@@ -77,7 +77,7 @@ extern "C"
 #define LED_R       GPIO_NUM_8
 #define LED_G       GPIO_NUM_8
 #define LED_B       GPIO_NUM_8
-#define BTN_1       GPIO_NUM_1
+#define BTN_1       GPIO_NUM_9
 #define BTN_2       GPIO_NUM_20
 #define BTN_3       GPIO_NUM_3
 #define BTN_4       GPIO_NUM_10  // GPIO_NUM_10

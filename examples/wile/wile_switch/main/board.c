@@ -77,8 +77,18 @@ struct _led_state led_state[3] = {
     { LED_OFF, LED_OFF, LED_G, "green" },
     { LED_OFF, LED_OFF, LED_B, "blue"  },
 };
-struct button_state btn_state[BTN_NUM] = {};
-struct switch_state sw_state[BTN_NUM] = {};
+struct button_state btn_state[BTN_NUM] = {
+    { 1, BTN_IDLE, BTN_IDLE, BTN_1, "1_left_max"  },
+    { 2, BTN_IDLE, BTN_IDLE, BTN_2, "2_left_mid"  },
+    { 3, BTN_IDLE, BTN_IDLE, BTN_3, "3_right_mid" },
+    { 4, BTN_IDLE, BTN_IDLE, BTN_4, "4_right_max" },
+};
+struct switch_state sw_state[BTN_NUM] = {
+    { 1, SW_OFF, SW_1, false, "1_left_max"  },
+    { 2, SW_OFF, SW_2, false, "2_left_mid"  },
+    { 3, SW_OFF, SW_3, false, "3_right_mid" },
+    { 4, SW_OFF, SW_4, false, "4_right_max" },
+    };
 #endif
 
 #ifdef CONFIG_ESP_WROVER
@@ -199,6 +209,8 @@ static void button_task(void* arg)
             root_device_local_control(btn_state[i].element, CTR_ONOFF_FLIP);
             // btn_state[i].previous = btn_state[i].current;
             btn_state[i].current = BTN_IDLE;
+            vTaskDelay(10);
+
         }
         #endif
     }

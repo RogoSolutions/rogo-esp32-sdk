@@ -92,4 +92,28 @@ and if you want to use it in your source file :
 
 
 ### idf_component.yml
-This is a manifest file which contains the components that user want to add bui
+This is a manifest file which contains the external components/libraries that user may want to use 
+
+### Project structure 
+Project structure of a Wile project, follows the structure of a ESP IDF project:
+```C
+{dev_xxx} //Project folder 
+    |--- build/
+    |--- managed_components/
+    |--- partition_table/
+    |--- CMakelists.txt
+    |
+    |--- main/
+          |---- CMakelists.txt
+          |---- idf_component.yml
+          |---- Kconfig.projbuild
+          |
+          |---- app_device.h
+          |---- app_device.cpp
+          |
+          |---- board.h
+          |---- board.c
+          |
+          |---- main.c
+
+```

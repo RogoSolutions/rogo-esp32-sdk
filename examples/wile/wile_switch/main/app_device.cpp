@@ -260,7 +260,11 @@ void root_device_prov_none(void){
     board_led_rgb_set_color(LED_ALL, LED_YELLOW, false);
     root_device_state_init();
     #else
+    #if defined(CONFIG_IDF_TARGET_ESP32)
+    xTaskCreate(task_led_slow, "task_led_slow", 512*2, NULL, tskIDLE_PRIORITY, &ledIndicateHandle);
+    #else
     xTaskCreate(task_led_slow, "task_led_slow", 512, NULL, tskIDLE_PRIORITY, &ledIndicateHandle);
+    #endif
     #endif
 }
 

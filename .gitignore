@@ -38,6 +38,7 @@ examples/**/sdkconfig.old
 
 # Doc build artifacts
 docs/_build/
+docs/rogo/_build/
 docs/doxygen_sqlite3.db
 
 # Downloaded font files
