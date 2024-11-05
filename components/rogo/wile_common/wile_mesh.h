@@ -74,10 +74,6 @@ extern "C"
 
 #define MESH_IV_UPDATE_SEQ_LIMIT 8000000
 
-extern struct _led_state led_state[3];
-
-// struct bt_mesh_device_network_info mesh_info;
-
 void mesh_prov_task(void * pvParameters);
 
 void ble_mesh_get_dev_uuid(uint8_t *dev_uuid);

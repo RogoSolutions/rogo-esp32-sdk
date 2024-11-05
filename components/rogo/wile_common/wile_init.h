@@ -93,17 +93,6 @@ extern "C"
 #define MESH_TAG "MESH"
 #define WIFI_TAG "WIFI"
 
-// #define DEVICE_NAME                  DEVICE_NAME_IR_CONTROL
-// #define DEVICE_NAME                  DEVICE_NAME_VRV_CONTROL
-// #define DEVICE_NAME                  DEVICE_NAME_FPT_PLUG
-// #ifdef CONFIG_DEVICE_NAME
-// #define DEVICE_NAME                  CONFIG_DEVICE_NAME
-// #endif
-
-// #ifndef CONFIG_DEVICE_NAME
-// #define DEVICE_NAME                  "WILE_DEV_NODE"
-// #endif
-
 #define WILE_PROVISION_STATE         0x01
 #define WILE_WIFI_SCAN               0x02
 #define WILE_WIFI_CONNECT            0x03
@@ -188,10 +177,17 @@ extern uint8_t locationID[12];
 extern uint32_t mqttPort;
 
 extern uint32_t meshSeq;
-extern uint8_t devTaskRunning;
+#ifdef CONFIG_USE_MQTT_CORE_DEPRECATED
+// extern uint8_t devTaskRunning;
 extern QueueHandle_t devControlParaQueue;
+#endif
 extern QueueHandle_t rgmgtDevControlParaQueue;
-#define RG_DEV_CONTROL_QUEUE_SIZE           16
+extern RingbufHandle_t rgmgtDevControlParaBuf;
+#ifdef CONFIG_IR_CONTROL_ENABLE
+extern QueueHandle_t rgirDecodeResultQueue;
+extern TaskHandle_t rgirDecodeHandle;
+#endif
+#define RG_DEV_CONTROL_QUEUE_SIZE           32
 #define RG_SMART_EVENT_CHECK_TIME           100
 extern EventGroupHandle_t rgmgtSmartControlEvt;
 extern uint8_t *devControlPara;
@@ -226,6 +222,7 @@ typedef struct {
     uint8_t *srcMsg;
     uint16_t srcMsgLen;
     void *arg;
+    uint16_t argLen;
 } rgmsg_t;
 
 typedef struct devEidInfo{
@@ -239,7 +236,9 @@ typedef struct devEidInfo{
     uint16_t group;
 } devEidInfo_t;
 
+#ifdef CONFIG_USE_DEVICE_CONTROL_QUEUE_DEPRECATED
 typedef struct rgdev_control_para{
+    bool     controlQueued;
     uint16_t deviceType;
     uint16_t eid;
     uint16_t element;
@@ -249,8 +248,25 @@ typedef struct rgdev_control_para{
     uint8_t  trigger; // is check trigger smart
     uint16_t smart; // control from smart
     uint16_t feature;
+    uint16_t featureSize;
     uint8_t  *featureValue;
 } rgdev_control_para_t;
+#else
+typedef struct rgdev_control_para{
+    uint16_t paraSize;
+    uint16_t deviceType;
+    uint16_t eid;
+    uint16_t element;
+    uint16_t delay;
+    uint16_t reverse;
+    uint8_t  report;
+    uint8_t  trigger; // is check trigger smart
+    uint16_t smart; // control from smart
+    uint16_t feature;
+    uint16_t featureSize;
+    uint8_t  featureValue[];
+} rgdev_control_para_t;
+#endif
 
 typedef struct rgsmt_trig_para{
     uint16_t elm;
@@ -296,6 +312,14 @@ struct acState{
     uint8_t fan;
     uint8_t swing;
 };
+
+typedef struct rgdev_ac_state{
+    bool     power;
+    uint8_t  mode;
+    uint16_t temp;
+    uint8_t  fan;
+    uint8_t  swing;
+} rgdev_ac_state_t;
 
 struct smokeState{
     bool smoke;

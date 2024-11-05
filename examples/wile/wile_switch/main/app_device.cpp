@@ -1,230 +1,210 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 #include "board.h"
 #include "board_led.h"
 #include "app_device.h"
 #include "wile_define.h"
 
-// bool localDevState = 0;
-// uint8_t elementState[BTN_NUM] = {CTR_ONOFF_OFF};
-// __NOINIT_ATTR uint8_t elementState[BTN_NUM]= {CTR_ONOFF_OFF};
+#define DEVICE_DATA_PARTITION       "device"
+#define DEVICE_DATA_NAMESPACE       "device"
+#define DEVICE_STATE_BLOB           "state"
 
-#if defined(CONFIG_ESP32C3_RD_CN_04_V11)
-element_power_state_t elementState[BTN_NUM] = {
-    { 1, CTR_ONOFF_OFF },
-    { 2, CTR_ONOFF_OFF },
-    { 3, CTR_ONOFF_OFF },
-    { 4, CTR_ONOFF_OFF },
-};
-uint8_t deviceLedFlipNum = 2;
-TaskHandle_t boardLedIndicateHardwareHandle = NULL;
-uint8_t deviceZeroCrossingCheck = true;
-// __NOINIT_ATTR static element_power_state_t elementState[BTN_NUM];
-#elif defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
-uint8_t deviceLedFlipNum = 2;
-TaskHandle_t boardLedIndicateHardwareHandle = NULL;
-TaskHandle_t boardSwMotorControlHandle = NULL;
-// uint8_t deviceZeroCrossingCheck = true;
-#else
-element_power_state_t elementState[BTN_NUM] = {
-    { 1, CTR_ONOFF_OFF },
-    { 2, CTR_ONOFF_OFF },
-    { 3, CTR_ONOFF_OFF },
-    { 4, CTR_ONOFF_OFF },
-};
-uint8_t deviceLedFlipNum = 2;
-TaskHandle_t boardLedIndicateHardwareHandle = NULL;
-#endif
+element_power_state_t elementState[ELM_NUM];
 
-void root_device_state_init(void){
-    #ifdef CONFIG_ESP32C3_RD_CN_03_REM_V11
-    board_sw_control(1, SW_OFF);
-    board_sw_control(2, SW_ON);
-    board_sw_control(3, SW_OFF);
-    board_led_rgb_set_brightness(LED_ALL, LED_OFF);
+esp_err_t root_device_state_init(void);
+esp_err_t root_device_save_state(void);
+esp_err_t root_device_control(uint16_t element, uint16_t type, uint8_t *value);
+esp_err_t root_device_local_control(uint8_t element, uint8_t mode);
+void      root_device_identify(void);
+void      root_device_delete_indicate(void);
+void      root_device_prov_complete(void);
+void      root_device_prov_none(void);
+esp_err_t root_device_set_state(uint16_t element, uint16_t type, uint8_t *value);
+esp_err_t root_device_get_state(uint16_t element, uint16_t feature, void **state, uint8_t *stateSize);
+
+esp_err_t root_device_state_init(void){
+    esp_err_t err = ESP_OK;
+
+    for (uint8_t i=0; i<ELM_NUM; i++){
+        elementState[i].element = i+1;
+        elementState[i].state   = CTR_ONOFF_OFF;
+    }
+
+    #ifdef CONFIG_NVS_ENCRYPTION
+    const esp_partition_t *nvs_key_part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_NVS_KEYS, NULL);
+    nvs_sec_cfg_t nvs_sec_cfg = {};
+    err = nvs_flash_read_security_cfg(nvs_key_part, &nvs_sec_cfg);
+    err = nvs_flash_secure_init_partition(DEVICE_DATA_PARTITION, &nvs_sec_cfg);
+    if (err != ESP_OK) ESP_LOGE("DEVICE", "device data encrypt err=0x%X", err);
     #else
+    err = nvs_flash_init_partition(DEVICE_DATA_PARTITION);
+    #endif
+
+    if (err != ESP_OK) return err;
+
+    nvs_handle_t nvs_handler;
+    err = nvs_open_from_partition(DEVICE_DATA_PARTITION, DEVICE_DATA_NAMESPACE, NVS_READWRITE, &nvs_handler);
+
+    size_t elementStateSize = 0;
+    err = nvs_get_item_size(nvs_handler, DEVICE_STATE_BLOB, NVS_TYPE_BLOB, &elementStateSize);
+
+    if (err == ESP_OK){
+        err = nvs_get_blob(nvs_handler, DEVICE_STATE_BLOB, elementState, &elementStateSize);
+    }
+    else{
+        ESP_LOGW("DEVICE", "STATE NOT SET (%s)", esp_err_to_name(err));
+        // err = nvs_set_blob(nvs_handler, DEVICE_STATE_BLOB, elementState, ELM_NUM * sizeof(element_power_state_t));
+        // nvs_commit(nvs_handler);
+    }
+    nvs_close(nvs_handler);
+
     if (PROV_STATE == STEP_CFG_COMPLETE){
         uint8_t *devState = NULL;
         uint8_t devStateSize = 0;
-        for (uint8_t i=1; i<=BTN_NUM; i++){
-            root_device_get_state(i, FEATURE_ONOFF, (void **)&devState, &devStateSize);
-            ESP_LOG_BUFFER_HEX("STATE ELM", devState, devStateSize);
-            elementState[i-1].state = devState[0];
-            uint8_t elmState[2] = {0x00, devState[0]};
-            root_device_control(i, FEATURE_ONOFF, elmState);
-        }
-        if (devState != NULL) free(devState);
-    }
-    else{
-        uint8_t value[2] = {0x00, CTR_ONOFF_OFF};
-        for (int i=1; i<=BTN_NUM; i++) {
-            root_device_control(i, FEATURE_ONOFF, value);
-            // board_sw_zc_control(i, CTR_ONOFF_OFF);
+
+        for (uint8_t i=0; i<ELM_NUM; i++){
+            if (root_device_get_state(elementState[i].element, FEATURE_ONOFF, (void **)&devState, &devStateSize) == ESP_OK){
+                elementState[i].state = devState[0];
+            }
+            if (devState != NULL) { free(devState); devState = NULL; }
         }
     }
-    #endif
+
+    for (uint8_t i=0; i<ELM_NUM; i++){
+        ESP_LOGW("DEVICE", "INIT STATE: ELM #%d, state %s",
+                                        elementState[i].element,
+                                        elementState[i].state == CTR_ONOFF_ON ? "on" : "off");
+    }
+
+    uint8_t initValue[2] = {0x00, CTR_ONOFF_OFF};
+    for (int i=0; i<ELM_NUM; i++) {
+        initValue[1] = elementState[i].state;
+        root_device_control(elementState[i].element, FEATURE_ONOFF, initValue);
+    }
+
+    return err;
+}
+
+esp_err_t root_device_save_state(void){
+    esp_err_t ret = ESP_OK;
+
+    nvs_handle_t nvs_handler;
+    ret += nvs_open_from_partition(DEVICE_DATA_PARTITION, DEVICE_DATA_NAMESPACE, NVS_READWRITE, &nvs_handler);
+    ret += nvs_set_blob(nvs_handler, DEVICE_STATE_BLOB, elementState, ELM_NUM * sizeof(element_power_state_t));
+    ret += nvs_commit(nvs_handler);
+    nvs_close(nvs_handler);
+
+    return ret;
 }
 
 esp_err_t root_device_control(uint16_t element, uint16_t type, uint8_t *value){
     ESP_LOGI("DEVICE", "Root device control, elm: %d", element);
-    uint16_t devState = value[0] << 8 | value[1];
-    ESP_LOGI("ROOT", "State: %d", devState);
+    ESP_LOG_BUFFER_HEX("ATTR VALUE", value, rgmsg_feature_size(type));
 
-    #ifdef CONFIG_ESP32C3_RD_CN_03_REM_V11
-    if (type != FEATURE_OPEN_CLOSE_CTL) return ERR_RG_NOTSUPPORT;
-    ESP_LOGW("GATE", "OPENCLOSE: %d - %d%%", value[1], value[3]);
-    uint8_t level =  value[3];
-    board_sw_motor_control(element, devState, level);
-    #else
+    esp_err_t ret = ESP_OK;
 
     switch (type){
-        case FEATURE_ONOFF:
-            if (devState == CTR_ONOFF_ON){
-                #ifdef LED_RGB_DATA
-                board_led_rgb_set_brightness(element, LED_ON);
-                #endif
-                #ifdef ZERO_CROSS
-                board_sw_zc_control(element, SW_ON);
-                #else
-                board_sw_control(element, SW_ON);
-                #endif
+        case FEATURE_ONOFF:{
+            uint16_t onoffState = value[0] << 8 | value[1];
+
+            if (onoffState == CTR_ONOFF_ON){
+                ret += board_led_indicator_brightness(element, BOARD_LED_ON_BRIGHTNESS);
+                ret += board_switch_control(element, SWITCH_ACTIVE_LEVEL);
             }
-            else if (devState == CTR_ONOFF_OFF){
-                #ifdef LED_RGB_DATA
-                board_led_rgb_set_brightness(element, LED_OFF);
-                #endif
-                #ifdef ZERO_CROSS
-                board_sw_zc_control(element, SW_OFF);
-                #else
-                board_sw_control(element, SW_OFF);
-                #endif
+            else if (onoffState == CTR_ONOFF_OFF){
+                ret += board_led_indicator_brightness(element, BOARD_LED_OFF_BRIGHTNESS);
+                ret += board_switch_control(element, !SWITCH_ACTIVE_LEVEL);
+            }
+
+            for (uint8_t i=0; i<ELM_NUM; i++){
+                if (elementState[i].element == element && elementState[i].state != onoffState){
+                    elementState[i].state = (uint8_t)onoffState;
+                    break;
+                }
             }
             break;
-        default:
-            break;
-    }
-    for (uint8_t i=0; i<BTN_NUM; i++){
-        if (elementState[i].element == element && elementState[i].state != devState){
-            elementState[i].state = (uint8_t)devState;
+        }
+        default:{
+            ESP_LOGW("DEVICE", "NOT SUPPORTED CONTROL ATTR %d", type);
+            ret = ESP_ERR_NOT_SUPPORTED;
             break;
         }
     }
-    #endif
 
-    return ESP_OK;
+    if (ret != ESP_OK) ESP_LOGE("DEVICE", "root_device_control fail, err=0x%04X", ret);
+    root_device_save_state();
+
+    return ret;
 }
 
 esp_err_t root_device_local_control(uint8_t element, uint8_t mode){
-    #ifdef CONFIG_ESP32C3_RD_CN_03_REM_V11
-    uint8_t controlValue[4] = {0x00};
-    controlValue[1] = mode;
-    if (mode == CTR_OPENCLOSE_MODE_OPEN) controlValue[3] = 100;
-    uint8_t *devState = NULL;
-    uint8_t devStateSize = 0;
-    if (root_device_get_state(0x01, FEATURE_OPEN_CLOSE_CTL, (void **)&devState, &devStateSize) == ESP_OK){
-        // ESP_LOG_BUFFER_HEX("ROOT DEVICE STATE", devState, devStateSize);
-        root_device_set_state(0x01, FEATURE_OPEN_CLOSE_CTL, controlValue);
+    uint8_t buttonIdx = 0;
+    bool validButton = false;
+
+    for (buttonIdx=0; buttonIdx<BTN_NUM; buttonIdx++){
+        if (element == elementState[buttonIdx].element){
+            validButton = true;
+            break;
+        }
     }
 
-    if (devState != NULL) free(devState);
-    return root_device_control(element, FEATURE_OPEN_CLOSE_CTL, controlValue);
-    #else
-    uint8_t localIdx = 0;
-    for (localIdx = 0; localIdx < BTN_NUM; localIdx++){
-        if (element == elementState[localIdx].element) break;
-    }
-    ESP_LOGI("DEVICE", "Local Index: %d", localIdx);
+    if (!validButton) return ESP_ERR_NOT_FOUND;
 
     if (mode == CTR_ONOFF_FLIP){
-        elementState[localIdx].state = !elementState[localIdx].state;
+        elementState[buttonIdx].state = !elementState[buttonIdx].state;
     }
     else if (mode == CTR_ONOFF_ON){
-        elementState[localIdx].state = CTR_ONOFF_ON;
+        elementState[buttonIdx].state = CTR_ONOFF_ON;
     }
     else if (mode == CTR_ONOFF_OFF){
-        elementState[localIdx].state = CTR_ONOFF_OFF;
+        elementState[buttonIdx].state = CTR_ONOFF_OFF;
+    }
+    else{
+        return ESP_ERR_INVALID_ARG;
     }
 
-    uint8_t controlValue[2] = {0x00, elementState[localIdx].state};
+    ESP_LOGI("DEVICE", "Local control element #%d, state: %d", element, elementState[buttonIdx].state);
 
-    uint8_t *devState = NULL;
-    uint8_t devStateSize = 0;
-    if (root_device_get_state(element, FEATURE_ONOFF, (void **)&devState, &devStateSize) == ESP_OK){
-        // ESP_LOG_BUFFER_HEX("ROOT DEVICE STATE", devState, devStateSize);
+    uint8_t controlValue[2] = {0x00, elementState[buttonIdx].state};
+
+    // uint8_t *devState = NULL;
+    // uint8_t devStateSize = 0;
+    if (PROV_STATE == STEP_CFG_COMPLETE){
         root_device_set_state(element, FEATURE_ONOFF, controlValue);
     }
-
-    if (devState != NULL) free(devState);
+    // if (devState != NULL) free(devState);
 
     return root_device_control(element, FEATURE_ONOFF, controlValue);
-    #endif
-}
-
-#ifndef LED_RGB_DATA
-static void task_led_slow(void *pvParameters)
-{
-    while(PROV_STATE != STEP_CFG_COMPLETE){
-        vTaskDelay(500);
-        // board_led_operation(LED_B, LED_OFF);
-        gpio_set_level(LED_R, LED_OFF);
-        vTaskDelay(500);
-        // board_led_operation(LED_B, LED_ON);
-        gpio_set_level(LED_R, LED_ON);
-    }
-    vTaskDelete(ledIndicateHandle);
-}
-
-static void task_led_fast(void *pvParameters)
-{
-    uint32_t lastTime = xTaskGetTickCount();
-    while(xTaskGetTickCount() - lastTime <= 5000){
-        vTaskDelay(100);
-        gpio_set_level(LED_R, LED_OFF);
-        vTaskDelay(100);
-        gpio_set_level(LED_R, LED_ON);
-    }
-    if (ledIndicateHandle != NULL){
-        vTaskResume(ledIndicateHandle);
-    }
-    vTaskDelete(NULL);
-}
-#endif
-
-void root_device_identify(void){
-    // xTaskCreate(task_led_fast, "task_led_fast", 1024, NULL, 3, NULL);
-    #if defined(CONFIG_ESP32C3_RD_CN_04_V11) || defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
-    xTaskCreate(board_led_rgb_prov_run_task, "board_led_rgb_prov_run_task", 512, NULL, tskIDLE_PRIORITY, NULL);
-    // deviceLedFlipNum = 6;
-    // xTaskCreate(board_led_rgb_flip_task, "board_led_rgb_flip_task", 1024, &deviceLedFlipNum, tskIDLE_PRIORITY, NULL);
-    #endif
 }
 
 esp_err_t rgmgt_device_event_cb(uint16_t event){
     switch (event){
         case CTR_WILE_EVT_WIFI_CONNECTED:
-            #ifdef ZERO_CROSS
-            if (deviceZeroCrossingCheck && PROV_STATE == STEP_CFG_COMPLETE){
-                board_led_rgb_set_color(LED_ALL, LED_BLUE, true);
-            }
-            #endif
             break;
         case CTR_WILE_EVT_WIFI_DISCONNECTED:
-            #ifdef ZERO_CROSS
-            if (deviceZeroCrossingCheck) board_led_rgb_set_color(LED_ALL, LED_YELLOW, true);
-            #endif
             break;
         case CTR_WILE_EVT_WIFI_CONNECT_FAIL:
             break;
         case CTR_WILE_EVT_CLOUD_CONNECTED:
-            #ifdef ZERO_CROSS
-            if (deviceZeroCrossingCheck) board_led_rgb_set_color(LED_ALL, LED_BLUE, true);
-            #endif
+            break;
+        case CTR_WILE_EVT_CLOUD_DISCONNECTED_LOWMEM:
             break;
         case CTR_WILE_EVT_CLOUD_DISCONNECTED:
-            #ifdef ZERO_CROSS
-            if (deviceZeroCrossingCheck) board_led_rgb_set_color(LED_ALL, LED_RED, true);
-            #endif
+            break;
+        case CTR_WILE_EVT_DEVICE_INDENTIFY:
+            break;
+        case CTR_WILE_EVT_DEVICE_PROV_CANCELED:
+            board_led_indicator_stop(DEVICE_ELEMENT_ALL, BLINK_FAST);
+            board_led_indicator_state();
+            break;
+        case CTR_WILE_EVT_DEVICE_PROV_COMPLETE:
+            root_device_prov_complete();
+            for (uint8_t i=0; i<ELM_NUM; i++){
+                uint8_t deviceValue[2] = {0x00, elementState[i].state};
+                root_device_set_state(elementState[i].element, FEATURE_ONOFF, deviceValue);
+            }
             break;
         default:
             break;
@@ -233,43 +213,33 @@ esp_err_t rgmgt_device_event_cb(uint16_t event){
 }
 
 void root_device_delete_indicate(void){
-    #if defined(CONFIG_ESP32C3_RD_CN_04_V11) || defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
-    // board_led_rgb_set_color(LED_ALL, LED_MINT, true);
+    #ifdef LED_RGB_DATA
     deviceLedFlipNum = 4;
     xTaskCreate(board_led_rgb_flip_task, "board_led_rgb_flip_task", 1024, &deviceLedFlipNum, tskIDLE_PRIORITY, NULL);
     #endif
 }
 
+void root_device_identify(void){
+    board_led_indicator(DEVICE_ELEMENT_ALL, BLINK_FAST);
+}
+
 void root_device_prov_complete(void){
-    #if defined(CONFIG_ESP32C3_RD_CN_04_V11)
-    if (deviceZeroCrossingCheck) board_led_rgb_set_color(LED_ALL, LED_BLUE, false);
-    root_device_state_init();
-    #elif defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
-    board_led_rgb_set_color(LED_ALL, LED_BLUE, false);
-    root_device_state_init();
-    #else
-    gpio_set_level(LED_R, LED_OFF);
+    #if LED_RGB_WS2812
+    board_led_indicator_color(DEVICE_ELEMENT_ALL, BOARD_LED_BLUE_HUE);
     #endif
+    board_led_indicator_stop(DEVICE_ELEMENT_ALL, BLINK_FAST);
+    board_led_indicator_state();
 }
 
 void root_device_prov_none(void){
-    #if defined(CONFIG_ESP32C3_RD_CN_04_V11)
-    if (deviceZeroCrossingCheck) board_led_rgb_set_color(LED_ALL, LED_YELLOW, false);
-    root_device_state_init();
-    #elif defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
-    board_led_rgb_set_color(LED_ALL, LED_YELLOW, false);
-    root_device_state_init();
-    #else
-    #if defined(CONFIG_IDF_TARGET_ESP32)
-    xTaskCreate(task_led_slow, "task_led_slow", 512*2, NULL, tskIDLE_PRIORITY, &ledIndicateHandle);
-    #else
-    xTaskCreate(task_led_slow, "task_led_slow", 512, NULL, tskIDLE_PRIORITY, &ledIndicateHandle);
+    #if LED_RGB_WS2812
+    board_led_indicator_color(DEVICE_ELEMENT_ALL, BOARD_LED_PURPLE_HUE);
     #endif
-    #endif
+    board_led_indicator(DEVICE_ELEMENT_ALL, BLINK_TRIPLE_FAST);
+    vTaskDelay((200*6 + 300) / portTICK_PERIOD_MS); // Time BLINK_TRIPLE_FAST + 300ms
 }
 
 esp_err_t root_device_set_state(uint16_t element, uint16_t type, uint8_t *value){
-    // return set_device_state(rootEID, type, value, true);
     return rgmgt_device_set_state(rootEID, element, type, value, true, true);
 }
 

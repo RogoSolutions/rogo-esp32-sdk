@@ -13,18 +13,16 @@ extern "C" {
 #define CTR_ONOFF_OFF  0
 #define CTR_ONOFF_ON   1
 #define CTR_ONOFF_FLIP 2
-// extern bool localDevState;
+
+#define DEVICE_ELEMENT_ALL    0
 
 typedef struct element_power_state{
     uint16_t element;
     uint8_t state;
 } element_power_state_t;
 
-extern uint8_t deviceLedFlipNum;
-extern TaskHandle_t boardLedIndicateHardwareHandle;
-extern TaskHandle_t boardSwMotorControlHandle;
-
-void      root_device_state_init(void);
+esp_err_t root_device_state_init(void);
+esp_err_t root_device_save_state(void);
 esp_err_t root_device_control(uint16_t element, uint16_t type, uint8_t *value);
 esp_err_t root_device_local_control(uint8_t element, uint8_t mode);
 void      root_device_identify(void);

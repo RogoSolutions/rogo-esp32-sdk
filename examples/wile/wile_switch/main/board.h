@@ -25,223 +25,138 @@ extern "C"
 #include "driver/gpio.h"
 #include "soc/soc_caps.h"
 #include "driver/gpio_filter.h"
-#include "esp_ble_mesh_defs.h"
+#include "iot_button.h"
 
 #include "app_device.h"
 
 #ifdef CONFIG_ESP_WROOM_32
-#define BTN_NUM     4
-#define LED_NUM     4
-#define LED_R       GPIO_NUM_23
-#define LED_G       GPIO_NUM_26
-#define LED_B       GPIO_NUM_27
-#define BTN_1       GPIO_NUM_39
-#define BTN_2       GPIO_NUM_35
-#define BTN_3       GPIO_NUM_0
-#define BTN_4       GPIO_NUM_12  // GPIO_NUM_10
-#define SW_1        GPIO_NUM_33
-#define SW_2        GPIO_NUM_32
-#define SW_3        GPIO_NUM_5
-#define SW_4        GPIO_NUM_13
+#define LED_R GPIO_NUM_25
+#define LED_G GPIO_NUM_26
+#define LED_B GPIO_NUM_27
 #elif defined(CONFIG_ESP_WROVER)
-#define BTN_NUM     4
-#define LED_NUM     4
-#define LED_R       GPIO_NUM_0
-#define LED_G       GPIO_NUM_2
-#define LED_B       GPIO_NUM_23
-#define BTN_1       GPIO_NUM_1
-#define BTN_2       GPIO_NUM_20
-#define BTN_3       GPIO_NUM_3
-#define BTN_4       GPIO_NUM_10  // GPIO_NUM_10
-#define SW_1        GPIO_NUM_32
-#define SW_2        GPIO_NUM_33
-#define SW_3        GPIO_NUM_5
-#define SW_4        GPIO_NUM_6
+#define LED_R GPIO_NUM_0
+#define LED_G GPIO_NUM_2
+#define LED_B GPIO_NUM_23
+#define SW_1  GPIO_NUM_33
+#define SW_2  GPIO_NUM_32
 #elif defined(CONFIG_ESP32C3_DEV)
-#define BTN_NUM     4
-#define LED_NUM     4
-#define LED_R       GPIO_NUM_8
-#define LED_G       GPIO_NUM_8
-#define LED_B       GPIO_NUM_8
-#define BTN_1       GPIO_NUM_1
-#define BTN_2       GPIO_NUM_20
-#define BTN_3       GPIO_NUM_3
-#define BTN_4       GPIO_NUM_10  // GPIO_NUM_10
-#define SW_1        GPIO_NUM_2
-#define SW_2        GPIO_NUM_4
-#define SW_3        GPIO_NUM_5
-#define SW_4        GPIO_NUM_6
-#elif defined(CONFIG_ESP32C3_WM_TY2_V05_4SW)
-#define BTN_NUM     4
-#define LED_NUM     4
-#define LED_R       GPIO_NUM_8
-#define LED_G       GPIO_NUM_8
-#define LED_B       GPIO_NUM_8
-#define BTN_1       GPIO_NUM_9
-#define BTN_2       GPIO_NUM_20
-#define BTN_3       GPIO_NUM_3
-#define BTN_4       GPIO_NUM_10  // GPIO_NUM_10
-#define SW_1        GPIO_NUM_2
-#define SW_2        GPIO_NUM_4
-#define SW_3        GPIO_NUM_5
-#define SW_4        GPIO_NUM_6
-#elif defined(CONFIG_ESP32C3_RD_CN_04_V11)
-#define BTN_NUM      4
-#define LED_NUM      8
-#define LED_RGB_CLK  GPIO_NUM_10
-#define LED_RGB_DATA GPIO_NUM_3
-#define BTN_1        GPIO_NUM_19
-#define BTN_2        GPIO_NUM_7
-#define BTN_3        GPIO_NUM_18
-#define BTN_4        GPIO_NUM_6
-#define SW_1         GPIO_NUM_0
-#define SW_2         GPIO_NUM_1
-#define SW_3         GPIO_NUM_2
-#define SW_4         GPIO_NUM_4
-#define TOUCH_EN     GPIO_NUM_8
-#define ZERO_CROSS   GPIO_NUM_5
-#define SW_RELAY_TIME      5600
-#define SW_TIME_ON   3800
-#define SW_TIME_OFF  5600
-// #define SW_TIME_ON   5000
-// #define SW_TIME_OFF  5600
-// #define ZERO_CROSS_HALF_PERIOD  1
-// #define OSCILLOSCOPE_TEST       1
-#define OSCILLOSCOPE_TEST_TRIG  GPIO_NUM_9
-#elif defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
-#define BTN_NUM      3
-#define LED_NUM      6
-#define LED_RGB_CLK  GPIO_NUM_10
-#define LED_RGB_DATA GPIO_NUM_3
-#define BTN_1        GPIO_NUM_19
-#define BTN_2        GPIO_NUM_7
-#define BTN_3        GPIO_NUM_18
-#define SW_1         GPIO_NUM_0
-#define SW_2         GPIO_NUM_1
-#define SW_3         GPIO_NUM_5
-#define TOUCH_EN     GPIO_NUM_8
-// #define ZERO_CROSS   GPIO_NUM_2
-#define SW_RELAY_TIME      5600
-#define SW_TIME_ON         3800
-#define SW_TIME_OFF        5600
-#elif defined(CONFIG_ESP32S3_DEV)
-#define BTN_NUM     4
-#define LED_NUM     4
-#define LED_R       GPIO_NUM_47
-#define LED_G       GPIO_NUM_47
-#define LED_B       GPIO_NUM_47
-#define BTN_1       GPIO_NUM_1
-#define BTN_2       GPIO_NUM_20
-#define BTN_3       GPIO_NUM_3
-#define BTN_4       GPIO_NUM_10  // GPIO_NUM_10
-#define SW_1        GPIO_NUM_33
-#define SW_2        GPIO_NUM_32
-#define SW_3        GPIO_NUM_5
-#define SW_4        GPIO_NUM_6
+#define ELM_NUM             1
+#define BTN_NUM             ELM_NUM
+#define LED_NUM             ELM_NUM
+#define SW_NUM              ELM_NUM
+#define LED_GPIO            false
+#define LED_RGB_GPIO        false
+#define LED_RGB_WS2812      true
+#define LED_INDICATOR_MULTI false
+#define BUTTON_ACTIVE_LEVEL 0
+#define LED_1               GPIO_NUM_8
+#define BTN_1               GPIO_NUM_9
+#define SW_1                GPIO_NUM_2
+#elif defined(CONFIG_ESP32C3_ROGO_DEV)
+#define ELM_NUM             1
+#define BTN_NUM             ELM_NUM
+#define LED_NUM             ELM_NUM
+#define SW_NUM              ELM_NUM
+#define LED_GPIO            true
+#define LED_RGB_GPIO        false
+#define LED_RGB_WS2812      false
+#define LED_INDICATOR_MULTI true
+#define BUTTON_ACTIVE_LEVEL 0
+#define LED_ACTIVE_LEVEL    0
+#define LED_1               GPIO_NUM_8
+#define BTN_1               GPIO_NUM_9
+#define SW_1                GPIO_NUM_2
+#elif defined(CONFIG_ESP32C3_ROGO_SWITCH_3)
+#define ELM_NUM             3
+#define BTN_NUM             ELM_NUM
+#define LED_NUM             ELM_NUM
+#define SW_NUM              ELM_NUM
+#define LED_GPIO            true
+#define LED_INDICATOR_MULTI true
+#define LED_ACTIVE_LEVEL    0
+#define BUTTON_ACTIVE_LEVEL 0
+#define LED_1               GPIO_NUM_20
+#define LED_2               GPIO_NUM_10
+#define LED_3               GPIO_NUM_2
+#define LED_4               GPIO_NUM_21
+#define BTN_1               GPIO_NUM_0
+#define BTN_2               GPIO_NUM_7
+#define BTN_3               GPIO_NUM_8
+#define BTN_4               GPIO_NUM_9
+#define SW_1                GPIO_NUM_6
+#define SW_2                GPIO_NUM_5
+#define SW_3                GPIO_NUM_4
+#define SW_4                GPIO_NUM_1
 #elif defined(CONFIG_ESP32C6_DEV)
-#define BTN_NUM     4
-#define LED_NUM     4
-#define LED_R       GPIO_NUM_8
-#define LED_G       GPIO_NUM_8
-#define LED_B       GPIO_NUM_8
-#define BTN_1       GPIO_NUM_1
-#define BTN_2       GPIO_NUM_20
-#define BTN_3       GPIO_NUM_3
-#define BTN_4       GPIO_NUM_10  // GPIO_NUM_10
-#define SW_1        GPIO_NUM_2
-#define SW_2        GPIO_NUM_4
-#define SW_3        GPIO_NUM_5
-#define SW_4        GPIO_NUM_6
+#define ELM_NUM             1
+#define BTN_NUM             ELM_NUM
+#define LED_NUM             ELM_NUM
+#define SW_NUM              ELM_NUM
+#define LED_GPIO            false
+#define LED_RGB_GPIO        false
+#define LED_RGB_WS2812      true
+#define LED_INDICATOR_MULTI false
+#define BUTTON_ACTIVE_LEVEL 0
+#define LED_1               GPIO_NUM_8
+#define BTN_1               GPIO_NUM_9
+#define SW_1                GPIO_NUM_2
+#elif defined(CONFIG_ESP32S3_DEV)
+#define ELM_NUM             1
+#define BTN_NUM             ELM_NUM
+#define LED_NUM             ELM_NUM
+#define SW_NUM              ELM_NUM
+#define LED_GPIO            false
+#define LED_RGB_GPIO        false
+#define LED_RGB_WS2812      true
+#define LED_INDICATOR_MULTI false
+#define BUTTON_ACTIVE_LEVEL 0
+#define LED_1               GPIO_NUM_38
+#define BTN_1               GPIO_NUM_0
+#define SW_1                GPIO_NUM_2
 #endif
 
-#ifdef CONFIG_ESP32C3_WM_TY2_V05_4SW
-#define SW_ON       0
-#define SW_OFF      1
-#else
-#define SW_ON       1
-#define SW_OFF      0
+#ifndef LED_INDICATOR_MULTI
+#define LED_INDICATOR_MULTI false
 #endif
 
-#define SW_INIT     2
-
-#ifdef CONFIG_ESP32C3_RD_CN_04_V11
-#define LED_ON          100
-#define LED_OFF         10
-#define LED_FLIP        0
-#define BTN_IDLE        0
-#define BTN_PRESS       1
-#elif defined(CONFIG_ESP32C3_RD_CN_03_REM_V11)
-#define LED_ON          100
-#define LED_OFF         10
-#define LED_FLIP        0
-#define BTN_IDLE        0
-#define BTN_PRESS       1
-#else
-#define LED_ON          0
-#define LED_OFF         1
-#define LED_FLIP        0
-#define BTN_IDLE        1
-#define BTN_PRESS       0
+#ifndef LED_ACTIVE_LEVEL
+#define LED_ACTIVE_LEVEL            1
 #endif
 
-#define BTN_HOLD        2
-#define BTN_HOLD_2      3
-#define BTN_HOLD_3      4
-
-#define ZERO_SAMPLING   10  // Sample number on zero crossing pin
-
-#ifdef ZERO_CROSS
-extern uint8_t deviceZeroCrossingCheck;
+#ifndef SWITCH_ACTIVE_LEVEL
+#define SWITCH_ACTIVE_LEVEL         1
 #endif
 
-struct _led_state {
-    uint8_t current;
-    uint8_t previous;
-    uint8_t pin;
-    char *name;
-};
+#ifndef BUTTON_ACTIVE_LEVEL
+#define BUTTON_ACTIVE_LEVEL         0
+#endif
 
-extern struct button_state{
+#ifndef BUTTON_LONG_PRESS_TIME
+#define BUTTON_LONG_PRESS_TIME      5000
+#endif
+
+#ifndef BUTTON_SHORT_PRESS_TIME
+#define BUTTON_SHORT_PRESS_TIME     100
+#endif
+
+typedef struct button_state {
     uint8_t element;
     uint8_t current;
     uint8_t previous;
-    uint8_t pin;
+    button_handle_t handler;
     char *name;
-} btn_state[BTN_NUM];
+} button_state_t;
 
-extern struct switch_state{
+typedef struct switch_state {
     uint8_t element;
     uint8_t current;
     uint8_t pin;
     bool set;
     char *name;
-} sw_state[BTN_NUM];
-
-extern struct motor_state{
-    uint8_t element;
-    uint8_t current;
-    uint8_t previous;
-    uint8_t level;
-    bool set;
-} sw_motor_state[1];
-
-void board_prov_complete(void);
-
-void board_led_operation(uint8_t pin, uint8_t onoff);
+} switch_state_t;
 
 esp_err_t board_init(void);
-
-void board_sw_control(uint8_t element, uint8_t onoff);
-
-#ifdef ZERO_CROSS
-void board_sw_zc_control(int8_t element, uint8_t onoff);
-#endif
-
-#ifdef CONFIG_ESP32C3_RD_CN_03_REM_V11
-void board_sw_motor_control(int8_t element, uint8_t openclose, uint8_t level);
-#endif
-
-void board_test(void);
+esp_err_t board_switch_control(uint8_t element, uint8_t onoff);
 
 #ifdef __cplusplus
 }

@@ -52,22 +52,28 @@ extern "C"
 // #include "wile_mesh.h"
 // #include "wile_gatt.h"
 
-void mqtt_init_task(void *pvParameter);
-void mqtt_app_start();
-void rogo_cmd_handle(uint8_t *cmd, int cmd_len, char *ipAddr);
-int8_t mqtt_send_to_user(char *msg, uint16_t length, uint8_t toCloud);
-int8_t mqtt_send_to_location(char *msg, uint16_t length);
-void mqtt_send_notify_status(uint8_t status, uint16_t errCode, uint8_t *cmd, char *appID, char *ipAddr, uint16_t port);
-int8_t wile_send_to_app(char *appID, uint8_t appIDlen, char *msg, uint16_t length, char *ipAddr, uint16_t port);
-void device_control_task(void *pvParameters);
-void smart_control_handler(uint8_t trigger, uint16_t smartID, uint8_t *timeCfg, uint8_t timeCfgLen);
-void update_device_status(void *pvParameters);
-uint8_t set_device_state(uint16_t eidTemp, uint16_t type, uint8_t *value, uint8_t reportToMqtt);
+#define CONFIG_USE_DEVICE_TOPIC_OLD true
+
+void      mqtt_init_task(void *pvParameter);
+void      mqtt_app_start();
+int8_t    mqtt_send_to_user(char *msg, uint16_t length, uint8_t toCloud);
+int8_t    mqtt_send_to_location(char *msg, uint16_t length);
+void      mqtt_send_notify_status(uint8_t status, uint16_t errCode, uint8_t *cmd, char *appID, char *ipAddr, uint16_t port);
+int8_t    wile_send_to_app(char *appID, uint8_t appIDlen, char *msg, uint16_t length, char *ipAddr, uint16_t port);
+void      update_device_status(void *pvParameters);
+
+#ifdef CONFIG_USE_MQTT_CORE_DEPRECATED
+void      rogo_cmd_handle(uint8_t *cmd, int cmd_len, char *ipAddr);
+void      device_control_task(void *pvParameters);
+void      smart_control_handler(uint8_t trigger, uint16_t smartID, uint8_t *timeCfg, uint8_t timeCfgLen);
+uint8_t   set_device_state(uint16_t eidTemp, uint16_t type, uint8_t *value, uint8_t reportToMqtt);
 esp_err_t push_notification_device_state(uint16_t eidTemp, uint16_t type, uint8_t *value);
-uint8_t get_device_state(uint16_t eidTemp, char *senderID, uint8_t appIdLen, const char *ipAddr, uint16_t port);
-uint8_t get_local_device_state(uint16_t eidTemp, void **deviceState, uint8_t *stateSize);
-void device_control_handler(uint8_t cmdType, uint8_t *cmd, int cmdLen, char *ipAddr, uint16_t port);
-void mesh_state_control(uint16_t eidTemp, uint16_t nodeAddr, uint16_t nodeType, uint16_t type, uint8_t *value, uint8_t reportToMqtt);
+uint8_t   get_device_state(uint16_t eidTemp, char *senderID, uint8_t appIdLen, const char *ipAddr, uint16_t port);
+uint8_t   get_local_device_state(uint16_t eidTemp, void **deviceState, uint8_t *stateSize);
+void      device_control_handler(uint8_t cmdType, uint8_t *cmd, int cmdLen, char *ipAddr, uint16_t port);
+void      mesh_state_control(uint16_t eidTemp, uint16_t nodeAddr, uint16_t nodeType, uint16_t type, uint8_t *value, uint8_t reportToMqtt);
+#endif
+
 uint8_t ac_state_to_data(uint16_t *ac_value, char *eid, uint8_t tempAllow, uint8_t fanAllow);
 
 esp_err_t rgnet_send_state(char *msg, uint16_t msgLen, uint8_t msgOption);

@@ -1,4 +1,4 @@
-# Wile Switch Example - 4 Gag Smart Switch - an example of Rogo SDK based on Wi-Le  
+# Wile Switch Example - an example of Rogo SDK based on Wi-Le  
 This is an example for the Rogo Wile SDK based on Esp32 series Micro-controller, this is customization version of the ESP IDF 5.1.1, which comes with Rogo's proprietary Libraries for Wile Functionalities 
 
 ## Supported Hardware 
