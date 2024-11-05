@@ -30,6 +30,7 @@ void rgmsg_add_block(struct rogoIotMsg *msg, uint8_t blockType, uint16_t blockLe
 void rgmsg_add_block_state(struct rogoIotMsg *msg, uint16_t eid, uint8_t elmIdx, uint16_t stateType, uint8_t *deviceState, size_t deviceStateLen);
 void rgmsg_add_block_state_change(struct rogoIotMsg *msg, uint16_t eid, uint8_t elm, uint16_t deviceType, uint8_t **deviceState, uint8_t **deviceStateOld, size_t deviceStateLen);
 void rgmsg_add_block_reports(struct rogoIotMsg *msg, uint16_t eid, uint8_t elm, uint16_t deviceType, uint8_t **deviceState, uint8_t **deviceStateOld, size_t deviceStateLen, uint8_t stateChange);
+void rgmsg_add_block_reports_state(struct rogoIotMsg *msg, uint16_t eid, uint8_t **deviceState, uint8_t **deviceStateOld, size_t deviceStateLen);
 void rgmsg_add_block_report_option(struct rogoIotMsg *msg, bool nfy, bool log, bool trigger, uint8_t *service, uint8_t serviceNum);
 uint8_t rgmsg_feature_size(uint16_t featureType);
 

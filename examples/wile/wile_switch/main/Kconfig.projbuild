@@ -2,48 +2,31 @@ menu "WiLe device"
 
     choice WILE_BOARD
         prompt "Board selection"
-        default ESP_WROOM_32 if IDF_TARGET_ESP32
-        default ESP32C3_WM_TY2_V05_4SW if IDF_TARGET_ESP32C3
-        default ESP32S3_DEV if IDF_TARGET_ESP32S3
+        default ESP32C3_DEV if IDF_TARGET_ESP32C3
         help
-            Select this option to choose the board for BLE Mesh. The default is ESP32-WROOM-32
-
-        config ESP_WROOM_32
-            bool "ESP32-WROOM-32"
-            depends on IDF_TARGET_ESP32
-
-        config ESP_WROVER
-            bool "ESP32-WROVER"
-            depends on IDF_TARGET_ESP32
+            Select this option to choose the board.
 
         config ESP32C3_DEV
             bool "ESP32C3-DevKitC"
             depends on IDF_TARGET_ESP32C3
-        
-        config ESP32C3_WM_TY2_V05_4SW
-            bool "GDKES-SWITCH-4"
+
+        config ESP32C3_ROGO_DEV
+            bool "ESP32C3-Rogo-DevKit"
             depends on IDF_TARGET_ESP32C3
-        
-        config ESP32C3_RD_CN_04_V11
-            bool "RANG-DONG-SWITCH-4"
+
+        config ESP32C3_ROGO_SWITCH_3
+            bool "ESP32C3-Rogo-Switch-3gang"
             depends on IDF_TARGET_ESP32C3
-        
-        config ESP32C3_RD_CN_03_REM_V11
-            bool "RANG-DONG-SWITCH-GATE"
-            depends on IDF_TARGET_ESP32C3
+
+        config ESP32C6_DEV
+            bool "ESP32C6-DevKitC"
+            depends on IDF_TARGET_ESP32C6
 
         config ESP32S3_DEV
             bool "ESP32S3-DevKitC"
             depends on IDF_TARGET_ESP32S3
-        
-        config ESP32C6_DEV
-            bool "ESP32C6-DevKitC"
-            depends on IDF_TARGET_ESP32C6
     endchoice
 
     menu "Device configuration"      
-        config BOARD_TEST_ENABLE
-            bool "Enable factory board test"
-            default n
     endmenu
 endmenu

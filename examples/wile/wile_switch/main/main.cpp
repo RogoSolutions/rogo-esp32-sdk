@@ -1,20 +1,11 @@
 // Copyright Rogo Solutions, Inc.
 
-#if CONFIG_VFS_SUPPORT_TERMIOS
-// remove defines added by arduino-esp32 core/esp32/binary.h which are
-// duplicated in sys/termios.h which may be included by esp_vfs.h
-#undef  B011
-#undef  B110
-#undef  B1000000
-#endif
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
 #include "board.h"
-#include "board_test.h"
 #include "wile_config.h"
 #include "wile_init.h"
 #include "wile_message.h"
@@ -29,11 +20,6 @@ void app_main(void)
         ESP_LOGE("DEVICE", "board_init failed (err %d)", err);
         return;
     }
-
-    #if CONFIG_BOARD_TEST_ENABLE
-    printf("\n%s - Factory Test", rgmgt_config_device_id());
-    board_test_check();
-    #endif
 
     #if CONFIG_WILE_ENABLE
     ESP_LOGI("WILE", "Initializing...");
@@ -51,6 +37,7 @@ void app_main(void)
     #else // !WILE_ENABLE
     root_device_prov_none();
     #endif
+    root_device_state_init();
 }
 
 #ifdef __cplusplus

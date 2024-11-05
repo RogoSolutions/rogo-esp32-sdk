@@ -9,61 +9,62 @@ extern "C"
 
 #include "sdkconfig.h"
 #include "driver/gpio.h"
-#include "led_strip_spi.h"
+#include "led_indicator.h"
 
-#define LED_ALL    -1
-#define LED_YELLOW 40
-#define LED_GREEN  120
-#define LED_MINT   130
-#define LED_BLUE   240
-#define LED_RED    360
+#define BOARD_LED_ON                true
+#define BOARD_LED_OFF               false
+#if LED_RGB_WS2812
+#define BOARD_LED_ON_BRIGHTNESS     LED_STATE_50_PERCENT
+#define BOARD_LED_OFF_BRIGHTNESS    LED_STATE_25_PERCENT
+#elif LED_GPIO
+#define BOARD_LED_ON_BRIGHTNESS     LED_STATE_ON
+#define BOARD_LED_OFF_BRIGHTNESS    LED_STATE_25_PERCENT
+#else
+#define BOARD_LED_ON_BRIGHTNESS     LED_STATE_ON
+#define BOARD_LED_OFF_BRIGHTNESS    LED_STATE_25_PERCENT
+#endif
 
-/* LC8823 Luminous Intensity */
-#define LED_RED_INTENSITY        230
-#define LED_GREEN_INTENSITY      320
-#define LED_BLUE_INTENSITY       80
-#define LED_BRIGHTNESS_PERCENT   40
+#define BOARD_LED_RED_HUE           0
+#define BOARD_LED_YELLOW_HUE        40
+#define BOARD_LED_GREEN_HUE         120
+#define BOARD_LED_PURPLE_HUE        300
+#define BOARD_LED_BLUE_HUE          240
 
-// #define LED_YELLOW_RATIO  0.25
-static const float LED_BLUE_RATIO   = 1;
-static const float LED_RED_RATIO    = (float)LED_BLUE_INTENSITY / (float)LED_RED_INTENSITY;
-static const float LED_GREEN_RATIO  = (float)LED_BLUE_INTENSITY / (float)LED_GREEN_INTENSITY;
-
-typedef struct {
-    union {
-        uint16_t h;
-        uint16_t hue;
-    };
-    union {
-        uint8_t s;
-        uint8_t sat;
-        uint8_t saturation;
-    };
-    union {
-        uint8_t v;
-        uint8_t val;
-        uint8_t value;
-    };
-} hsv_state_t;
-
-extern struct led_state_rgb {
+typedef struct led_state {
     uint8_t element;
-    uint8_t index;
-    hsv_state_t current;
-    hsv_state_t previous;
-    char *name;
-} led_rgb_state[LED_NUM];
 
-void board_led_rgb_init(void);
-void board_led_rgb_set(int8_t element, uint16_t color, uint8_t brightness);
-void board_led_rgb_set_color(int8_t element, uint16_t color, bool set);
-void board_led_rgb_set_saturation(int8_t element, uint8_t saturation);
-void board_led_rgb_set_brightness(int8_t element, uint8_t brightness);
-void board_led_rgb_flip_task(void *pvParameters);
-void board_led_rgb_prov_none_task(void *pvParameters);
-void board_led_rgb_prov_run_task(void *pvParameters);
-void board_led_rgb_wifi_drop_task(void *pvParameters);
-void board_led_rgb_hardware_fail_task(void *pvParameters);
+    #if LED_RGB_WS2812
+    uint8_t index;
+    #endif
+
+    int8_t current;
+    int8_t previous;
+
+    #if LED_INDICATOR_MULTI
+    led_indicator_handle_t indicator;
+    #endif
+    char *name;
+} led_state_t;
+
+enum {
+    BLINK_DOUBLE,
+    BLINK_TRIPLE_FAST,
+    BLINK_FAST,
+    BLINK_BREATH,
+    BLINK_COLOR_HSV_RING,
+    BLINK_COLOR_RGB_RING,
+    #if LED_NUM > 1
+    BLINK_FLOWING,
+    #endif
+    BLINK_MAX,
+};
+
+esp_err_t board_led_init(void);
+esp_err_t board_led_indicator_state(void);
+esp_err_t board_led_indicator(uint8_t element, uint8_t mode);
+esp_err_t board_led_indicator_stop(uint8_t element, uint8_t mode);
+esp_err_t board_led_indicator_brightness(uint8_t element, uint8_t brightness);
+esp_err_t board_led_indicator_color(uint8_t element, uint16_t hue);
 
 #ifdef __cplusplus
 }

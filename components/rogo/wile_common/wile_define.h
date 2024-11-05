@@ -343,6 +343,7 @@
 #define BLOCK_MAC_HEX                        0x20
 #define BLOCK_MAC_UUIDV4                     0x21
 #define BLOCK_MAC_STRING                     0x22
+#define BLOCK_LINKING_ID_3RD                 0x25
 #define BLOCK_RAM_ROM_MEMORY                 0x2A
 #define BLOCK_EID                            0x40 // eid - 64
 #define BLOCK_EID_ELM                        0x41 // eid - elm
@@ -366,9 +367,6 @@
 #define BLOCK_VENDOR_INFO                    0x61 // vendorId - companyId
 #define BLOCK_MESH_DEVKEY                    0x62 // byte mesh device key
 #define BLOCK_LIST_EID                       0x67 // eids - use when user get state gateway devices
-#define BLOCK_IR_CMD_HEADER                  0xC0 // linkType - other info
-#define BLOCK_IR_CMD_DATA                    0xC1 // linkType - other info
-#define BLOCK_IR_RAW                         0xC2 // linkType - other info
 #define BLOCK_NWK_IP_ADDR                    0x70
 #define BLOCK_PROTOCOL_INFO                  0x72
 #define BLOCK_PROTOCOL_EXT_INFO              0x73
@@ -393,6 +391,9 @@
 #define BLOCK_STATE_SENSOR_INFO              0x8D
 #define BLOCK_STATE_SENSOR_LOG_SORT_ID       0x8E
 #define BLOCK_STATE_SENSOR_LOG_DATA          0x8F
+#define BLOCK_IR_CMD_HEADER                  0xC0
+#define BLOCK_IR_CMD_DATA                    0xC1
+#define BLOCK_IR_RAW                         0xC2
 #define BLOCK_CUSTOM_DATA                    0xDF //223
 #define BLOCK_LARGE_DATA_RAW                 0xE0 //224 - 2 byte
 #define BLOCK_LARGE_STRING                   0xE1 //225 - 2 byte
@@ -591,18 +592,30 @@
 #define CTR_SMART_ENABLE                      0x00
 #define CTR_SMART_DISABLE                     0x02
 
-#define CTR_WILE_EVT_WIFI_CONNECTED           0x00
-#define CTR_WILE_EVT_WIFI_DISCONNECTED        0x01
-#define CTR_WILE_EVT_WIFI_CONNECT_FAIL        0x0F
-#define CTR_WILE_EVT_CLOUD_CONNECTED          0x10
-#define CTR_WILE_EVT_CLOUD_DISCONNECTED       0x1F
-#define CTR_WILE_EVT_OTA_SUCCESS              0x20
-#define CTR_WILE_EVT_OTA_NEWEST               0x21
-#define CTR_WILE_EVT_OTA_FAIL                 0x2F
-#define CTR_WILE_EVT_DEVICE_CONTROL_START     0xA0
-#define CTR_WILE_EVT_DEVICE_CONTROL_DONE      0xAA
-#define CTR_WILE_EVT_DEVICE_PROV_COMPLETE     0xAF
-#define CTR_WILE_EVT_OTHER                    0xFF
+#define CTR_WILE_EVT_WIFI_CONNECTED                 0x00
+#define CTR_WILE_EVT_WIFI_DISCONNECTED              0x01
+#define CTR_WILE_EVT_WIFI_CONNECT_FAIL              0x0F
+#define CTR_WILE_EVT_CLOUD_CONNECTED                0x10
+#define CTR_WILE_EVT_CLOUD_DISCONNECTED_LOWMEM      0x1E
+#define CTR_WILE_EVT_CLOUD_DISCONNECTED             0x1F
+#define CTR_WILE_EVT_OTA_SUCCESS                    0x20
+#define CTR_WILE_EVT_OTA_NEWEST                     0x21
+#define CTR_WILE_EVT_OTA_FAIL                       0x2F
+#define CTR_WILE_IR_SEND_START                      0x50
+#define CTR_WILE_IR_SEND_DONE                       0x59
+#define CTR_WILE_EVT_DEVICE_CONTROL_START           0xA0
+#define CTR_WILE_EVT_DEVICE_CONTROL_DONE            0xAA
+#define CTR_WILE_EVT_DEVICE_INDENTIFY               0xAB
+#define CTR_WILE_EVT_DEVICE_PROV_CANCELED           0xAE               
+#define CTR_WILE_EVT_DEVICE_PROV_COMPLETE           0xAF
+#define CTR_WILE_EVT_GET_ROOT_STATE                 0xE0
+#define CTR_WILE_EVT_OTHER                          0xFF
+
+#define CTR_IR_TX_SUPPORTED                   0x00
+#define CTR_IR_RX_SUPPORTED                   0x01
+#define CTR_IR_TX_RX_SUPPORTED                0x02
+#define CTR_IR_DETECT_SUPPORTED               0x01
+#define CTR_IR_DETECT_NOT_SUPPORTED           0x00
 
 /* CONDITION */
 #define COND_ANY                              1
@@ -640,6 +653,7 @@
 #define FEATURE_ONOFF                         1
 #define FEATURE_OPEN_CLOSE_CTL                2
 #define FEATURE_LOCK_UNLOCK                   3
+#define FEATURE_START_STOP                    4
 
 #define FEATURE_BATTERY                       9
 #define FEATURE_POSITION                      11
@@ -706,8 +720,14 @@
 #define FEATURE_ENABLE_DISABLE_ATTR           4096
 #define FEATURE_TOUCH_SETTING                 4097
 
-#define FEATURE_SETTING_LOCK_BUTTON             61952
-#define FEATURE_SETTING_PRESENCE_ZONE_SENSITIVE  61968
+#define FEATURE_SETTING_LOCK_BUTTON                 61952
+#define FEATURE_SETTING_PRESENCE_ZONE_SENSITIVE     61968
+
+#define FEATURE_STT_WORKING_PARAMS                  61984
+#define FEATURE_ACT_GENERIC_ENUM                    65280
+#define FEATURE_EVT_GENERIC_BOOLEAN                 65296
+#define FEATURE_EVT_GENERIC_ENUM                    65297
+#define FEATURE_EVT_GENERIC_NUMBER                  65298
 
 // Wile in-device feature
 #define FEATURE_SMOKE_BATTERY                 65000
