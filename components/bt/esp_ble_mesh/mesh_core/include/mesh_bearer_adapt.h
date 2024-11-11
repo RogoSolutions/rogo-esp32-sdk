@@ -690,6 +690,14 @@ struct bt_mesh_white_list {
     void (*update_wl_comp_cb)(uint8_t status, bt_mesh_wl_operation wl_operation);
 };
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 08.11.2024 */
+#define BLE_GAP_EVENT_MESH_ADV_STOP         0x72
+
+typedef void bt_mesh_gap_register_fn(struct ble_gap_event *event, void *arg);
+void bt_mesh_gap_cb_register(bt_mesh_gap_register_fn *cb);
+/************************************************************************************************/
+
 int bt_le_update_white_list(struct bt_mesh_white_list *wl);
 
 void bt_mesh_gatts_conn_cb_register(struct bt_mesh_conn_cb *cb);
