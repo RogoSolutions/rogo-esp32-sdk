@@ -771,6 +771,16 @@ static int gap_event_cb(struct ble_gap_event *event, void *arg)
 
     return 0;
 }
+
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 08.11.2024 */
+bt_mesh_gap_register_fn *esp_ble_mesh_gap_event_cb = NULL;
+
+void bt_mesh_gap_cb_register(bt_mesh_gap_register_fn *cb)
+{
+    esp_ble_mesh_gap_event_cb = cb;
+}
+/************************************************************************************************/
 #else
 
 static int gap_event_cb(struct ble_gap_event *event, void *arg)
@@ -962,6 +972,16 @@ int bt_le_adv_stop(void)
     }
 #endif
     ble_gap_adv_stop();
+
+    /* Rogo API *************************************************************************************/
+    /* Ninh.D.H 08.11.2024 */
+    if (esp_ble_mesh_gap_event_cb != NULL){
+        struct ble_gap_event event;
+        memset(&event, 0, sizeof event);
+        event.type = BLE_GAP_EVENT_MESH_ADV_STOP;
+        esp_ble_mesh_gap_event_cb(&event, NULL);
+    }
+    /************************************************************************************************/
 
 #if BLE_MESH_DEV
     bt_mesh_atomic_clear_bit(bt_mesh_dev.flags, BLE_MESH_DEV_ADVERTISING);
