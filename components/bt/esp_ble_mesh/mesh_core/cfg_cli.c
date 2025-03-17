@@ -1018,7 +1018,7 @@ int bt_mesh_cfg_node_reset(bt_mesh_client_common_param_t *param)
 /* Ninh.D.H 05.10.2023 */
 int bt_mesh_cfg_rogo_node_reset(bt_mesh_client_rogo_param_t *param)
 {
-    ESP_LOGW("MESH", "ROGO mesh node reset");
+    BT_WARN("Rogo mesh node reset");
     return send_msg_with_rogo(param, OP_NODE_RESET);
 }
 /************************************************************************************************/

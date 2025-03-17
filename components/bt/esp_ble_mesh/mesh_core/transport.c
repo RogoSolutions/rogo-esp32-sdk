@@ -868,6 +868,37 @@ static int sdu_recv(struct bt_mesh_net_rx *rx, uint32_t seq, uint8_t hdr,
             return 0;
         }
 
+        /* Rogo API *************************************************************************************/
+        /* Ninh.D.H 14.01.2025 */
+        #ifdef CONFIG_WILE_ENABLE
+        BT_INFO("Decrypt with EXT DevKey");
+        const uint8_t *rogo_dev_key = NULL;
+        rogo_dev_key = bt_mesh_rx_devkey_rogo_get(rx->ctx.addr);
+        if (rogo_dev_key != NULL) {
+            net_buf_simple_reset(sdu);
+            if (bt_mesh_app_decrypt(rogo_dev_key, true, aszmic, buf,
+                                    sdu, ad, rx->ctx.addr,
+                                    rx->ctx.recv_dst, seq,
+                                    BLE_MESH_NET_IVI_RX(rx)) == ESP_OK){
+
+                BT_BQB(BLE_MESH_BQB_TEST_LOG_LEVEL_PRIMARY_ID_NODE | BLE_MESH_BQB_TEST_LOG_LEVEL_SUB_ID_TNPT,
+                       "\nTNPTRecv: ctl: 0x%04x, ttl: 0x%04x, src: 0x%04x, dst: 0x%04x, payload: 0x%s",
+                       rx->ctl, rx->ctx.recv_ttl, rx->ctx.addr, rx->ctx.recv_dst,
+                       bt_hex(sdu->data, sdu->len));
+
+                rx->ctx.app_idx = BLE_MESH_KEY_DEV;
+                bt_mesh_model_recv(rx, sdu);
+
+                bt_mesh_free_buf(sdu);
+                return 0;
+            }
+        }
+        else{
+            BT_DBG("EXT DevKey not found");
+        }
+        #endif // CONFIG_WILE_ENABLE
+        /* Rogo API *************************************************************************************/
+
         BT_WARN("Unable to decrypt with DevKey");
         bt_mesh_free_buf(sdu);
         return -ENODEV;
