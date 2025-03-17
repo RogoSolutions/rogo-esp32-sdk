@@ -902,6 +902,19 @@ int bt_mesh_model_send_with_devkey(struct bt_mesh_model *model,
     };
     return model_send_with_devkey(model, &tx, false, msg, devKey, cb, cb_data);
 }
+
+/* Ninh.D.H 14.01.2025 */
+
+static uint8_t* (*bt_mesh_rx_devkey_rogo_get_func)(uint16_t);
+
+void bt_mesh_devkey_get_register(uint8_t* (*func_ptr)(uint16_t)){
+    bt_mesh_rx_devkey_rogo_get_func = *func_ptr;
+}
+
+const uint8_t *bt_mesh_rx_devkey_rogo_get(uint16_t src){
+    return bt_mesh_rx_devkey_rogo_get_func(src);
+}
+
 /* Rogo API *************************************************************************************/
 
 int bt_mesh_model_publish(struct bt_mesh_model *model)

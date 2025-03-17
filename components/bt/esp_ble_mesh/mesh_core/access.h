@@ -73,6 +73,12 @@ size_t bt_mesh_rx_appkey_size(void);
 
 struct bt_mesh_app_key *bt_mesh_rx_appkey_get(size_t index);
 
+/* Rogo API *************************************************************************************/
+/* Ninh.D.H 14.01.2025 */
+void bt_mesh_devkey_get_register(uint8_t* (*func_ptr)(uint16_t));
+const uint8_t *bt_mesh_rx_devkey_rogo_get(uint16_t src);
+/*************************************************************************************************/
+
 #ifdef __cplusplus
 }
 #endif
