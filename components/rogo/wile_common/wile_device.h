@@ -35,11 +35,12 @@ extern "C"
 // #include "wile_gatt.h"
 
 esp_err_t rgmgt_device_restart(uint16_t eid);
-esp_err_t rgmgt_device_remove(uint16_t eidTemp);
+esp_err_t rgmgt_device_remove(uint16_t eidTemp, bool nwkReset);
 esp_err_t rgmgt_device_join_handle(rgmsg_t *rogoCmdMsg, uint16_t *blockStart, uint8_t step);
 esp_err_t rgmgt_device_add(uint16_t eidAdd, uint8_t *eidInfo, uint8_t *elmInfo, uint8_t *meshDevKey);
 esp_err_t rgmgt_device_add_log(uint16_t eidAdd, uint8_t *elmInfo);
-esp_err_t rgmgt_device_nwkaddr_to_eid(uint16_t nwkAddr, uint16_t *eid, uint16_t *elm);
+bool      rgmgt_device_protocol_interface_match(uint16_t protocol, uint16_t interface);
+esp_err_t rgmgt_device_nwkaddr_to_eid(uint16_t interface, uint16_t nwkAddr, uint16_t *eid, uint16_t *elm);
 uint8_t   rgmgt_device_feature_state_size(uint16_t featureType);
 bool      rgmgt_device_feature_take_onoff(uint16_t featureType);
 bool      rgmgt_device_take_sensor_log(uint16_t deviceType);
@@ -53,17 +54,21 @@ uint16_t  rgmgt_device_get_elmid(uint8_t elmIdx, uint8_t *deviceState, size_t st
 uint16_t  rgmgt_device_get_elmid_nwk(uint16_t nwkAddr, uint8_t *deviceState, size_t stateLen);
 uint16_t  rgmgt_device_get_elmid_idx(uint16_t eid, uint8_t index);
 uint8_t   rgmgt_device_get_elmidx(uint16_t elmID, uint8_t *deviceState, size_t stateLen);
+uint16_t  rgmgt_device_get_elmidx_elmid(uint16_t eid, uint16_t elmid);
 uint16_t  rgmgt_device_get_elmtype(uint16_t elmID, uint8_t *deviceState, size_t stateLen);
 esp_err_t rgmgt_device_get_elmtype_eid(uint16_t eid, uint16_t elmID, uint16_t *elmType);
+esp_err_t rgmgt_device_get_elm_info(uint16_t eid, void **elmInfo, size_t *elmInfoLen);
 esp_err_t rgmgt_device_get_state_elm_attr(uint16_t elmIdx, uint16_t attrType, uint8_t *deviceState, size_t stateLen, void **stateOut, size_t *stateOutLen);
 esp_err_t rgmgt_device_get_state_elmid(uint16_t elmId, uint16_t attrType, uint8_t *deviceState, size_t stateLen, void **stateOut, size_t *stateOutLen);
 esp_err_t rgmgt_device_get_id_mac(uint16_t deviceEid, void **deviceInfo, size_t *deviceInfoLen);
 esp_err_t rgmgt_device_get_protocol(uint16_t deviceEid, uint16_t *deviceProtocol);
+esp_err_t rgmgt_device_get_nwkaddr(uint16_t deviceEid, uint16_t deviceElmId, uint16_t *nwkAddr);
 esp_err_t rgmgt_device_id_to_eid(uint8_t *deviceId, uint16_t *deviceEid);
 esp_err_t rgmgt_device_control_handle(rgmsg_t *rogoCmdMsg, uint16_t *blockStart);
 void      rgmgt_device_control_task(void *pvParameters);
 esp_err_t rgmgt_device_control(uint8_t typeDev, uint16_t eidControl, uint16_t element, uint16_t type, uint8_t *value,
-                               uint8_t reportToMqtt, uint8_t checkTrigger, uint16_t smartSrc, uint16_t delay, uint16_t reverse);
+                               uint8_t reportToMqtt, uint8_t checkTrigger, uint16_t smartSrc, uint16_t delay, uint16_t reverse, uint8_t option);
+esp_err_t rgmgt_device_control_ext(uint8_t typeDev, uint16_t eidExt, uint16_t eidControl, uint16_t element, uint16_t type, uint8_t *value);
 esp_err_t rgmgt_device_mesh_control(uint16_t eid, uint16_t elm, uint16_t attr, uint8_t *value);
 
 #ifdef CONFIG_IR_CONTROL_ENABLE

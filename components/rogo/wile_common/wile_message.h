@@ -59,7 +59,6 @@ esp_err_t read_config_from_nvs(const char *key, uint8_t type, void *out, uint16_
 void time_minute_callback(void* arg);
 void task_rogo_schedule(void *pvParameters);
 
-uint16_t nwk_addr_to_eid(uint16_t nwkAddr);
 esp_err_t rogo_mesh_msg_handle(uint32_t opcode, uint16_t nodeAddr, uint8_t *msg, uint16_t len);
 
 #ifdef __cplusplus

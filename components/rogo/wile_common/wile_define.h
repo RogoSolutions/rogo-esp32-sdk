@@ -103,6 +103,7 @@
 #define MSG_HEADER_SHORT_LEN                5   
 #define MSG_HEADER_FULL_LEN                 23 //11 + 12
 #define DEVICE_ID_LEN                       12
+#define PRODUCT_ID_LEN                      16
 
 #define MSG_SRC_NET                         0x9F
 #define MSG_SRC_NET_MQTT                    0x00
@@ -522,6 +523,10 @@
 #define IR_SEI                                241
 #define IR_NEC                                242
 #define IR_FAN                                243
+
+#define INTERFACE_IR                          263 // 255 + 8
+#define INTERFACE_BLUETOOTH_MESH              275 // 255 + 20
+#define INTERFACE_ZIGBEE                      455 // 255 + 200
 
 /* CMD Const */
 #define CTR_MAXB                              1000

@@ -74,6 +74,22 @@ extern "C"
 
 #define MESH_IV_UPDATE_SEQ_LIMIT 8000000
 
+#define ROGO_MESH_VND_MODEL_CONTROL             0xE4
+#define ROGO_MESH_VND_MODEL_SENSOR              0xE5
+#define ROGO_MESH_VND_MODEL_SENSOR_ACK          0xE6
+
+#define ROGO_MESH_VND_PAYLOAD_TYPE_OPEN_CLOSE   0x04
+#define ROGO_MESH_VND_PAYLOAD_TYPE_LOCK_BUTTON  0x06
+
+typedef struct rogo_mesh_node_info {
+    uint16_t addr;
+    uint8_t  dev_key[16];
+    uint8_t  tid;
+} rogo_mesh_node_info_t;
+
+extern rogo_mesh_node_info_t *mesh_node_info;
+extern uint8_t                mesh_node_num;
+
 void mesh_prov_task(void * pvParameters);
 
 void ble_mesh_get_dev_uuid(uint8_t *dev_uuid);
@@ -85,11 +101,17 @@ int bt_mesh_device_add_app_key(uint16_t net_index, uint16_t app_index, uint8_t *
 
 int bt_mesh_device_add_group(uint16_t group);
 
+void rogo_mesh_send_vendor_ack(uint32_t opcode, uint16_t nodeAddr, uint8_t *payload, uint8_t payloadLen);
+void rogo_mesh_send_vendor_control(uint16_t deviceType, uint16_t nodeAddr, uint16_t attr, uint8_t *attrValue, bool ack);
 void rogo_mesh_send_onoff(uint16_t nodeAddr, uint16_t nodeState, uint16_t appIdx);
 void rogo_mesh_send_ctl(uint16_t nodeAddr, uint16_t lightness, uint16_t temperatrue, uint16_t appIdx);
 void rogo_mesh_send_hsv(uint16_t nodeAddr, uint16_t hue, uint16_t saturation, uint16_t value, uint16_t appIdx);
 esp_err_t rogo_mesh_delete_node(uint16_t nodeAddr, uint8_t *devKey);
 esp_err_t rogo_mesh_add_group(uint16_t nodeAddr, uint8_t *devKey, uint16_t groupAddr, uint16_t elmAddr);
+
+esp_err_t rgmesh_node_cache_info(void);
+uint8_t  *rgmesh_get_devkey(uint16_t nodeAddr);
+void      rgmesh_seq_info_update(bool save);
 
 #ifdef __cplusplus
 }

@@ -132,10 +132,18 @@ void gatts_profile_event_handler(esp_gatts_cb_event_t event,
 
 #ifdef CONFIG_BT_NIMBLE_ENABLED
 void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
-int gatt_svr_init(void);
-int wile_gatt_svr_init(void);
+int  gatt_svr_init(void);
+int  nimble_gap_event(struct ble_gap_event *event, void *arg);
+int  wile_gatt_svr_init(void);
+
+#if CONFIG_BT_NIMBLE_EXT_ADV
+void nimble_periodic_adv(uint8_t initialized);
+void nimble_adv_connectable_ext(void);
+#else
+int  nimble_set_address(void);
 void nimble_advertise(void);
-#endif
+#endif // CONFIG_BT_NIMBLE_EXT_ADV
+#endif // CONFIG_BT_NIMBLE_ENABLED
 
 void wile_gatt_send_indicate(uint16_t value_len, uint8_t *value, bool need_confirm);
 

@@ -19,6 +19,7 @@ extern "C"
 #include "esp_event.h"
 #include "nvs_flash.h"
 #include "esp_timer.h"
+#include "esp_mac.h"
 
 #include "esp_console.h"
 #include "esp_vfs_dev.h"
@@ -76,6 +77,7 @@ extern "C"
 
 //SNTP
 #include "esp_sntp.h"
+#include "esp_netif_sntp.h"
 
 //MQTT
 #include "mqtt_client.h"
@@ -261,7 +263,8 @@ typedef struct rgdev_control_para{
     uint16_t reverse;
     uint8_t  report;
     uint8_t  trigger; // is check trigger smart
-    uint16_t smart; // control from smart
+    uint16_t smart;   // control from smart
+    uint8_t  option;  // control option
     uint16_t feature;
     uint16_t featureSize;
     uint8_t  featureValue[];
@@ -278,6 +281,10 @@ typedef struct rgsmt_trig_para{
     uint16_t cfm;
 } rgsmt_trig_para_t;
 
+#define SMART_TRIG_SIZE_DEFAULT             20
+#define SMART_TRIG_SIZE_TRIGGER_MIX         26
+#define SMART_TRIG_SIZE_TRIGGER_MIX_STAIR   32
+
 typedef struct rgsmt_trig_smart{
     uint16_t type;
     uint8_t  key[8];
@@ -286,6 +293,14 @@ typedef struct rgsmt_trig_smart{
     uint16_t timeStop;
     uint8_t  weekDay;
     uint8_t  zone;
+    /* option mix */
+    uint16_t eidMix;
+    uint16_t elmMix;
+    uint16_t rootEidMix;
+    /* option mix stair in same wile hub */
+    uint16_t eidMixSub;
+    uint16_t elmMixSub;
+    uint16_t rootEidMixSub;
 } rgsmt_trig_smart_t;
 
 typedef struct rgdev_log_part{
@@ -340,6 +355,10 @@ extern temperature_sensor_handle_t espTemperature;
 #endif
 
 esp_err_t rgmgt_wile_init(void);
+
+esp_err_t rgmgt_sntp_init(void);
+esp_err_t rgmgt_sntp_start(void);
+
 void wifi_init(void);
 esp_err_t wile_bluetooth_init(void);
 esp_err_t wile_ble_mesh_init(void);
