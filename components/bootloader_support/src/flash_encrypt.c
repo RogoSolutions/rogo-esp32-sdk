@@ -67,6 +67,8 @@ void esp_flash_encryption_init_checks()
 #ifdef CONFIG_SECURE_FLASH_ENCRYPTION_MODE_RELEASE
         ESP_LOGE(TAG, "Flash encryption settings error: app is configured for RELEASE but efuses are set for DEVELOPMENT");
         ESP_LOGE(TAG, "Mismatch found in security options in bootloader menuconfig and efuse settings. Device is not secure.");
+#elif CONFIG_WILE_ENABLE
+        ESP_LOGI(TAG, "Flash encryption mode is DEVELOPMENT (not secure)");
 #else
         ESP_LOGW(TAG, "Flash encryption mode is DEVELOPMENT (not secure)");
 #endif // CONFIG_SECURE_FLASH_ENCRYPTION_MODE_RELEASE
